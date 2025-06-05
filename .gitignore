@@ -1,11 +1,14 @@
 # dependencies
-node_modules/
-/.pnp
-.pnp.js
+/server/node_modules/
+/server/.pnp
+/server/.pnp.js
 
 # testing
 /coverage
 
+client/node_modules/
+/client/.pnp
+/client/.pnp.js         
 # production
 /build
 /dist
