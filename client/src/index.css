@@ -1,0 +1,55 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+:root {
+  --metro-blue: #005BAE;
+  --metro-silver: #E6E6E6;
+  --metro-green: #4CAF50;
+  --metro-red: #F44336;
+  --metro-yellow: #FFC107;
+  --metro-dark: #333;
+}
+
+body {
+  background-color: #f5f7fa;
+  color: var(--metro-dark);
+  overflow-x: hidden;
+}
+
+/* Custom styles that can't be handled by Ant Design */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 24px;
+}
+
+/* Responsive styles for main content */
+@media (max-width: 1200px) {
+  .main-content {
+    padding: 20px;
+  }
+}
+@media (max-width: 992px) {
+  .main-content {
+    padding: 18px;
+  }
+}
+@media (max-width: 768px) {
+  .app-container {
+    padding: 16px;
+  }
+}
+@media (max-width: 576px) {
+  .app-container {
+    padding: 12px;
+  }
+}
