@@ -46,7 +46,7 @@ class EmployeeService {
   async getEmployeeById(id) {
     const employee = await Employee.findById(id);
     if (!employee) {
-      throw new Error('Xodim topilmadi');
+      throw new Error('Ходим топилмади');
     }
     return employee;
   }
@@ -71,7 +71,7 @@ class EmployeeService {
         const existingEmployee = await Employee.findOne({ phone: parsedData.phone });
         if (existingEmployee && existingEmployee._id.toString() !== id) {
           if (file) this._deleteFile(file.filename);
-          throw new Error('Bu telefon raqami boshqa xodim tomonidan ro\'yxatdan o\'tgan');
+          throw new Error('Бу телефон рақами бошқа ходим тўмонидан рўйхатдан ўтган');
         }
       }
 
@@ -83,7 +83,7 @@ class EmployeeService {
 
       if (!employee) {
         if (file) this._deleteFile(file.filename);
-        throw new Error('Xodim topilmadi');
+        throw new Error('Ходим топилмади');
       }
 
       return employee;
@@ -97,7 +97,7 @@ class EmployeeService {
   async deleteEmployee(id) {
     const employee = await Employee.findById(id);
     if (!employee) {
-      throw new Error('Xodim topilmadi');
+      throw new Error('Ходим топилмади');
     }
 
     if (employee.objectivePath) {
@@ -105,7 +105,7 @@ class EmployeeService {
     }
 
     await employee.deleteOne();
-    return { message: 'Xodim muvaffaqiyatli o\'chirildi' };
+    return { message: 'Ходим муваффақиятли ўчирилди' };
   }
 
   // Xodim holatini yangilash
@@ -121,7 +121,7 @@ class EmployeeService {
     );
 
     if (!employee) {
-      throw new Error('Xodim topilmadi');
+      throw new Error('Ходим топилмади');
     }
 
     return employee;

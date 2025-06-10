@@ -47,7 +47,7 @@ const ManagerSchedule = () => {
       setScheduleData(response.data);
     } catch (error) {
       console.error("Jadval yuklashda xatolik:", error);
-      message.error("Jadval ma'lumotlarini yuklashda xatolik");
+      message.error("Жадвал маълумотларини юклашда хатолик юз берди");
     } finally {
       setLoading(false);
     }
@@ -66,7 +66,7 @@ const ManagerSchedule = () => {
   const handleSaveSchedule = async (values) => {
     try {
       if (!values.tasks) {
-        throw new Error("Vazifalar kiritilmagan");
+        throw new Error("Вазифалар киритилмаган");
       }
 
       const formattedTasks = values.tasks.map((task, index) => ({
@@ -86,13 +86,13 @@ const ManagerSchedule = () => {
           selectedDate.format("YYYY-MM-DD"),
           schedulePayload
         );
-        message.success("Jadval yangilandi");
+        message.success("Жадвал янгиланди");
       } else {
         await createSchedule(
           selectedDate.format("YYYY-MM-DD"),
           schedulePayload
         );
-        message.success("Jadval saqlandi");
+        message.success("Жадвал сақланди");
       }
 
       setIsModalVisible(false);
@@ -101,11 +101,11 @@ const ManagerSchedule = () => {
       fetchSchedule(selectedDate);
     } catch (error) {
       console.error(
-        "Jadvalni saqlashda xatolik:",
+        "Жадвални сақлашда хатолик:",
         error?.response?.data || error
       );
       message.error(
-        error?.response?.data?.message || "Jadvalni saqlashda xatolik yuz berdi"
+        error?.response?.data?.message || "Жадвални сақлашда хатолик юз берди"
       );
     }
   };

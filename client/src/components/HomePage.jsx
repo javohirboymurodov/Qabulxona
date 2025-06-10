@@ -29,13 +29,7 @@ import AddMeetingModal from "./AddMeetingModal";
 
 const { Title, Text } = Typography;
 
-const HomePage = ({
-  employees = [],
-  meetings = [],
-  onAddMeeting,
-  onAddToBossReception,
-  fetchData,
-}) => {
+const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fetchData }) => {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [messageApi, contextHolder] = message.useMessage();
   const [meetingModalVisible, setMeetingModalVisible] = useState(false);
@@ -54,7 +48,7 @@ const HomePage = ({
       try {
         if (selectedEmployees.length === 0) {
           localMessageApi.warning({
-            content: "Iltimos, xodimlarni tanlang",
+            content: "Илтимос, ходимларни танланг",
             duration: 3,
           });
           return;
@@ -76,7 +70,7 @@ const HomePage = ({
         // Show warning for employees already in reception
         if (alreadyInReception.length > 0) {
           localMessageApi.warning({
-            content: `Қўйидаги ходимлар аллақачон раҳбар қабулда: ${alreadyInReception.join(
+            content: `Қўйидаги ходимлар аллақачон раҳбар қабулида: ${alreadyInReception.join(
               ", "
             )}`,
             duration: 5,
@@ -105,7 +99,7 @@ const HomePage = ({
         await fetchData();
       } catch (error) {
         localMessageApi.error({
-          content: "Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring",
+          content: "Хатолик юз берди. Илтимос қайтадан уриниб кўринг",
           duration: 3,
         });
         console.error("Error adding to boss reception:", error);
@@ -250,7 +244,7 @@ const HomePage = ({
         });
       } catch (error) {
         messageApi.error({
-          content: "Xodim holatini yangilashda xatolik yuz berdi",
+          content: "Ходим ҳолатини янгилашда хатолик юз берди",
           duration: 3,
         });
       }
@@ -425,6 +419,12 @@ const HomePage = ({
     </Card>
   );
 
+  const handleClose = () => {
+    if (fetchData) {
+      fetchData();
+    }
+  };
+
   return (
     <>
       <Row gutter={16}>
@@ -449,7 +449,7 @@ const HomePage = ({
         }}
         onSuccess={() => {
           messageApi.success({
-            content: "Majlis muvaffaqiyatli qo'shildi",
+            content: "Мажлис муваффақиятли қўшилди",
             duration: 3,
           });
         }}

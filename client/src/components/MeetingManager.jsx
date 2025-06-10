@@ -42,8 +42,8 @@ const MeetingManager = ({ employees = [] }) => {
       const response = await getMeetings();
       setMeetings(response.data);
     } catch (error) {
-      console.error("Majlislarni yuklashda xatolik:", error);
-      message.error("Majlislarni yuklashda xatolik yuz berdi");
+      console.error("Мажлисларни юклашда хатолик:", error);
+      message.error("Мажлисларни юклашда хатолик юз берди");
     } finally {
       setLoading(false);
     }
@@ -60,18 +60,18 @@ const MeetingManager = ({ employees = [] }) => {
 
   const handleDeleteMeeting = (id) => {
     modal.confirm({
-      title: "Majlisni o'chirish",
-      content: "Ushbu majlisni o'chirishni xohlaysizmi?",
-      okText: "Ha",
-      cancelText: "Yo'q",
+      title: "Мажлисни ўчириш",
+      content: "Ушбу мажлисни ўчиришни хоҳлайсизми?",
+      okText: "Ҳа",
+      cancelText: "Йўқ",
       async onOk() {
         try {
           await deleteMeeting(id);
-          messageApi.success("Majlis muvaffaqiyatli o'chirildi");
+          messageApi.success("Мажлис муваффақиятли ўчирилди");
           fetchMeetings();
         } catch (error) {
-          console.error("Majlisni o'chirishda xatolik:", error);
-          messageApi.error("Majlisni o'chirishda xatolik yuz berdi");
+          console.error("Мажлисни ўчиришда хатолик:", error);
+          messageApi.error("Мажлисни ўчиришда хатолик юз берди");
         }
       },
     });
@@ -109,7 +109,7 @@ const MeetingManager = ({ employees = [] }) => {
             <List.Item
               key={meeting._id}
               actions={[
-                <Tooltip title="Ko'rish" key="view">
+                <Tooltip title="Кўриш" key="view">
                   <Button
                     type="text"
                     icon={<EyeOutlined />}

@@ -21,7 +21,7 @@ const EmployeeDetails = ({ employee }) => {
       const pdfUrl = `${import.meta.env.VITE_API_URL}/employees/${employee._id}/obektivka`;
       window.open(pdfUrl, '_blank');
     } else {
-      message.info('Ushbu xodim uchun PDF fayl mavjud emas');
+      message.info('Ушбу ходим учун PDF файл мавжуд эмас');
     }
   };
 
@@ -41,10 +41,10 @@ const EmployeeDetails = ({ employee }) => {
           document.body.removeChild(a);
         })
         .catch(() => {
-          message.error('PDF faylni yuklab olishda xatolik yuz berdi');
+          message.error('PDF файлни юклаб олишда хатолик юз берди');
         });
     } else {
-      message.info('Ushbu xodim uchun PDF fayl mavjud emas');
+      message.info('Ушбу ходим учун PDF файл мавжуд эмас');
     }
   };
 
@@ -141,7 +141,7 @@ const EmployeeDetails = ({ employee }) => {
         <Descriptions.Item label={
           <Space>
             <FilePdfOutlined />
-            <span>Обективка</span>
+            <span>Объективка</span>
           </Space>
         }>
           <Space>

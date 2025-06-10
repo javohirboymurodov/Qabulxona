@@ -44,12 +44,12 @@ exports.updateMeeting = async (req, res, next) => {
 exports.deleteMeeting = async (req, res, next) => {
     try {
         if (!req.params.id) {
-            return res.status(400).json({ message: 'Majlis ID si ko\'rsatilmagan' });
+            return res.status(400).json({ message: 'Мажлис кўрсатилмаган' });
         }
         const result = await meetingService.deleteMeeting(req.params.id);
         res.json(result);
     } catch (error) {
-        if (error.message === 'Yaroqsiz majlis ID si' || error.message === 'Majlis topilmadi') {
+        if (error.message === 'Яроқсиз мажлис ID си' || error.message === 'Мажлис топилмади') {
             return res.status(404).json({ message: error.message });
         }
         next(error);

@@ -98,7 +98,7 @@ const ReceptionHistory = ({ selectedDate }) => {
     if (!selectedDayData) return null;
 
     return (
-      <Card title={`Tanlangan kun: ${dayjs(selectedDayData[0]?.date).format('YYYY-MM-DD')}`}>
+      <Card title={`Танланган кун: ${dayjs(selectedDayData[0]?.date).format('YYYY-MM-DD')}`}>
         <List
           dataSource={selectedDayData}
           renderItem={item => (
@@ -117,7 +117,7 @@ const ReceptionHistory = ({ selectedDate }) => {
             </List.Item>
           )}
           locale={{
-            emptyText: <Empty description="Ma'lumot mavjud emas" />
+            emptyText: <Empty description="Маълумот мавжуд эмасMa'lumot mavjud emas" />
           }}
         />
       </Card>

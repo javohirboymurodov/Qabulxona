@@ -144,7 +144,7 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
           rules={[{ required: true, message: 'Илтимос, бўлимни танланг' }]}
         >
           <Select
-            placeholder="Bo'limni tanlang"
+            placeholder="Бўлимни танланг"
             suffixIcon={<BankOutlined />}
           >
             <Option value="IT">Ит Бўлими</Option>

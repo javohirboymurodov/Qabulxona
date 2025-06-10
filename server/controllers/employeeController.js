@@ -26,7 +26,7 @@ exports.getEmployeeById = async (req, res, next) => {
   try {
     const employee = await employeeService.getEmployeeById(req.params.id);
     if (!employee) {
-      return res.status(404).json({ message: 'Xodim topilmadi' });
+      return res.status(404).json({ message: 'Ходим топилмади' });
     }
     res.json(employee);
   } catch (error) {
@@ -79,7 +79,7 @@ exports.getEmployeePDF = async (req, res, next) => {
   try {
     const employee = await employeeService.getEmployeeById(req.params.id);
     if (!employee.objectivePath) {
-      throw new Error('PDF fayl topilmadi');
+      throw new Error('ПДФ файл топилмади');
     }
     
     const filePath = path.join(__dirname, '..', 'uploadObektivka', employee.objectivePath);

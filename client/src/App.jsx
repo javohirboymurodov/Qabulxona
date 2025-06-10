@@ -9,6 +9,8 @@ import AddEmployeeModal from "./components/AddEmployeeModal";
 import ManagerSchedule from "./components/ManagerSchedule";
 import HomePage from "./components/HomePage";
 import BossReception from "./components/BossReception";
+import AppFooter from "./components/Footer";
+
 import {
   getEmployees,
   getMeetings,
@@ -53,8 +55,8 @@ function App() {
       setEmployees(employeesRes.data || []);
       setMeetings(meetingsRes.data || []);
     } catch (error) {
-      console.error("Ma'lumotlarni yuklashda xato:", error);
-      message.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
+      console.error("Маълумотларни юклашда хато:", error);
+      message.error("Маълумотларни янгилашда хатолик юз берди");
     }
   };
 
@@ -62,10 +64,11 @@ function App() {
     try {
       await createEmployee(values);
       await fetchData();
-      message.success("Xodim muvaffaqiyatli qo'shildi");
+      // Faqat bir marta xabar chiqarish
+      message.success('Ходим муваффақиятли қўшилди');
       setShowEmployeeModal(false);
     } catch (error) {
-      message.error("Xodim qo'shishda xatolik yuz berdi");
+      message.error('Ходимни қўшишда хатолик юз берди');
     }
   };
 
@@ -73,11 +76,11 @@ function App() {
     try {
       await updateEmployee(editingEmployee._id, values);
       await fetchData();
-      message.success("Xodim ma'lumotlari yangilandi");
+      message.success("Ходим маълумотлари янгиланди");
       setShowEmployeeModal(false);
       setEditingEmployee(null);
     } catch (error) {
-      message.error("Xodim ma'lumotlarini yangilashda xatolik yuz berdi");
+      message.error("Ходим маълумотларини янгилашда хатолик юз берди");
     }
   };
 
@@ -86,6 +89,7 @@ function App() {
   };
 
   const handleAddMeeting = (selectedIds) => {
+    // Tanlangan xodimlar ID'larini saqlash
     setPreSelectedEmployeesForMeeting(selectedIds);
     setShowMeetingModal(true);
   };
@@ -99,11 +103,11 @@ function App() {
 
       await createMeeting(meetingData);
       await fetchData();
-      message.success("Majlis muvaffaqiyatli qo'shildi");
+      message.success("Мажлис муваффақиятли қўшилди");
       setShowMeetingModal(false);
       setPreSelectedEmployeesForMeeting([]);
     } catch (error) {
-      message.error("Majlis qo'shishda xatolik yuz berdi");
+      message.error("Мажлис қўшишда хатолик юз берди");
     }
   };
 
@@ -111,12 +115,12 @@ function App() {
     try {
       await deleteEmployee(id);
       await fetchData();
-      message.success("Xodim o'chirildi");
+      message.success("Ходим ўчирилди");
       if (selectedEmployee?._id === id) {
         setSelectedEmployee(null);
       }
     } catch (error) {
-      message.error("Xodimni o'chirishda xatolik yuz berdi");
+      message.error("Ходимни ўчиришда хатолик юз берди");
     }
   };
 
@@ -124,9 +128,9 @@ function App() {
     try {
       await deleteMeeting(id);
       await fetchData();
-      message.success("Majlis o'chirildi");
+      message.success("Мажлис ўчирилди");
     } catch (error) {
-      message.error("Majlisni o'chirishda xatolik yuz berdi");
+      message.error("Мажлисни ўчиришда хатолик юз берди");
     }
   };
 
@@ -139,7 +143,7 @@ function App() {
             meetings={meetings}
             onAddToBossReception={handleAddBossReception}
             onAddMeeting={handleAddMeeting}
-            fetchData={fetchData}
+            fetchData={fetchData} // Make sure this is passed
           />
         );
       case "employees":
@@ -164,8 +168,8 @@ function App() {
                 onClick={() => setShowEmployeeModal(true)}
                 style={{
                   position: "fixed",
-                  bottom: 24,
-                  right: 24,
+                  bottom: 55,
+                  right: 10,
                   width: 56,
                   height: 56,
                   boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
@@ -209,7 +213,7 @@ function App() {
       <AntApp>
         <Layout style={{ minHeight: "100vh" }}>
           <Navbar activeView={activeView} onViewChange={setActiveView} />
-          <Content style={{ padding: "88px 24px 24px", background: "#f0f2f5" }}>
+          <Content style={{ padding: "88px 24px 24px", background: "#f0f2f5", minHeight :"calc(100vh - 64px)" }}>
             {renderView()}
 
             {/* Add Meeting Modal */}
@@ -243,6 +247,7 @@ function App() {
               />
             )}
           </Content>
+          <AppFooter />
         </Layout>
       </AntApp>
     </ConfigProvider>

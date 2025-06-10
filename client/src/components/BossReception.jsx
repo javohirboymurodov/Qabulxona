@@ -43,7 +43,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       setHistoryData(response.data);
     } catch (error) {
       console.error('History data loading error:', error);
-      messageApi.error('Ma\'lumotlarni yuklashda xatolik yuz berdi');
+      messageApi.error('Маълумотларни юклашда хатолик юз берди');
     } finally {
       setLoading(false);
     }
@@ -183,7 +183,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
                   )
                 },
                 {
-                  title: 'ФИШ',
+                  title: 'Ф.И.Ш.',
                   dataIndex: 'name',
                   key: 'name',
                 },

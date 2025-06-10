@@ -17,7 +17,7 @@ class MeetingService {    // Barcha majlislarni olish
         if (participants && participants.length > 0) {
             const validEmployees = await Employee.find({ _id: { $in: participants } });
             if (validEmployees.length !== participants.length) {
-                throw new Error('Biri yoki bir nechta ishtirokchi noto\'g\'ri');
+                throw new Error('Бир ёки бир нечта иштирокчи нотўғри');
             }
         }
 
@@ -36,13 +36,13 @@ class MeetingService {    // Barcha majlislarni olish
     // Majlisni ID bo'yicha olish
     async getMeetingById(id) {
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-            throw new Error('Yaroqsiz majlis ID si');
+            throw new Error('Яроқсиз мажлис ID си');
         }
 
         const meeting = await Meeting.findById(id)
             .populate('participants', 'name position department');
         if (!meeting) {
-            throw new Error('Majlis topilmadi');
+            throw new Error('Мажлис топилмади');
         }
         return meeting;
     }
@@ -50,7 +50,7 @@ class MeetingService {    // Barcha majlislarni olish
     // Majlis ma'lumotlarini yangilash
     async updateMeeting(id, updateData) {
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-            throw new Error('Yaroqsiz majlis ID si');
+            throw new Error('Яроқсиз мажлис ID си');
         }
 
         const { name, date, time, participants } = updateData;
@@ -59,7 +59,7 @@ class MeetingService {    // Barcha majlislarni olish
         if (participants && participants.length > 0) {
             const validEmployees = await Employee.find({ _id: { $in: participants } });
             if (validEmployees.length !== participants.length) {
-                throw new Error('Biri yoki bir nechta ishtirokchi noto\'g\'ri');
+                throw new Error('Бир ёки бир нечта иштирокчи нотўғри');
             }
         }
 
@@ -70,7 +70,7 @@ class MeetingService {    // Barcha majlislarni olish
         ).populate('participants', 'name position department');
 
         if (!meeting) {
-            throw new Error('Majlis topilmadi');
+            throw new Error('Мажлис топилмади');
         }
         return meeting;
     }
@@ -90,7 +90,7 @@ class MeetingService {    // Barcha majlislarni olish
     // Ishtirokchiga ko'ra majlislarni olish
     async getMeetingsByParticipant(employeeId) {
         if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) {
-            throw new Error('Yaroqsiz ishtirokchi ID si');
+            throw new Error('Яроқсиз иштирокчи ID си');
         }
 
         return await Meeting.find({ participants: employeeId })

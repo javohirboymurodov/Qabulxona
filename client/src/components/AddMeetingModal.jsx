@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, DatePicker, TimePicker, message } from 'antd';
+import React, { useEffect } from 'react';
+import { Modal, Form, Input, DatePicker, TimePicker, message, Select } from 'antd';
 import { createMeeting, updateMeeting } from '../services/api';
-import SearchableEmployeeList from './SearchableEmployeeList';
 import dayjs from 'dayjs';
 
-const AddMeetingModal = ({ visible, onClose, initialData, preSelectedEmployees = [], employees = [] }) => {
+const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, preSelectedEmployees = [] }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = React.useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
@@ -45,18 +44,20 @@ const AddMeetingModal = ({ visible, onClose, initialData, preSelectedEmployees =
 
       if (initialData) {
         await updateMeeting(initialData._id, meetingData);
-        messageApi.success('Majlis muvaffaqiyatli yangilandi');
+        messageApi.success('Мажлис муваффақиятли янгиланди');
       } else {
         await createMeeting(meetingData);
-        messageApi.success('Yangi majlis muvaffaqiyatli yaratildi');
+        messageApi.success('Янги мажлис муваффақиятли яратилди');
       }
 
       onClose(true);
     } catch (error) {
-      if (!error.isAxiosError) {
-        console.error('Forma validatsiyasida xatolik:', error);
+      if (error.errorFields) {
+        message.error("Илтимос, барча майдонларни тўлдиринг");
+      } else {
+        console.error('Форма валидатсиясида хатолик:', error);
       }
-      messageApi.error('Xatolik yuz berdi');
+      messageApi.error('Хатолик юз берди');
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,7 @@ const AddMeetingModal = ({ visible, onClose, initialData, preSelectedEmployees =
       onCancel={() => onClose(false)}
       okText={initialData ? "Сақлаш" : "Қўшиш"}
       cancelText="Бекор қилиш"
-      width={600}
+      width={720}
       confirmLoading={loading}
     >
       {contextHolder}
@@ -118,11 +119,17 @@ const AddMeetingModal = ({ visible, onClose, initialData, preSelectedEmployees =
           label="Иштирокчилар"
           rules={[{ required: true, message: 'Камида битта иштирокчи танланг' }]}
         >
-          <SearchableEmployeeList 
+          <Select
             mode="multiple"
-            employeeOptions={employees}
             placeholder="Иштирокчиларни танланг"
-          />
+            style={{ width: '100%' }}
+          >
+            {employees.map(employee => (
+              <Select.Option key={employee._id} value={employee._id}>
+                {employee.name} - {employee.position}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
       </Form>
     </Modal>

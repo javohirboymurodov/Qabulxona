@@ -4,7 +4,7 @@ import { SearchOutlined } from '@ant-design/icons';
 
 const SearchableEmployeeList = ({ 
   onChange,
-  placeholder = "Xodimlarni qidirish",
+  placeholder = "Ходимларни қидириш",
   employeeOptions = [],
   mode,
   value,

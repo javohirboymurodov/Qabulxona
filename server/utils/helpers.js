@@ -14,7 +14,7 @@ exports.deletePDFFile = async (filename) => {
     }
     return false;
   } catch (error) {
-    console.error('PDF faylni o\'chirishda xatolik:', error);
+    console.error('ПДФ файлни ўчиришда хатолик:', error); 
     return false;
   }
 };
@@ -32,31 +32,31 @@ exports.validateEmployee = (employeeData) => {
   const errors = [];
 
   if (!employeeData.name) {
-    errors.push('F.I.O kiritilishi shart');
+    errors.push('Ф.И.О. киритилиши шарт');
   }
 
   if (!employeeData.position) {
-    errors.push('Lavozim kiritilishi shart');
+    errors.push('Лавозим киритилиши шарт');
   }
 
   if (!employeeData.department) {
-    errors.push('Bo\'lim kiritilishi shart');
+    errors.push('Бўлим киритилиши шарт');
   }
 
   if (!employeeData.phone) {
-    errors.push('Telefon raqami kiritilishi shart');
+    errors.push('Телефон рақами киритилиши шарт');
   }
 
   // Telefon raqami formati tekshiruvi
   const phoneRegex = /^\+998[0-9]{9}$/;
   if (employeeData.phone && !phoneRegex.test(employeeData.phone)) {
-    errors.push('Telefon raqami noto\'g\'ri formatda (+998XXXXXXXXX)');
+    errors.push('Телефон рақами нотўғри форматда (+998XXXXXXXXX)');
   }
 
   if (typeof employeeData.experience !== 'undefined') {
     const experience = Number(employeeData.experience);
     if (isNaN(experience) || experience < 0) {
-      errors.push('Ish staji noto\'g\'ri formatda');
+      errors.push('Иш стажи нотўғри форматда');
     }
   }
 
@@ -64,14 +64,14 @@ exports.validateEmployee = (employeeData) => {
   if (employeeData.dateOfBirth) {
     const birthDate = new Date(employeeData.dateOfBirth);
     if (isNaN(birthDate.getTime())) {
-      errors.push('Tug\'ilgan sana noto\'g\'ri formatda');
+      errors.push('Тўғилган сана нотўғри форматда');
     }
   }
 
   if (employeeData.joinedDate) {
     const joinedDate = new Date(employeeData.joinedDate);
     if (isNaN(joinedDate.getTime())) {
-      errors.push('Ishga kirgan sana noto\'g\'ri formatda');
+      errors.push('Ишга кирган сана нотўғри форматда');
     }
   }
 
@@ -108,12 +108,12 @@ exports.handleError = (error) => {
   if (error.name === 'CastError') {
     return {
       statusCode: 404,
-      message: 'Ma\'lumot topilmadi'
+      message: 'Маълумот топилмади'
     };
   }
   
   return {
     statusCode: 500,
-    message: 'Serverda xatolik yuz berdi'
+    message: 'Серверда хатолик юз берди'
   };
 };
