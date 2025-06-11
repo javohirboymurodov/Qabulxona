@@ -107,3 +107,28 @@ exports.getReceptionStats = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Get today's reception data
+ */
+exports.getTodayReception = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const reception = await ReceptionHistory.findOne({
+      date: {
+        $gte: today,
+        $lt: tomorrow
+      }
+    });
+
+    res.json(reception || { employees: [] });
+  } catch (error) {
+    console.error('Error getting today reception:', error);
+    res.status(500).json({ message: 'Qabul ma\'lumotlarini olishda xatolik yuz berdi' });
+  }
+};

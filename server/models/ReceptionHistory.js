@@ -9,6 +9,10 @@ const receptionHistorySchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  isArchived: {
+    type: Boolean,
+    default: false
+  },
   employees: [{
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -26,7 +30,8 @@ const receptionHistorySchema = new mongoose.Schema({
     timeUpdated: {
       type: Date,
       required: true
-    }
+    },
+    notes: String // Qo'shimcha izohlar uchun
   }],
   totalPresent: {
     type: Number,
@@ -36,7 +41,9 @@ const receptionHistorySchema = new mongoose.Schema({
     type: Number,
     default: 0
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true 
+});
 
 // Virtual field uchun O'zbekiston vaqti
 receptionHistorySchema.virtual('uzbekistanDate').get(function() {
@@ -111,5 +118,16 @@ receptionHistorySchema.set('toObject', {
 
 // Create index for date to optimize queries
 receptionHistorySchema.index({ date: 1 });
+
+// Kun oxirida avtomatik arxivlash uchun
+receptionHistorySchema.statics.archiveDay = async function(date) {
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+  
+  await this.findOneAndUpdate(
+    { date: { $lt: endOfDay } },
+    { $set: { isArchived: true } }
+  );
+};
 
 module.exports = mongoose.model('ReceptionHistory', receptionHistorySchema);

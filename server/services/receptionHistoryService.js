@@ -1,5 +1,8 @@
 const ReceptionHistory = require('../models/ReceptionHistory');
 const Employee = require('../models/Employee');
+const dayjs = require('dayjs');
+const isBetween = require('dayjs/plugin/isBetween');
+dayjs.extend(isBetween);
 
 class ReceptionHistoryService {
     async getHistoryByDateRange(startDate, endDate) {
@@ -168,6 +171,60 @@ class ReceptionHistoryService {
             return null;
         } catch (error) {
             console.error('Error in automatic archiving:', error);
+            throw error;
+        }
+    }
+
+    async checkAndArchiveMissedDays() {
+        try {
+            // Oxirgi arxivlangan kunni topish
+            const lastArchived = await ReceptionHistory.findOne({ 
+                isArchived: true 
+            }).sort({ date: -1 });
+
+            const lastArchivedDate = lastArchived ? dayjs(lastArchived.date) : dayjs().subtract(1, 'day');
+            const today = dayjs().startOf('day');
+            const yesterday = today.subtract(1, 'day');
+
+            // Agar kecha arxivlanmagan bo'lsa
+            if (!lastArchivedDate.isSame(yesterday, 'day')) {
+                console.log('O\'tkazib yuborilgan kunlar aniqlandi, arxivlash boshlanmoqda...');
+                
+                // Arxivlanmagan kunlarni arxivlash
+                const missedReception = await ReceptionHistory.findOne({
+                    date: {
+                        $gte: yesterday.startOf('day').toDate(),
+                        $lt: yesterday.endOf('day').toDate()
+                    },
+                    isArchived: false
+                });
+
+                if (missedReception) {
+                    await ReceptionHistory.findByIdAndUpdate(
+                        missedReception._id,
+                        { isArchived: true }
+                    );
+
+                    // Yangi kun uchun yozuv yaratish
+                    const newReception = new ReceptionHistory({
+                        date: today.toDate(),
+                        employees: missedReception.employees.map(emp => ({
+                            ...emp.toObject(),
+                            status: 'absent',
+                            timeUpdated: new Date()
+                        })),
+                        totalPresent: 0,
+                        totalAbsent: missedReception.employees.length
+                    });
+
+                    await newReception.save();
+                    console.log('O\'tkazib yuborilgan kunlar arxivlandi');
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Arxivlashda xatolik:', error);
             throw error;
         }
     }

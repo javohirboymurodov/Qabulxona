@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Layout, message, Button, Tooltip, App as AntApp } from "antd";
+import { Layout, ConfigProvider, Button, Tooltip, App as AntApp, message } from "antd";
+import uzUZ from "antd/locale/uz_UZ";
 import { UserAddOutlined } from "@ant-design/icons";
 import EmployeeList from "./components/EmployeeList";
 import Navbar from "./components/Navbar";
@@ -21,12 +22,20 @@ import {
   deleteEmployee,
   updateEmployee,
 } from "./services/api";
-import { ConfigProvider } from "antd";
-import uzUZ from "antd/locale/uz_UZ";
 
 const { Content } = Layout;
 
 function App() {
+  const [messageApi, contextHolder] = message.useMessage();
+
+  // Global message function
+  const showMessage = {
+    success: (content) => messageApi.success(content),
+    error: (content) => messageApi.error(content),
+    warning: (content) => messageApi.warning(content),
+    info: (content) => messageApi.info(content),
+  };
+
   const [employees, setEmployees] = useState([]);
   const [meetings, setMeetings] = useState([]);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -56,7 +65,7 @@ function App() {
       setMeetings(meetingsRes.data || []);
     } catch (error) {
       console.error("Маълумотларни юклашда хато:", error);
-      message.error("Маълумотларни янгилашда хатолик юз берди");
+      antMessage.error("Маълумотларни янгилашда хатолик юз берди");
     }
   };
 
@@ -64,11 +73,11 @@ function App() {
     try {
       await createEmployee(values);
       await fetchData();
-      // Faqat bir marta xabar chiqarish
-      message.success('Ходим муваффақиятли қўшилди');
+      // Faqat бир marta xabar chiqarish
+      showMessage.success('Ходим муваффақиятли қўшилди');
       setShowEmployeeModal(false);
     } catch (error) {
-      message.error('Ходимни қўшишда хатолик юз берди');
+      showMessage.error('Ходимни қўшишда хатолик юз берди');
     }
   };
 
@@ -76,11 +85,11 @@ function App() {
     try {
       await updateEmployee(editingEmployee._id, values);
       await fetchData();
-      message.success("Ходим маълумотлари янгиланди");
+      showMessage.success("Ходим маълумотлари янгиланди");
       setShowEmployeeModal(false);
       setEditingEmployee(null);
     } catch (error) {
-      message.error("Ходим маълумотларини янгилашда хатолик юз берди");
+      showMessage.error("Ходим маълумотларини янгилашда хатолик юз берди");
     }
   };
 
@@ -103,11 +112,11 @@ function App() {
 
       await createMeeting(meetingData);
       await fetchData();
-      message.success("Мажлис муваффақиятли қўшилди");
+      showMessage.success("Мажлис муваффақиятли қўшилди");
       setShowMeetingModal(false);
       setPreSelectedEmployeesForMeeting([]);
     } catch (error) {
-      message.error("Мажлис қўшишда хатолик юз берди");
+      showMessage.error("Мажлис қўшишда хатолик юз берди");
     }
   };
 
@@ -115,12 +124,12 @@ function App() {
     try {
       await deleteEmployee(id);
       await fetchData();
-      message.success("Ходим ўчирилди");
+      showMessage.success("Ходим ўчирилди");
       if (selectedEmployee?._id === id) {
         setSelectedEmployee(null);
       }
     } catch (error) {
-      message.error("Ходимни ўчиришда хатолик юз берди");
+      showMessage.error("Ходимни ўчиришда хатолик юз берди");
     }
   };
 
@@ -128,9 +137,9 @@ function App() {
     try {
       await deleteMeeting(id);
       await fetchData();
-      message.success("Мажлис ўчирилди");
+      showMessage.success("Мажлис ўчирилди");
     } catch (error) {
-      message.error("Мажлисни ўчиришда хатолик юз берди");
+      showMessage.error("Мажлисни ўчиришда хатолик юз берди");
     }
   };
 
@@ -202,7 +211,7 @@ function App() {
           />
         );
       case "boss-schedule":
-        return <ManagerSchedule />;
+        return <ManagerSchedule showMessage={showMessage} />;
       default:
         return <HomePage employees={employees} meetings={meetings} />;
     }
@@ -210,10 +219,11 @@ function App() {
 
   return (
     <ConfigProvider locale={uzUZ}>
+      {contextHolder}
       <AntApp>
         <Layout style={{ minHeight: "100vh" }}>
           <Navbar activeView={activeView} onViewChange={setActiveView} />
-          <Content style={{ padding: "88px 24px 24px", background: "#f0f2f5", minHeight :"calc(100vh - 64px)" }}>
+          <Content style={{ padding: "88px 24px 24px", background: "#f0f2f5", minHeight: "calc(100vh - 64px)" }}>
             {renderView()}
 
             {/* Add Meeting Modal */}

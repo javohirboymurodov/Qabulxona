@@ -1,34 +1,44 @@
+// React and utils
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  Calendar,
-  Button,
-  Modal,
-  Form,
-  Input,
-  TimePicker,
-  Space,
-  Table,
-  Empty,
-  message,
-  Row,
-  Col,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ClockCircleOutlined,
-} from "@ant-design/icons";
-import dayjs from "dayjs";
-import locale from "antd/es/date-picker/locale/uz_UZ";
-import {
-  getScheduleByDate,
-  createSchedule,
-  updateSchedule,
-} from "../services/api";
+import PropTypes from "prop-types";
 
-const ManagerSchedule = () => {
+// Date handling
+import dayjs from "dayjs";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+
+// Ant Design components and locale
+import { 
+  Card, 
+  Calendar, 
+  Button, 
+  Modal, 
+  Form, 
+  Input, 
+  TimePicker, 
+  Space, 
+  Table, 
+  Empty, 
+  Row, 
+  Col 
+} from "antd";
+import uzUZ from "antd/locale/uz_UZ";
+import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+
+// API services
+import { getScheduleByDate, createSchedule, updateSchedule } from "../services/api";
+
+// Initialize dayjs plugins
+dayjs.extend(isSameOrBefore);
+dayjs.extend(isSameOrAfter);
+
+const ManagerSchedule = ({ showMessage }) => {
+  // First verify showMessage prop exists
+  if (!showMessage || typeof showMessage.error !== 'function') {
+    console.error('showMessage prop is required with error function');
+    return null;
+  }
+
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [scheduleData, setScheduleData] = useState(null);
@@ -40,14 +50,26 @@ const ManagerSchedule = () => {
     fetchSchedule(selectedDate);
   }, [selectedDate]);
 
+  const isDateEditable = (date) => {
+    const selectedDay = dayjs(date).startOf('day');
+    const today = dayjs().startOf('day');
+    return selectedDay.isSameOrAfter(today);
+  };
+
   const fetchSchedule = async (date) => {
     try {
       setLoading(true);
-      const response = await getScheduleByDate(date.format("YYYY-MM-DD"));
-      setScheduleData(response.data);
+      const formattedDate = dayjs(date).format("YYYY-MM-DD");
+      const response = await getScheduleByDate(formattedDate);
+      
+      if (response.data?.success) {
+        setScheduleData(response.data.data);
+      } else {
+        setScheduleData(null);
+      }
     } catch (error) {
       console.error("Jadval yuklashda xatolik:", error);
-      message.error("Жадвал маълумотларини юклашда хатолик юз берди");
+      showMessage.error("Жадвал маълумотларини юклашда хатолик юз берди");
     } finally {
       setLoading(false);
     }
@@ -65,48 +87,67 @@ const ManagerSchedule = () => {
 
   const handleSaveSchedule = async (values) => {
     try {
-      if (!values.tasks) {
-        throw new Error("Вазифалар киритилмаган");
+      // Form validation
+      if (!values?.tasks?.length) {
+        showMessage.error("Вазифалар киритилмаган");
+        return;
       }
 
-      const formattedTasks = values.tasks.map((task, index) => ({
-        title: task.title,
-        description: task.description,
-        startTime: task.timeRange[0].format("HH:mm"),
-        endTime: task.timeRange[1].format("HH:mm"),
-      }));
+      // Date validation
+      const scheduleDate = dayjs(selectedDate);
+      const today = dayjs().startOf("day");
+
+      if (scheduleDate.isBefore(today)) {
+        showMessage.error("Ўтган сана учун иш режа киритиб бўлмайди");
+        return;
+      }
+
+      // Process tasks
+      const formattedTasks = [];
+      for (const task of values.tasks) {
+        if (!task?.timeRange?.[0] || !task?.timeRange?.[1] || !task?.title || !task?.description) {
+          showMessage.error("Барча майдонларни тўлдиринг");
+          return;
+        }
+
+        formattedTasks.push({
+          title: task.title,
+          description: task.description,
+          startTime: task.timeRange[0].format("HH:mm"),
+          endTime: task.timeRange[1].format("HH:mm"),
+        });
+      }
 
       const schedulePayload = {
         date: selectedDate.format("YYYY-MM-DD"),
         tasks: formattedTasks,
       };
 
+      // Save or update
       if (scheduleData) {
-        await updateSchedule(
-          selectedDate.format("YYYY-MM-DD"),
-          schedulePayload
-        );
-        message.success("Жадвал янгиланди");
+        await updateSchedule(selectedDate.format("YYYY-MM-DD"), schedulePayload);
+        showMessage.success("Жадвал янгиланди");
       } else {
-        await createSchedule(
-          selectedDate.format("YYYY-MM-DD"),
-          schedulePayload
-        );
-        message.success("Жадвал сақланди");
+        await createSchedule(selectedDate.format("YYYY-MM-DD"), schedulePayload);
+        showMessage.success("Жадвал сақланди");
       }
 
+      // Reset form state
       setIsModalVisible(false);
       form.resetFields();
       setTasks([{ id: 1 }]);
       fetchSchedule(selectedDate);
+
     } catch (error) {
-      console.error(
-        "Жадвални сақлашда хатолик:",
-        error?.response?.data || error
-      );
-      message.error(
-        error?.response?.data?.message || "Жадвални сақлашда хатолик юз берди"
-      );
+      const errorMessage = error.response?.data?.message || 
+                         error.message || 
+                         "Иш режани сақлашда хатолик юз берди";
+      
+      if (showMessage && typeof showMessage.error === 'function') {
+        showMessage.error(errorMessage);
+      } else {
+        console.error('Error:', errorMessage);
+      }
     }
   };
 
@@ -155,7 +196,6 @@ const ManagerSchedule = () => {
             fullscreen={false}
             value={selectedDate}
             onChange={setSelectedDate}
-            onSelect={(date) => setSelectedDate(date)}
           />
         </Card>
       </Col>
@@ -163,13 +203,15 @@ const ManagerSchedule = () => {
         <Card
           title={selectedDate.format("DD MMMM YYYY")}
           extra={
-            <Button
-              type="primary"
-              icon={scheduleData ? <EditOutlined /> : <PlusOutlined />}
-              onClick={handleModalOpen}
-            >
-              {scheduleData ? "Таҳрирлаш" : "Жадвал қўшиш"}
-            </Button>
+            isDateEditable(selectedDate) && (
+              <Button
+                type="primary"
+                icon={scheduleData ? <EditOutlined /> : <PlusOutlined />}
+                onClick={handleModalOpen}
+              >
+                {scheduleData ? "Таҳрирлаш" : "Жадвал қўшиш"}
+              </Button>
+            )
           }
         >
           {loading ? (
@@ -181,21 +223,22 @@ const ManagerSchedule = () => {
               dataSource={scheduleData.tasks}
               columns={columns}
               pagination={false}
-              rowKey={(record) =>
-                `${
-                  record._id ||
-                  `${record.startTime}-${record.endTime}-${Math.random()}`
-                }`
-              }
+              rowKey={(record) => record._id}
             />
           ) : (
-            <Empty description="Бу кун учун жадвал киритилмаган" />
+            <Empty 
+              description={
+                isDateEditable(selectedDate) 
+                  ? "Бу кун учун жадвал киритилмаган" 
+                  : "Бу кун учун иш режа мавжуд эмас"
+              }
+            />
           )}
         </Card>
       </Col>
 
       <Modal
-        title={`${selectedDate.format("DD.MM.YYYY")} кун учун жадвал`}
+        title={`${selectedDate.format("DD.MM.YYYY")} кун учун иш режаси`}
         open={isModalVisible}
         onCancel={() => {
           setIsModalVisible(false);
@@ -236,7 +279,7 @@ const ManagerSchedule = () => {
               >
                 <TimePicker.RangePicker
                   format="HH:mm"
-                  locale={locale}
+                  locale={uzUZ}
                   style={{ width: "100%" }}
                 />
               </Form.Item>
@@ -281,6 +324,16 @@ const ManagerSchedule = () => {
       </Modal>
     </Row>
   );
+};
+
+// Add prop types outside the component
+ManagerSchedule.propTypes = {
+  showMessage: PropTypes.shape({
+    success: PropTypes.func.isRequired,
+    error: PropTypes.func.isRequired,
+    warning: PropTypes.func.isRequired,
+    info: PropTypes.func.isRequired
+  }).isRequired
 };
 
 export default ManagerSchedule;

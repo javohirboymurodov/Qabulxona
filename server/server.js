@@ -10,7 +10,7 @@ const employeeRoutes = require("./routes/employees");
 const meetingRoutes = require("./routes/meetings");
 const scheduleRoutes = require("./routes/schedule");
 const receptionHistoryRoutes = require("./routes/receptionHistory");
-const receptionHistoryService = require("./services/receptionHistoryService");
+const receptionHistoryService = require('./services/receptionHistoryService');
 
 const app = express();
 
@@ -46,6 +46,12 @@ app.get("/", (req, res) => {
   res.send("Server is running");
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(PORT, async () => {
+    console.log(`Server ${PORT} portda ishga tushdi`);
+    
+    try {
+        await receptionHistoryService.checkAndArchiveMissedDays();
+    } catch (error) {
+        console.error('O\'tkazib yuborilgan kunlarni arxivlashda xatolik:', error);
+    }
 });

@@ -26,10 +26,20 @@ import {
 import { updateEmployeeStatus } from "../services/api";
 import SearchableEmployeeList from "./SearchableEmployeeList";
 import AddMeetingModal from "./AddMeetingModal";
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter"; // Add this import
+
+dayjs.extend(isSameOrAfter);
 
 const { Title, Text } = Typography;
 
-const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fetchData }) => {
+const HomePage = ({
+  employees,
+  meetings,
+  onAddToBossReception,
+  onAddMeeting,
+  fetchData,
+}) => {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [messageApi, contextHolder] = message.useMessage();
   const [meetingModalVisible, setMeetingModalVisible] = useState(false);
@@ -119,20 +129,39 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
     return (
       <>
         {contextHolder}
-        <Card style={{ height: "calc(100vh - 150px)", overflowY: "auto" }}>
-          {" "}
-          <Space direction="vertical" style={{ width: "100%" }}>
-            {" "}
-            <Title level={4}>
+        <Card
+          styles={{
+            body: {
+              height: "calc(100vh - 150px)",
+              padding: 0,
+              display: "flex",
+              flexDirection: "column",
+            },
+          }}
+        >
+          {/* Static header section */}
+          <div style={{ padding: "24px 24px 0" }}>
+            <Title level={4} style={{ marginBottom: "16px" }}>
               <TeamOutlined /> Ходимлар рўйхати
             </Title>
-            
-            <SearchableEmployeeList
-              employeeOptions={employees}
-              onChange={setFilteredEmployees}
-              placeholder="Ходимларни қидириш"
-            />
 
+            <div style={{ marginBottom: "16px" }}>
+              <SearchableEmployeeList
+                employeeOptions={employees}
+                onChange={setFilteredEmployees}
+                placeholder="Ходимларни қидириш"
+              />
+            </div>
+          </div>
+
+          {/* Scrollable list section */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: "0 24px",
+            }}
+          >
             <List
               dataSource={filteredEmployees}
               renderItem={(employee) => (
@@ -150,7 +179,10 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
                           checked={selectedEmployees.includes(employee._id)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedEmployees((prev) => [...prev, employee._id]);
+                              setSelectedEmployees((prev) => [
+                                ...prev,
+                                employee._id,
+                              ]);
                             } else {
                               setSelectedEmployees((prev) =>
                                 prev.filter((id) => id !== employee._id)
@@ -185,44 +217,43 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
                 </List.Item>
               )}
             />
-            {selectedEmployees.length > 0 && (
-              <div
-                style={{
-                  position: "sticky",
-                  bottom: 0,
-                  background: "white",
-                  padding: "16px 0",
-                  borderTop: "1px solid #f0f0f0",
-                  width: "100%",
-                }}
-              >
-                <Space style={{ width: "100%", justifyContent: "center" }}>
-                  <Button
-                    type="primary"
-                    icon={<UserOutlined />}
-                    onClick={handleAddToBossReception}
-                  >
-                    Раҳбар қабулига ({selectedEmployees.length})
-                  </Button>
-                  <Button
-                    icon={<CalendarOutlined />}
-                    onClick={() => {
-                      if (selectedEmployees.length === 0) {
-                        localMessageApi.warning({
-                          content: "Илтимос, ходимларни танланг",
-                          duration: 3,
-                        });
-                        return;
-                      }
-                      setMeetingModalVisible(true);
-                    }}
-                  >
-                    Мажлисга Қўшиш ({selectedEmployees.length})
-                  </Button>
-                </Space>
-              </div>
-            )}
-          </Space>
+          </div>
+
+          {/* Static footer section */}
+          {selectedEmployees.length > 0 && (
+            <div
+              style={{
+                padding: "16px 24px",
+                background: "white",
+                borderTop: "1px solid #f0f0f0",
+              }}
+            >
+              <Space style={{ width: "100%", justifyContent: "center" }}>
+                <Button
+                  type="primary"
+                  icon={<UserOutlined />}
+                  onClick={handleAddToBossReception}
+                >
+                  Раҳбар қабулига ({selectedEmployees.length})
+                </Button>
+                <Button
+                  icon={<CalendarOutlined />}
+                  onClick={() => {
+                    if (selectedEmployees.length === 0) {
+                      localMessageApi.warning({
+                        content: "Илтимос, ходимларни танланг",
+                        duration: 3,
+                      });
+                      return;
+                    }
+                    setMeetingModalVisible(true);
+                  }}
+                >
+                  Мажлисга Қўшиш ({selectedEmployees.length})
+                </Button>
+              </Space>
+            </div>
+          )}
         </Card>
       </>
     );
@@ -287,7 +318,7 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
         <Card
           title={
             <Space direction="vertical" style={{ width: "100%" }}>
-              <Title level={4} >
+              <Title level={4}>
                 <UserOutlined /> Раҳбар Қабули
               </Title>
               <Space wrap>
@@ -331,15 +362,27 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
                         justifyContent: "center",
                       }}
                     />
-                  }                  title={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  }
+                  title={
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <Text strong>{employee.name}</Text>
                       <Tag color="blue">{employee.position}</Tag>
                       {getStatusTag(employee.status)}
                     </div>
                   }
                   description={
-                    <Space direction="vertical" size="small" style={{ marginTop: '4px' }}>
+                    <Space
+                      direction="vertical"
+                      size="small"
+                      style={{ marginTop: "4px" }}
+                    >
                       <Text type="secondary">
                         <BankOutlined /> {employee.department}
                       </Text>
@@ -381,47 +424,80 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
   };
 
   // Right Panel - Scheduled Meetings Component
-  const ScheduledMeetingsPanel = () => (
-    <Card
-      title={
-        <Title level={4}>
-          <CalendarOutlined /> Режалаштирилган Мажлислар
-        </Title>
-      }
-      style={{ height: "calc(100vh - 150px)", overflowY: "auto" }}
-    >
-      <List
-        dataSource={meetings}
-        locale={{ emptyText: "Режалаштирилган мажлислар йўқ" }}
-        renderItem={(meeting) => (
-          <Card.Grid style={{ width: "100%" }}>
-            <Space direction="vertical" style={{ width: "100%" }}>
-              <Text strong>{meeting.name}</Text>
-              <Space>
-                <Tag icon={<CalendarOutlined />} color="blue">
-                  {meeting.date}
-                </Tag>
-                <Tag icon={<ClockCircleOutlined />} color="cyan">
-                  {meeting.time}
-                </Tag>
-              </Space>
-              <Space>
-                <TeamOutlined />
-                <Text type="secondary">
-                  {meeting.participants.length} киши:{" "}
-                  {meeting.participants.map((p) => p.name).join(", ")}
-                </Text>
-              </Space>
-            </Space>
-          </Card.Grid>
-        )}
-      />
-    </Card>
-  );
+  const ScheduledMeetingsPanel = () => {
+    const now = dayjs();
 
-  const handleClose = () => {
-    if (fetchData) {
-      fetchData();
+    const upcomingMeetings = meetings
+      .filter((meeting) => {
+        // Make sure we're using the correct date format
+        const meetingDateTime = dayjs(meeting.date);
+        return (
+          meetingDateTime.isValid() &&
+          (meetingDateTime.isAfter(now, "day") ||
+            meetingDateTime.isSame(now, "day"))
+        );
+      })
+      .sort((a, b) => {
+        const dateTimeA = dayjs(a.date);
+        const dateTimeB = dayjs(b.date);
+        return dateTimeA.valueOf() - dateTimeB.valueOf();
+      });
+
+    return (
+      <Card
+        title={
+          <Title level={4}>
+            <CalendarOutlined /> Режалаштирилган Мажлислар
+          </Title>
+        }
+        styles={{
+          body: {
+            height: "calc(100vh - 150px)",
+            overflowY: "auto",
+          },
+        }}
+      >
+        <List
+          dataSource={upcomingMeetings}
+          locale={{ emptyText: "Режалаштирилган мажлислар йўқ" }}
+          renderItem={(meeting) => {
+            const meetingDate = dayjs(meeting.date);
+            const isToday = meetingDate.isSame(now, "day");
+
+            return (
+              <Card.Grid style={{ width: "100%" }}>
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  <Text strong>{meeting.name}</Text>
+                  <Space>
+                    <Tag
+                      icon={<CalendarOutlined />}
+                      color={isToday ? "green" : "blue"}
+                    >
+                      {dayjs(meeting.date).format("DD.MM.YYYY")}
+                    </Tag>
+                    <Tag icon={<ClockCircleOutlined />} color="cyan">
+                      {meeting.time}
+                    </Tag>
+                  </Space>
+                  <Space>
+                    <TeamOutlined />
+                    <Text type="secondary">
+                      {meeting.participants.length} киши:{" "}
+                      {meeting.participants.map((p) => p.name).join(", ")}
+                    </Text>
+                  </Space>
+                </Space>
+              </Card.Grid>
+            );
+          }}
+        />
+      </Card>
+    );
+  };
+
+  const handleModalClose = () => {
+    if (onDataFetch) {
+      onDataFetch();
     }
   };
 
@@ -438,7 +514,8 @@ const HomePage = ({ employees, meetings, onAddToBossReception, onAddMeeting, fet
           <ScheduledMeetingsPanel />
         </Col>
       </Row>{" "}
-      {contextHolder}      <AddMeetingModal
+      {contextHolder}{" "}
+      <AddMeetingModal
         visible={meetingModalVisible}
         onClose={(success) => {
           setMeetingModalVisible(false);

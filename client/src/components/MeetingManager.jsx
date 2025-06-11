@@ -82,6 +82,20 @@ const MeetingManager = ({ employees = [] }) => {
     setViewModalVisible(true);
   };
 
+  const getMeetingStatus = (meetingDate, meetingTime) => {
+    // ISO string formatidagi sanani dayjs ga o'tkazish
+    const meetingDateTime = dayjs(meetingDate);
+    const now = dayjs();
+
+    if (meetingDateTime.isBefore(now, 'day')) {
+      return { color: 'default', text: 'Ўтган' };
+    } else if (meetingDateTime.isSame(now, 'day')) {
+      return { color: 'green', text: 'Бугун' };
+    } else {
+      return { color: 'blue', text: 'Режада' };
+    }
+  };
+
   return (
     <>
       {contextHolder}
@@ -90,13 +104,18 @@ const MeetingManager = ({ employees = [] }) => {
         title={
           <Space>
             <CalendarOutlined />
-            <span>Режалаштирилган Мажлислар</span>
+            <span>Мажлислар Рўйхати</span>
           </Space>
         }
       >
         <List
           loading={loading}
-          dataSource={meetings}
+          dataSource={meetings.sort((a, b) => {
+            // ISO string formatidagi sanalarni solishtirish
+            const dateTimeA = dayjs(a.date);
+            const dateTimeB = dayjs(b.date);
+            return dateTimeB.valueOf() - dateTimeA.valueOf();
+          })}
           locale={{
             emptyText: (
               <Empty
@@ -134,10 +153,19 @@ const MeetingManager = ({ employees = [] }) => {
               ]}
             >
               <List.Item.Meta
-                title={meeting.name}
+                title={
+                  <Space>
+                    {meeting.name}
+                    <Tag color={getMeetingStatus(meeting.date, meeting.time).color}>
+                      {getMeetingStatus(meeting.date, meeting.time).text}
+                    </Tag>
+                  </Space>
+                }
                 description={
-                  <Space direction="vertical" size="small">                    <Space>
+                  <Space direction="vertical" size="small">
+                    <Space>
                       <Tag icon={<CalendarOutlined />} color="blue">
+                        {/* ISO string formatidagi sanani DD.MM.YYYY formatiga o'zgartirish */}
                         {dayjs(meeting.date).format('DD.MM.YYYY')}
                       </Tag>
                       <Tag icon={<ClockCircleOutlined />} color="cyan">
