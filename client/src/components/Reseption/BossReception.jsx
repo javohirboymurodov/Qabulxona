@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, List, Tag, Space, Button, message, Typography, Calendar, Skeleton, Table } from 'antd';
 import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { updateEmployeeStatus, getReceptionHistoryRange } from '../services/api';
+import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
 import dayjs from 'dayjs';
 import './BossReception.css';
 
@@ -17,19 +17,31 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   useEffect(() => {
     setDataLoading(!meetings || !meetings.length);
   }, [meetings]);
-  // No auto-archiving on component load
+
+  useEffect(() => {
+    // Component yuklanganda bugungi ma'lumotlarni olish
+    loadHistoryData(selectedDate);
+  }, []);
 
   const handleStatusUpdate = async (employeeId, newStatus) => {
     try {
-      await updateEmployeeStatus(employeeId, newStatus);
-      await fetchData();
+      const today = dayjs().format('YYYY-MM-DD');
+      await updateReceptionStatus(employeeId, { status: newStatus }, today);
+      
+      // Ma'lumotlarni yangilash
+      await loadHistoryData(selectedDate);
+      if (fetchData) {
+        await fetchData();
+      }
+      
       messageApi.success({
-        content: `Xodim holati "${newStatus === 'present' ? 'Келди' : 'Келмади'}" га ўзгартирилди`,
+        content: `Ходим ҳолати "${newStatus === 'present' ? 'Келди' : 'Келмади'}" га ўзгартирилди`,
         duration: 3
       });
     } catch (error) {
+      console.error('Status update error:', error);
       messageApi.error({
-        content: 'Xodim holatini yangilashda xatolik yuz berdi',
+        content: 'Ходим ҳолатини янгилашда хатолик юз берди',
         duration: 3
       });
     }
@@ -39,11 +51,21 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     try {
       setLoading(true);
       const dateStr = date.format('YYYY-MM-DD');
-      const response = await getReceptionHistoryRange(dateStr, dateStr);
-      setHistoryData(response.data);
+      const response = await getReceptionHistoryByDate(dateStr);
+      
+      // Backend'dan kelgan ma'lumotlarni to'g'ri formatda olish
+      const data = response?.data || [];
+      const formattedData = data.map((item, index) => ({
+        ...item,
+        key: item._id || item.id || `history-${index}-${Date.now()}`,
+        id: item._id || item.id || `temp-${index}`
+      }));
+      
+      setHistoryData(formattedData);
     } catch (error) {
       console.error('History data loading error:', error);
       messageApi.error('Маълумотларни юклашда хатолик юз берди');
+      setHistoryData([]);
     } finally {
       setLoading(false);
     }
@@ -80,6 +102,64 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     );
   });
 
+  // Table columns
+  const historyColumns = [
+    {
+      title: 'Ҳолат',
+      key: 'status',
+      width: 80,
+      render: (_, record) => (
+        record.status === 'present' ? 
+          <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} /> : 
+          record.status === 'absent' ?
+          <CloseCircleOutlined style={{ color: '#f5222d', fontSize: '18px' }} /> :
+          <CloseCircleOutlined style={{ color: '#faad14', fontSize: '18px' }} />
+      )
+    },
+    {
+      title: 'Ф.И.Ш.',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text) => text || '-'
+    },
+    {
+      title: 'Лавозими',
+      dataIndex: 'position',
+      key: 'position',
+      render: (text) => text || '-'
+    },
+    {
+      title: 'Бўлим',
+      dataIndex: 'department',
+      key: 'department',
+      render: (text) => text || '-'
+    },
+    {
+      title: 'Вақт',
+      key: 'timeUpdated',
+      width: 100,
+      render: (_, record) => (
+        <Text type="secondary">
+          {record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-'}
+        </Text>
+      )
+    },
+    {
+      title: 'Топшириқ',
+      key: 'task',
+      render: (_, record) => {
+        if (!record.task) return '-';
+        return (
+          <div>
+            <Text style={{ fontSize: '12px' }}>{record.task.description}</Text>
+            <br />
+            <Tag color="blue" size="small">{record.task.deadline} кун</Tag>
+          </div>
+        );
+      }
+    }
+  ];
+
   return (
     <div className="boss-reception">
       {contextHolder}
@@ -94,9 +174,9 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
             {dataLoading ? (
               <List
                 size="small"
-                dataSource={[1, 2, 3]} // Skeleton placeholders
-                renderItem={() => (
-                  <List.Item>
+                dataSource={[1, 2, 3]}
+                renderItem={(item, index) => (
+                  <List.Item key={`skeleton-${index}`}>
                     <Skeleton active avatar paragraph={{ rows: 2 }} />
                   </List.Item>
                 )}
@@ -108,12 +188,12 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
                 locale={{ emptyText: 'Бугунги раҳбар қабулларига ходимлар танланмаган' }}
                 renderItem={(employee) => (
                   <List.Item
-                    key={employee._id}
+                    key={employee._id || employee.id}
                     className={`status-${employee.status}`}
                   >
                     <List.Item.Meta
                       avatar={<UserOutlined className="employee-avatar" />}
-                      title={<Text strong>{employee.name}</Text>}
+                      title={<Text strong>{employee.name || employee.fullName}</Text>}
                       description={
                         <Space direction="vertical" size={0}>
                           <Text type="secondary">{employee.position}</Text>
@@ -158,7 +238,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
           </Card>
         </Col>
 
-        {/* O'ng ustun - Tanlangan kun ma'lumotlari */}
+        {/* O'ng ustun - Tanlangan kun ma'lumotлари */}
         <Col xs={24} lg={8}>
           <Card 
             title={`Танланган кун: ${selectedDate.format('DD.MM.YYYY')}`}
@@ -166,48 +246,16 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
             loading={loading}
           >
             <Table
-              loading={dataLoading}
+              loading={loading}
               dataSource={historyData}
-              rowKey="id"
+              columns={historyColumns}
+              rowKey={(record) => record.key || record._id || record.id}
               pagination={false}
-              locale={{ emptyText: 'Бу кунда қабул маълумотлари мавжуд эмас' }}
-              columns={[
-                {
-                  title: 'Ҳолат',
-                  key: 'status',
-                  width: 80,
-                  render: (_, record) => (
-                    record.status === 'present' ? 
-                      <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} /> : 
-                      <CloseCircleOutlined style={{ color: '#f5222d', fontSize: '18px' }} />
-                  )
-                },
-                {
-                  title: 'Ф.И.Ш.',
-                  dataIndex: 'name',
-                  key: 'name',
-                },
-                {
-                  title: 'Лавозими',
-                  dataIndex: 'position',
-                  key: 'position',
-                },
-                {
-                  title: 'Бўлим',
-                  dataIndex: 'department',
-                  key: 'department',
-                },
-                {
-                  title: 'Вақт',
-                  key: 'timeUpdated',
-                  width: 100,
-                  render: (_, record) => (
-                    <Text type="secondary">
-                      {dayjs(record.timeUpdated).format('HH:mm')}
-                    </Text>
-                  )
-                }
-              ]}
+              size="small"
+              locale={{ 
+                emptyText: `${selectedDate.format('DD.MM.YYYY')} санада қабул маълумотлари мавжуд эмас` 
+              }}
+              scroll={{ y: 300 }}
             />
           </Card>
         </Col>

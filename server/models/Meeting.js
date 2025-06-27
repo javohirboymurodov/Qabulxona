@@ -5,8 +5,10 @@ const UZB_TIMEZONE_OFFSET = 5;
 
 const meetingSchema = new mongoose.Schema({
   name: { type: String, required: true },
+  description: { type: String, default: '' }, // Qo'shamiz
   date: { type: Date, required: true },
   time: { type: String, required: true },
+  location: { type: String, default: '' }, // Qo'shamiz
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
   createdAt: { type: Date, default: Date.now }
 });

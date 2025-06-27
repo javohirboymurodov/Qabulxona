@@ -65,12 +65,38 @@ exports.deleteEmployee = async (req, res, next) => {
 };
 
 // Update employee status
-exports.updateEmployeeStatus = async (req, res, next) => {
+exports.updateEmployeeStatus = async (req, res) => {
   try {
-    const employee = await employeeService.updateEmployeeStatus(req.params.id, req.body.status);
-    res.json(employee);
+    const { id } = req.params;
+    const { receptionDate, status } = req.body;
+
+    const updatedEmployee = await Employee.findByIdAndUpdate(
+      id,
+      { 
+        receptionDate,
+        status
+      },
+      { new: true }
+    );
+
+    if (!updatedEmployee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим топилмади'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: updatedEmployee
+    });
+
   } catch (error) {
-    next(error);
+    console.error('Update employee status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ходим ҳолатини янгилашда хатолик юз берди'
+    });
   }
 };
 

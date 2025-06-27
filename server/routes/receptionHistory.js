@@ -1,23 +1,37 @@
 const express = require('express');
 const router = express.Router();
-const receptionHistoryController = require('../controllers/receptionHistoryController');
+const { protect } = require('../middleware/auth');
+const {
+  addToReception,
+  updateReceptionStatus,
+  getByDate,
+  getByDateRange,
+  getTodayReception,
+  getReceptionStats
+} = require('../controllers/receptionHistoryController');
+
+// All routes require authentication
+router.use(protect);
+
+// Get today's reception
+router.get('/today', getTodayReception);
+
+// Add employee to reception
+router.post('/add', addToReception);
 
 // Get reception statistics
-router.get('/stats', receptionHistoryController.getReceptionStats);
+router.get('/stats', getReceptionStats);
 
-// Get current archive status
-router.get('/archive/status', receptionHistoryController.getArchiveStatus);
+// Get reception by date
+router.get('/date/:date', getByDate);
 
-// Archive current day's reception and create history
-router.post('/archive-day', receptionHistoryController.archiveReceptionData);
+// Get reception history by date range
+router.get('/range/:startDate/:endDate', getByDateRange);
 
-// Force archive current reception data
-router.post('/archive/force', receptionHistoryController.forceArchive);
+// Update employee status in reception
+router.put('/:date/employee/:employeeId/status', updateReceptionStatus);
 
-// Get reception history for a date range
-router.get('/', receptionHistoryController.getReceptionHistory);
-
-// Get reception history for a specific date
-router.get('/:date', receptionHistoryController.getHistoryByDate);
+// Legacy route support
+router.get('/:date', getByDate);
 
 module.exports = router;

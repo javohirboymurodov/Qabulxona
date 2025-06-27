@@ -10,7 +10,11 @@ const employeeRoutes = require("./routes/employees");
 const meetingRoutes = require("./routes/meetings");
 const scheduleRoutes = require("./routes/schedule");
 const receptionHistoryRoutes = require("./routes/receptionHistory");
-const receptionHistoryService = require('./services/receptionHistoryService');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
+
+require('./models/Role');  // Add this line before routes
+require('./models/Admin'); // Add this line before routes
 
 const app = express();
 
@@ -26,18 +30,15 @@ app.use(
 app.use("/api/employees", employeeRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/schedule", scheduleRoutes);
-app.use("/api/reception-history", receptionHistoryRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/reception-history', receptionHistoryRoutes);
+app.use('/api/admins', adminRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
 
 // MongoDB ga ulanish
-connectDB().then(() => {
-  // Start auto-archiving schedule after DB connection is established
-  receptionHistoryService.scheduleAutoArchive().catch((err) => {
-    console.error("Failed to initialize auto-archiving:", err);
-  });
-});
+connectDB();
 
 const PORT = process.env.PORT || 5000;
 
@@ -48,10 +49,4 @@ app.get("/", (req, res) => {
 
 app.listen(PORT, async () => {
     console.log(`Server ${PORT} portda ishga tushdi`);
-    
-    try {
-        await receptionHistoryService.checkAndArchiveMissedDays();
-    } catch (error) {
-        console.error('O\'tkazib yuborilgan kunlarni arxivlashda xatolik:', error);
-    }
 });

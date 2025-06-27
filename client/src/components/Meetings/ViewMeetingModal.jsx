@@ -19,6 +19,9 @@ const ViewMeetingModal = ({ visible, onClose, meeting }) => {
         <Descriptions.Item label="Мажлис номи">
           <Text strong>{meeting.name}</Text>
         </Descriptions.Item>
+        <Descriptions.Item label="Мажлис тавсифи">
+          <Text strong>{meeting.description}</Text>
+        </Descriptions.Item>
 
         <Descriptions.Item label="Сана">
           <Space>
@@ -31,6 +34,12 @@ const ViewMeetingModal = ({ visible, onClose, meeting }) => {
           <Space>
             <ClockCircleOutlined />
             <Text>{meeting.time}</Text>
+          </Space>
+        </Descriptions.Item>
+        <Descriptions.Item label="Жой">
+          <Space>
+            <ClockCircleOutlined />
+            <Text>{meeting.location}</Text>
           </Space>
         </Descriptions.Item>
 

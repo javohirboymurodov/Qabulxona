@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Layout, ConfigProvider, Button, Tooltip, App as AntApp, message } from "antd";
+import { Layout, ConfigProvider, Button, Tooltip, App as AntApp, Spin, message } from "antd";
 import uzUZ from "antd/locale/uz_UZ";
 import { UserAddOutlined } from "@ant-design/icons";
-import EmployeeList from "./components/EmployeeList";
+import EmployeeList from "./components/Employees/EmployeeList";
 import Navbar from "./components/Navbar";
-import MeetingManager from "./components/MeetingManager";
-import AddMeetingModal from "./components/AddMeetingModal";
-import AddEmployeeModal from "./components/AddEmployeeModal";
-import ManagerSchedule from "./components/ManagerSchedule";
+import MeetingManager from "./components/Meetings/MeetingManager";
+import AddMeetingModal from "./components/Meetings/AddMeetingModal";
+import AddEmployeeModal from "./components/Employees/AddEmployeeModal";
+import BossWorkSchedule from "./components/BossWorkSchedule";
 import HomePage from "./components/HomePage";
-import BossReception from "./components/BossReception";
+import BossReception from "./components/Reseption/BossReception";
 import AppFooter from "./components/Footer";
+import LoginPage from "./components/Login";
+import AdminManager from "./components/Admins/AdminManager";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import {
   getEmployees,
@@ -21,19 +24,152 @@ import {
   createEmployee,
   deleteEmployee,
   updateEmployee,
+  checkAuth,
+  login,
 } from "./services/api";
 
 const { Content } = Layout;
 
 function App() {
-  const [messageApi, contextHolder] = message.useMessage();
+  // Auth states - App level da
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [admin, setAdmin] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Check authentication on app start
+  useEffect(() => {
+    checkAuthentication();
+  }, []);
+
+  const checkAuthentication = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const savedAdmin = localStorage.getItem("admin");
+
+      if (!token || !savedAdmin) {
+        setLoading(false);
+        return;
+      }
+
+      // Verify token with server
+      const response = await checkAuth();
+      if (response.success) {
+        setIsAuthenticated(true);
+        setAdmin(JSON.parse(savedAdmin));
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("admin");
+      }
+    } catch (error) {
+      console.error("Auth check error:", error);
+      localStorage.removeItem("token");
+      localStorage.removeItem("admin");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (credentials) => {
+    try {
+      setLoading(true);
+      const response = await login(credentials);
+
+      if (response.success) {
+        const token = response.data?.token || response.token;
+        const adminData = response.data?.admin || response.admin;
+
+        localStorage.setItem("token", token);
+        localStorage.setItem("admin", JSON.stringify(adminData));
+
+        setIsAuthenticated(true);
+        setAdmin(adminData);
+
+        return { success: true };
+      } else {
+        return { success: false, message: response.message };
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      const errorMessage = error.response?.data?.message || "Логин ёки парол нотўғри";
+      return { success: false, message: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem("token");
+      localStorage.removeItem("admin");
+      setIsAuthenticated(false);
+      setAdmin(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  // Show loading spinner
+  if (loading) {
+    return (
+      <ConfigProvider locale={uzUZ}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+            background: "#f0f2f5",
+          }}
+        >
+          <Spin size="large" />
+        </div>
+      </ConfigProvider>
+    );
+  }
+
+  return (
+    <ConfigProvider locale={uzUZ}>
+      <AntApp>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              !isAuthenticated ? (
+                <LoginPage onLogin={handleLogin} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              isAuthenticated ? (
+                <AppContent 
+                  admin={admin} 
+                  onLogout={handleLogout}
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+        </Routes>
+      </AntApp>
+    </ConfigProvider>
+  );
+}
+
+// AppContent component - alohida ajratilgan
+const AppContent = ({ admin, onLogout }) => {
+  const { message } = AntApp.useApp();
 
   // Global message function
   const showMessage = {
-    success: (content) => messageApi.success(content),
-    error: (content) => messageApi.error(content),
-    warning: (content) => messageApi.warning(content),
-    info: (content) => messageApi.info(content),
+    success: (content) => message.success(content),
+    error: (content) => message.error(content),
+    warning: (content) => message.warning(content),
+    info: (content) => message.info(content),
   };
 
   const [employees, setEmployees] = useState([]);
@@ -45,27 +181,34 @@ function App() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeView, setActiveView] = useState("home");
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
-  const [preSelectedEmployeesForMeeting, setPreSelectedEmployeesForMeeting] =
-    useState([]);
+  const [preSelectedEmployeesForMeeting, setPreSelectedEmployeesForMeeting] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  // Fetch data when component mounts
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      const [employeesRes, meetingsRes] = await Promise.all([
-        getEmployees(),
-        getMeetings(),
-      ]);
+      setLoading(true);
 
-      console.log("App - Fetched employee data:", employeesRes.data);
+      const employeesResponse = await getEmployees();
+      // console.log("Employees response:", employeesResponse);
 
-      setEmployees(employeesRes.data || []);
-      setMeetings(meetingsRes.data || []);
+      const employeesData = employeesResponse?.data || employeesResponse;
+      setEmployees(Array.isArray(employeesData) ? employeesData : []);
+
+      const meetingsResponse = await getMeetings();
+      // console.log("Meetings response:", meetingsResponse);
+
+      const meetingsData = meetingsResponse?.data || meetingsResponse;
+      setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
     } catch (error) {
       console.error("Маълумотларни юклашда хато:", error);
-      antMessage.error("Маълумотларни янгилашда хатолик юз берди");
+      showMessage.error("Маълумотларни янгилашда хатолик юз берди");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,11 +216,10 @@ function App() {
     try {
       await createEmployee(values);
       await fetchData();
-      // Faqat бир marta xabar chiqarish
-      showMessage.success('Ходим муваффақиятли қўшилди');
+      showMessage.success("Ходим муваффақиятли қўшилди");
       setShowEmployeeModal(false);
     } catch (error) {
-      showMessage.error('Ходимни қўшишда хатолик юз берди');
+      showMessage.error("Ходимни қўшишда хатолик юз берди");
     }
   };
 
@@ -98,7 +240,6 @@ function App() {
   };
 
   const handleAddMeeting = (selectedIds) => {
-    // Tanlangan xodimlar ID'larini saqlash
     setPreSelectedEmployeesForMeeting(selectedIds);
     setShowMeetingModal(true);
   };
@@ -152,7 +293,8 @@ function App() {
             meetings={meetings}
             onAddToBossReception={handleAddBossReception}
             onAddMeeting={handleAddMeeting}
-            fetchData={fetchData} // Make sure this is passed
+            fetchData={fetchData}
+            onViewChange={setActiveView}
           />
         );
       case "employees":
@@ -197,9 +339,12 @@ function App() {
               setEditingMeeting(meeting);
               setShowMeetingModal(true);
             }}
+            fetchData={fetchData}
           />
         );
-      case "boss-meetings":
+      case "boss-schedule":
+        return <BossWorkSchedule showMessage={showMessage} fetchData={fetchData} />;
+      case "reception-history":
         return (
           <BossReception
             employees={employees}
@@ -210,58 +355,93 @@ function App() {
             fetchData={fetchData}
           />
         );
-      case "boss-schedule":
-        return <ManagerSchedule showMessage={showMessage} />;
+      case "admins":
+        return admin?.role === "superadmin" ? (
+          <AdminManager currentAdmin={admin} showMessage={showMessage} />
+        ) : (
+          <div style={{ textAlign: "center", padding: "50px" }}>
+            <h3>Бу бўлимга кириш ҳуқуғингиз йўқ</h3>
+          </div>
+        );
       default:
-        return <HomePage employees={employees} meetings={meetings} />;
+        return (
+          <HomePage
+            employees={employees}
+            meetings={meetings}
+            onAddToBossReception={handleAddBossReception}
+            onAddMeeting={handleAddMeeting}
+            fetchData={fetchData}
+            onViewChange={setActiveView}
+          />
+        );
     }
   };
 
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          background: "#f0f2f5",
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
-    <ConfigProvider locale={uzUZ}>
-      {contextHolder}
-      <AntApp>
-        <Layout style={{ minHeight: "100vh" }}>
-          <Navbar activeView={activeView} onViewChange={setActiveView} />
-          <Content style={{ padding: "88px 24px 24px", background: "#f0f2f5", minHeight: "calc(100vh - 64px)" }}>
-            {renderView()}
+    <Layout style={{ minHeight: "100vh" }}>
+      <Navbar
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onLogout={onLogout}
+        admin={admin}
+      />
+      <Content
+        style={{
+          padding: "88px 24px 24px",
+          background: "#f0f2f5",
+          minHeight: "calc(100vh - 64px)",
+        }}
+      >
+        {renderView()}
 
-            {/* Add Meeting Modal */}
-            {showMeetingModal && (
-              <AddMeetingModal
-                onClose={() => {
-                  setShowMeetingModal(false);
-                  setEditingMeeting(null);
-                  setPreSelectedEmployeesForMeeting([]);
-                }}
-                onSave={
-                  editingMeeting ? handleEditMeeting : handleAddNewMeeting
-                }
-                employees={employees}
-                initialValues={editingMeeting}
-                preSelectedEmployees={preSelectedEmployeesForMeeting}
-              />
-            )}
+        {/* Add Meeting Modal */}
+        {showMeetingModal && (
+          <AntApp>
+          <AddMeetingModal
+            onClose={() => {
+              setShowMeetingModal(false);
+              setEditingMeeting(null);
+              setPreSelectedEmployeesForMeeting([]);
+            }}
+            onSave={editingMeeting ? handleEditEmployee : handleAddNewMeeting}
+            employees={employees}
+            initialValues={editingMeeting}
+            preSelectedEmployees={preSelectedEmployeesForMeeting}
+          />
+          </AntApp>
+        )}
 
-            {/* Add Employee Modal */}
-            {showEmployeeModal && (
-              <AddEmployeeModal
-                onClose={() => {
-                  setShowEmployeeModal(false);
-                  setEditingEmployee(null);
-                }}
-                onSave={
-                  editingEmployee ? handleEditEmployee : handleAddEmployee
-                }
-                initialValues={editingEmployee}
-              />
-            )}
-          </Content>
-          <AppFooter />
-        </Layout>
-      </AntApp>
-    </ConfigProvider>
+        {/* Add Employee Modal */}
+        {showEmployeeModal && (
+          <AddEmployeeModal
+            onClose={() => {
+              setShowEmployeeModal(false);
+              setEditingEmployee(null);
+            }}
+            onSave={editingEmployee ? handleEditEmployee : handleAddEmployee}
+            initialValues={editingEmployee}
+          />
+        )}
+      </Content>
+      <AppFooter />
+    </Layout>
   );
-}
+};
 
 export default App;

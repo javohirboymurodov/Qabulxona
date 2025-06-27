@@ -13,11 +13,16 @@ const employeeSchema = new mongoose.Schema(
     education: { type: String },
     joinedDate: { type: Date },
     createdAt: { type: Date, default: Date.now },
-    status: { 
-      type: String, 
-      enum: ['present', 'absent', 'waiting', 'none'],
-      default: 'none'
+    status: {
+      type: String,
+      enum: ['waiting', 'present', 'absent'],
+      default: 'waiting'
     },
+    task: {
+      description: String,
+      deadline: Number,
+      assignedAt: Date
+    }
   },
   {
     toJSON: { virtuals: true },

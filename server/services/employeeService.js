@@ -109,22 +109,41 @@ class EmployeeService {
   }
 
   // Xodim holatini yangilash
-  async updateEmployeeStatus(id, status) {
-    if (!['present', 'absent', 'waiting', 'none'].includes(status)) {
-      throw new Error('Noto\'g\'ri holat qiymati');
+  async updateEmployeeStatus(id, data) {
+    try {
+      // Status validatsiyasi
+      const validStatuses = ['waiting', 'present', 'absent'];
+      if (!validStatuses.includes(data.status)) {
+        throw new Error('Noto\'g\'ri holat qiymati');
+      }
+
+      const updateData = {
+        status: data.status
+      };
+
+      // Agar kelgan bo'lsa va topshiriq berilgan bo'lsa
+      if (data.status === 'present' && data.task) {
+        updateData.task = {
+          description: data.task.description,
+          deadline: data.task.deadline,
+          assignedAt: new Date()
+        };
+      }
+
+      const employee = await Employee.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true }
+      );
+
+      if (!employee) {
+        throw new Error('Ходим топилмади');
+      }
+
+      return employee;
+    } catch (error) {
+      throw error;
     }
-
-    const employee = await Employee.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
-    if (!employee) {
-      throw new Error('Ходим топилмади');
-    }
-
-    return employee;
   }
 
   // Xodimni qidirish

@@ -6,12 +6,15 @@ import {
   CalendarOutlined,
   UserOutlined,
   ScheduleOutlined,
-  CaretDownOutlined
+  CaretDownOutlined,
+  LogoutOutlined,
+  HistoryOutlined,
+  UsergroupAddOutlined
 } from '@ant-design/icons';
 
 const { Header } = Layout;
 
-const Navbar = ({ onViewChange, activeView }) => {
+const Navbar = ({ onViewChange, activeView, onLogout, admin }) => {
   const menuItems = [
     {
       key: 'home',
@@ -26,19 +29,44 @@ const Navbar = ({ onViewChange, activeView }) => {
     {
       key: 'meetings',
       icon: <CalendarOutlined />,
-      label: 'Йиғилишлар'
-    },
-    {
-      key: 'boss-meetings',
-      icon: <UserOutlined />,
-      label: 'Раҳбар Қабули'
+      label: 'Мажлислар Базаси'
     },
     {
       key: 'boss-schedule',
       icon: <ScheduleOutlined />,
       label: 'Раҳбар Иш Графиги'
+    },
+    {
+      key: 'reception-history',
+      icon: <HistoryOutlined />,
+      label: 'Қабул Тарихи'
     }
   ];
+
+  // Faqat superadmin uchun Adminlar menyusini qo'shamiz
+  if (admin && admin.role === 'superadmin') {
+    menuItems.push({
+      key: 'admins',
+      icon: <UsergroupAddOutlined />,
+      label: 'Фойдаланувчилар'
+    });
+  }
+
+  const handleLogout = () => {
+    // API logout o'rniga localStorage ni tozalash
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('admin');
+      localStorage.removeItem('refreshToken');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    // Parent component dagi logout funksiyasini chaqirish
+    if (onLogout) {
+      onLogout();
+    }
+  };
 
   const userMenu = {
     items: [
@@ -50,7 +78,9 @@ const Navbar = ({ onViewChange, activeView }) => {
       {
         key: 'logout',
         label: 'Чиқиш',
-        danger: true
+        icon: <LogoutOutlined />,
+        danger: true,
+        onClick: handleLogout
       }
     ]
   };
@@ -59,9 +89,20 @@ const Navbar = ({ onViewChange, activeView }) => {
     onViewChange(e.key);
   };
 
+  const getRoleText = (role) => {
+    switch (role) {
+      case 'superadmin':
+        return 'Супер Администратор';
+      case 'publisher':
+        return 'Нашриётчи';
+      default:
+        return 'Админ';
+    }
+  };
+
   return (
-    <Header 
-      style={{ 
+    <Header
+      style={{
         padding: '0 24px',
         background: 'linear-gradient(135deg, #005BAE, #003a75)',
         display: 'flex',
@@ -103,7 +144,7 @@ const Navbar = ({ onViewChange, activeView }) => {
       >
         <Space style={{ cursor: 'pointer', color: 'white' }}>
           <Avatar icon={<UserOutlined />} />
-          <span>Админ</span>
+          <span>{admin?.fullName || getRoleText(admin?.role)}</span>
           <CaretDownOutlined />
         </Space>
       </Dropdown>

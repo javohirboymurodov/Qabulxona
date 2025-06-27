@@ -1,9 +1,14 @@
-const meetingService = require('../services/meetingService');
+const Meeting = require('../models/Meeting');
+const Employee = require('../models/Employee');
+const mongoose = require('mongoose');
 
 // Get all meetings
 exports.getAllMeetings = async (req, res, next) => {
     try {
-        const meetings = await meetingService.getAllMeetings();
+        const meetings = await Meeting.find()
+            .populate('participants', 'name position department')
+            .sort({ date: -1, createdAt: -1 });
+        
         res.json(meetings);
     } catch (error) {
         next(error);
@@ -13,8 +18,32 @@ exports.getAllMeetings = async (req, res, next) => {
 // Create new meeting
 exports.createMeeting = async (req, res, next) => {
     try {
-        const meeting = await meetingService.createMeeting(req.body);
-        res.status(201).json(meeting);
+        const { name, description, date, time, location, participants } = req.body; // description va location qo'shamiz
+
+        // Ishtirokchilarni tekshirish
+        if (participants && participants.length > 0) {
+            const validEmployees = await Employee.find({ _id: { $in: participants } });
+            if (validEmployees.length !== participants.length) {
+                return res.status(400).json({ 
+                    message: 'Бир ёки бир нечта иштирокчи нотўғри' 
+                });
+            }
+        }
+
+        const meeting = new Meeting({
+            name,
+            description: description || '', // Default qiymat
+            date,
+            time,
+            location: location || '', // Default qiymat
+            participants: participants || []
+        });
+
+        const newMeeting = await meeting.save();
+        const populatedMeeting = await Meeting.findById(newMeeting._id)
+            .populate('participants', 'name position department');
+
+        res.status(201).json(populatedMeeting);
     } catch (error) {
         next(error);
     }
@@ -23,7 +52,19 @@ exports.createMeeting = async (req, res, next) => {
 // Get meeting by ID
 exports.getMeetingById = async (req, res, next) => {
     try {
-        const meeting = await meetingService.getMeetingById(req.params.id);
+        const { id } = req.params;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Яроқсиз мажлис ID си' });
+        }
+
+        const meeting = await Meeting.findById(id)
+            .populate('participants', 'name position department');
+
+        if (!meeting) {
+            return res.status(404).json({ message: 'Мажлис топилмади' });
+        }
+
         res.json(meeting);
     } catch (error) {
         next(error);
@@ -33,7 +74,40 @@ exports.getMeetingById = async (req, res, next) => {
 // Update meeting
 exports.updateMeeting = async (req, res, next) => {
     try {
-        const meeting = await meetingService.updateMeeting(req.params.id, req.body);
+        const { id } = req.params;
+        const { name, description, date, time, location, participants } = req.body; // description va location qo'shamiz
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Яроқсиз мажлис ID си' });
+        }
+
+        // Ishtirokchilarni tekshirish
+        if (participants && participants.length > 0) {
+            const validEmployees = await Employee.find({ _id: { $in: participants } });
+            if (validEmployees.length !== participants.length) {
+                return res.status(400).json({ 
+                    message: 'Бир ёки бир нечта иштирокчи нотўғри' 
+                });
+            }
+        }
+
+        const meeting = await Meeting.findByIdAndUpdate(
+            id,
+            { 
+                name, 
+                description: description || '', // Default qiymat
+                date, 
+                time, 
+                location: location || '', // Default qiymat
+                participants 
+            },
+            { new: true, runValidators: true }
+        ).populate('participants', 'name position department');
+
+        if (!meeting) {
+            return res.status(404).json({ message: 'Мажлис топилмади' });
+        }
+
         res.json(meeting);
     } catch (error) {
         next(error);
@@ -43,15 +117,27 @@ exports.updateMeeting = async (req, res, next) => {
 // Delete meeting
 exports.deleteMeeting = async (req, res, next) => {
     try {
-        if (!req.params.id) {
+        const { id } = req.params;
+
+        if (!id) {
             return res.status(400).json({ message: 'Мажлис кўрсатилмаган' });
         }
-        const result = await meetingService.deleteMeeting(req.params.id);
-        res.json(result);
-    } catch (error) {
-        if (error.message === 'Яроқсиз мажлис ID си' || error.message === 'Мажлис топилмади') {
-            return res.status(404).json({ message: error.message });
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Яроқсиз мажлис ID си' });
         }
+
+        const meeting = await Meeting.findByIdAndDelete(id);
+
+        if (!meeting) {
+            return res.status(404).json({ message: 'Мажлис топилмади' });
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Мажлис муваффақиятли ўчирилди' 
+        });
+    } catch (error) {
         next(error);
     }
 };
@@ -60,7 +146,16 @@ exports.deleteMeeting = async (req, res, next) => {
 exports.getMeetingsByDateRange = async (req, res, next) => {
     try {
         const { startDate, endDate } = req.params;
-        const meetings = await meetingService.getMeetingsByDateRange(startDate, endDate);
+
+        const meetings = await Meeting.find({
+            date: {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate)
+            }
+        })
+        .populate('participants', 'name position department')
+        .sort('date');
+
         res.json(meetings);
     } catch (error) {
         next(error);
@@ -70,7 +165,18 @@ exports.getMeetingsByDateRange = async (req, res, next) => {
 // Get meetings by participant
 exports.getMeetingsByParticipant = async (req, res, next) => {
     try {
-        const meetings = await meetingService.getMeetingsByParticipant(req.params.employeeId);
+        const { employeeId } = req.params;
+
+        if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) {
+            return res.status(400).json({ message: 'Яроқсиз иштирокчи ID си' });
+        }
+
+        const meetings = await Meeting.find({
+            participants: employeeId
+        })
+        .populate('participants', 'name position department')
+        .sort({ date: -1, createdAt: -1 });
+
         res.json(meetings);
     } catch (error) {
         next(error);

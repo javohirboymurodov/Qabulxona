@@ -32,7 +32,7 @@ import { getScheduleByDate, createSchedule, updateSchedule } from "../services/a
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
 
-const ManagerSchedule = ({ showMessage }) => {
+const BossWorkSchedule = ({ showMessage }) => {
   // First verify showMessage prop exists
   if (!showMessage || typeof showMessage.error !== 'function') {
     console.error('showMessage prop is required with error function');
@@ -327,7 +327,7 @@ const ManagerSchedule = ({ showMessage }) => {
 };
 
 // Add prop types outside the component
-ManagerSchedule.propTypes = {
+BossWorkSchedule.propTypes = {
   showMessage: PropTypes.shape({
     success: PropTypes.func.isRequired,
     error: PropTypes.func.isRequired,
@@ -336,4 +336,4 @@ ManagerSchedule.propTypes = {
   }).isRequired
 };
 
-export default ManagerSchedule;
+export default BossWorkSchedule;

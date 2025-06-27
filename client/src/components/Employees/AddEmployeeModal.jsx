@@ -17,6 +17,7 @@ const { TextArea } = Input;
 const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
   const [form] = Form.useForm();
   const [fileList, setFileList] = React.useState([]);
+   const { message } = App.useApp(); 
 
   React.useEffect(() => {
     if (initialValues) {

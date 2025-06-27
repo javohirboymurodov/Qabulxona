@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, TimePicker, message, Select } from 'antd';
-import { createMeeting, updateMeeting } from '../services/api';
+import { createMeeting, updateMeeting } from '../../services/api';
 import dayjs from 'dayjs';
+
+const { TextArea } = Input;
 
 const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, preSelectedEmployees = [] }) => {
   const [form] = Form.useForm();
@@ -11,11 +13,13 @@ const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, pre
   useEffect(() => {
     if (visible) {
       if (initialData) {
-        // Populate form with initial data
+        // Populate form with initial data for editing
         form.setFieldsValue({
           name: initialData.name,
+          description: initialData.description || '',
           date: dayjs(initialData.date),
           time: dayjs(initialData.time, 'HH:mm'),
+          location: initialData.location || '',
           participants: initialData.participants?.map(p => p._id)
         });
       } else {
@@ -37,8 +41,10 @@ const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, pre
 
       const meetingData = {
         name: values.name,
+        description: values.description || '',
         date: values.date.format('YYYY-MM-DD'),
         time: values.time.format('HH:mm'),
+        location: values.location || '',
         participants: values.participants || []
       };
 
@@ -92,13 +98,23 @@ const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, pre
         </Form.Item>
 
         <Form.Item
+          name="description"
+          label="Тафсилот"
+        >
+          <TextArea
+            rows={3}
+            placeholder="Мажлис ҳақида тафсилот"
+          />
+        </Form.Item>
+
+        <Form.Item
           name="date"
           label="Сана"
           rules={[{ required: true, message: 'Санани танланг' }]}
         >
           <DatePicker
             style={{ width: '100%' }}
-            format="YYYY-MM-DD"
+            format="DD.MM.YYYY"
             placeholder="Сана"
           />
         </Form.Item>
@@ -114,6 +130,14 @@ const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, pre
             placeholder="Вақтни танланг"
           />
         </Form.Item>
+
+        <Form.Item
+          name="location"
+          label="Жой"
+        >
+          <Input placeholder="Мажлис ўтказиладиган жой" />
+        </Form.Item>
+
         <Form.Item
           name="participants"
           label="Иштирокчилар"
@@ -123,10 +147,15 @@ const AddMeetingModal = ({ visible, onClose, onSave, employees, initialData, pre
             mode="multiple"
             placeholder="Иштирокчиларни танланг"
             style={{ width: '100%' }}
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              option?.children?.toLowerCase().includes(input.toLowerCase())
+            }
           >
             {employees.map(employee => (
               <Select.Option key={employee._id} value={employee._id}>
-                {employee.name} - {employee.position}
+                {employee.fullName || employee.name} - {employee.position}
               </Select.Option>
             ))}
           </Select>

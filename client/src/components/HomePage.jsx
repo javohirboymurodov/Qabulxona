@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -12,7 +12,7 @@ import {
   Avatar,
   Empty,
   Checkbox,
-  Input,
+  App,
 } from "antd";
 import {
   UserOutlined,
@@ -21,37 +21,62 @@ import {
   TeamOutlined,
   PhoneOutlined,
   BankOutlined,
-  SearchOutlined,
 } from "@ant-design/icons";
-import { updateEmployeeStatus } from "../services/api";
-import SearchableEmployeeList from "./SearchableEmployeeList";
-import AddMeetingModal from "./AddMeetingModal";
+import {
+  addToReception,
+  getTodayReception,
+  updateReceptionStatus,
+} from "../services/api";
+import SearchableEmployeeList from "./Employees/SearchableEmployeeList";
+import AddMeetingModal from "./Meetings/AddMeetingModal";
+import TaskAssignmentModal from "./Reseption/TaskAssignmentModal";
 import dayjs from "dayjs";
-import isSameOrAfter from "dayjs/plugin/isSameOrAfter"; // Add this import
-
-dayjs.extend(isSameOrAfter);
 
 const { Title, Text } = Typography;
 
 const HomePage = ({
-  employees,
-  meetings,
+  employees = [], // Default qiymat qo'shamiz
+  meetings = [],
   onAddToBossReception,
   onAddMeeting,
   fetchData,
+  onViewChange,
 }) => {
+
+
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [messageApi, contextHolder] = message.useMessage();
   const [meetingModalVisible, setMeetingModalVisible] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [todayReception, setTodayReception] = useState([]);
+  const { message: appMessageApi } = App.useApp();
 
-  console.log("HomePage - All employees:", employees);
+  // Bugungi qabullarni olish
+  useEffect(() => {
+    fetchTodayReception();
+  }, []);
+
+  const fetchTodayReception = async () => {
+    try {
+      // Backend'dagi today endpoint ishlatamiz
+      const response = await getTodayReception();
+      if (response.success && response.data) {
+        setTodayReception(response.data.employees || []);
+      }
+    } catch (error) {
+      console.error("Bugungi qabullarni olishda xato:", error);
+      setTodayReception([]);
+    }
+  };
+
   // Left Panel - Employee List Component
   const EmployeeListPanel = () => {
     const [localMessageApi, contextHolder] = message.useMessage();
-    const [filteredEmployees, setFilteredEmployees] = useState(employees);
+    const [filteredEmployees, setFilteredEmployees] = useState(employees || []);
 
     React.useEffect(() => {
-      setFilteredEmployees(employees);
+      setFilteredEmployees(employees || []);
     }, [employees]);
 
     const handleAddToBossReception = async () => {
@@ -64,57 +89,44 @@ const HomePage = ({
           return;
         }
 
-        // Filter out employees who are already in waiting status
-        const employeesToAdd = [];
-        const alreadyInReception = [];
+        // Tanlangan xodimlarni qabulga qo'shamiz
+        const selectedEmployeesData = (employees || []).filter((emp) =>
+          selectedEmployees.includes(emp._id)
+        );
 
-        selectedEmployees.forEach((id) => {
-          const employee = employees.find((emp) => emp._id === id);
-          if (employee && employee.status === "waiting") {
-            alreadyInReception.push(employee.name);
-          } else {
-            employeesToAdd.push(id);
-          }
-        });
-
-        // Show warning for employees already in reception
-        if (alreadyInReception.length > 0) {
-          localMessageApi.warning({
-            content: `Қўйидаги ходимлар аллақачон раҳбар қабулида: ${alreadyInReception.join(
-              ", "
-            )}`,
-            duration: 5,
+        for (const employee of selectedEmployeesData) {
+          await addToReception({
+            employeeId: employee._id,
+            name:
+              employee.fullName ||
+              employee.name ||
+              `${employee.firstName} ${employee.lastName}`,
+            position: employee.position,
+            department: employee.department,
+            phone: employee.phone,
+            status: "waiting",
           });
-
-          if (employeesToAdd.length === 0) {
-            return;
-          }
-        }
-
-        // Update status sequentially for remaining employees
-        for (const id of employeesToAdd) {
-          await updateEmployeeStatus(id, "waiting");
         }
 
         localMessageApi.success({
-          content: `${employeesToAdd.length} та ходим раҳбар қабулга йўналтирилди`,
+          content: `${selectedEmployees.length} та ходим раҳбар қабулга қўшилди`,
           duration: 3,
         });
 
-        if (onAddToBossReception) {
-          await onAddToBossReception(employeesToAdd);
-        }
-
         setSelectedEmployees([]);
-        await fetchData();
+        await fetchTodayReception(); // Bugungi qabullarni yangilaymiz
+        if (fetchData) {
+          await fetchData();
+        }
       } catch (error) {
         localMessageApi.error({
-          content: "Хатолик юз берди. Илтимос қайтадан уриниб кўринг",
+          content: "Қабулга қўшишда хатолик юз берди",
           duration: 3,
         });
         console.error("Error adding to boss reception:", error);
       }
     };
+
     const handleAddToMeeting = () => {
       if (selectedEmployees.length === 0) {
         localMessageApi.warning({
@@ -139,7 +151,6 @@ const HomePage = ({
             },
           }}
         >
-          {/* Static header section */}
           <div style={{ padding: "24px 24px 0" }}>
             <Title level={4} style={{ marginBottom: "16px" }}>
               <TeamOutlined /> Ходимлар рўйхати
@@ -147,14 +158,13 @@ const HomePage = ({
 
             <div style={{ marginBottom: "16px" }}>
               <SearchableEmployeeList
-                employeeOptions={employees}
+                employeeOptions={employees || []}
                 onChange={setFilteredEmployees}
                 placeholder="Ходимларни қидириш"
               />
             </div>
           </div>
 
-          {/* Scrollable list section */}
           <div
             style={{
               flex: 1,
@@ -190,17 +200,8 @@ const HomePage = ({
                             }
                           }}
                         />
-                        <Text strong>{employee.name}</Text>
+                        <Text strong>{employee.fullName || employee.name}</Text>
                         <Tag color="blue">{employee.position}</Tag>
-                        {/* {employee.status === "waiting" && (
-                          <Tag color="processing">Rahbar qabulida</Tag>
-                        )}
-                        {employee.status === "present" && (
-                          <Tag color="success">Keldi</Tag>
-                        )}
-                        {employee.status === "absent" && (
-                          <Tag color="error">Kelmadi</Tag>
-                        )} */}
                       </Space>
                     }
                     description={
@@ -219,7 +220,6 @@ const HomePage = ({
             />
           </div>
 
-          {/* Static footer section */}
           {selectedEmployees.length > 0 && (
             <div
               style={{
@@ -238,16 +238,7 @@ const HomePage = ({
                 </Button>
                 <Button
                   icon={<CalendarOutlined />}
-                  onClick={() => {
-                    if (selectedEmployees.length === 0) {
-                      localMessageApi.warning({
-                        content: "Илтимос, ходимларни танланг",
-                        duration: 3,
-                      });
-                      return;
-                    }
-                    setMeetingModalVisible(true);
-                  }}
+                  onClick={handleAddToMeeting}
                 >
                   Мажлисга Қўшиш ({selectedEmployees.length})
                 </Button>
@@ -259,25 +250,41 @@ const HomePage = ({
     );
   };
 
-  // Middle Panel - Boss Reception Component
-  const BossReceptionPanel = () => {
-    const [messageApi, contextHolder] = message.useMessage();
-
-    const handleStatusUpdate = async (employeeId, newStatus) => {
+  // Middle Panel - Bugungi Boss Reception
+  const TodayBossReceptionPanel = () => {
+    const handleStatusUpdate = async (employee, status) => {
       try {
-        await updateEmployeeStatus(employeeId, newStatus);
-        await fetchData();
-        messageApi.success({
-          content: `Xodim holati "${
-            newStatus === "present" ? "Келди" : "Келмади"
-          }" га ўзгартирилди`,
-          duration: 3,
-        });
+        const employeeId = employee.employeeId?._id ||
+          employee.employeeId ||
+          employee._id ||
+          employee.id;
+
+        if (!employeeId) {
+          throw new Error('Employee ID topilmadi');
+        }
+
+        if (status === "present") {
+
+          setSelectedEmployee(employee);
+          setShowTaskModal(true);
+          return;
+        }
+
+        if (status === "absent") {
+          // Kelmadi tugmasi bosilsa status yangilanadi
+          await updateReceptionStatus(employeeId, { status });
+          appMessageApi.success('Ходим ҳолати "Келмади" га ўзгартирилди');
+
+          await fetchTodayReception(); // Listni yangilaymiz
+
+
+          if (fetchData) {
+            await fetchData();
+          }
+        }
       } catch (error) {
-        messageApi.error({
-          content: "Ходим ҳолатини янгилашда хатолик юз берди",
-          duration: 3,
-        });
+        console.error("Status update error:", error);
+        appMessageApi.error("Ходим ҳолатини янгилашда хатолик юз берди");
       }
     };
 
@@ -290,136 +297,130 @@ const HomePage = ({
         case "waiting":
           return <Tag color="processing">Кутилмоқда</Tag>;
         default:
-          return null;
+          return <Tag color="default">Номаълум</Tag>;
       }
     };
 
-    // Sort employees by status: waiting first, then present, then absent
-    const sortedEmployees = [...employees]
-      .filter((emp) => ["waiting", "present", "absent"].includes(emp.status))
-      .sort((a, b) => {
-        const statusOrder = { waiting: 0, present: 1, absent: 2 };
-        return statusOrder[a.status] - statusOrder[b.status];
-      });
-
-    const waitingCount = sortedEmployees.filter(
+    const waitingCount = todayReception.filter(
       (emp) => emp.status === "waiting"
     ).length;
-    const presentCount = sortedEmployees.filter(
+    const presentCount = todayReception.filter(
       (emp) => emp.status === "present"
     ).length;
-    const absentCount = sortedEmployees.filter(
+    const absentCount = todayReception.filter(
       (emp) => emp.status === "absent"
     ).length;
 
     return (
-      <>
-        {contextHolder}
-        <Card
-          title={
-            <Space direction="vertical" style={{ width: "100%" }}>
-              <Title level={4}>
-                <UserOutlined /> Раҳбар Қабули
-              </Title>
-              <Space wrap>
-                <Tag color="processing">Кутилмоқда: {waitingCount}</Tag>
-                <Tag color="success">Келди: {presentCount}</Tag>
-                <Tag color="error">Келмади: {absentCount}</Tag>
-              </Space>
+      <Card
+        title={
+          <Space direction="vertical" style={{ width: "100%" }}>
+            <Title level={4} style={{ margin: 0 }}>
+              <UserOutlined /> Бугунги Раҳбар Қабули
+            </Title>
+            <Space wrap>
+              <Tag color="processing">Кутилмоқда: {waitingCount}</Tag>
+              <Tag color="success">Келди: {presentCount}</Tag>
+              <Tag color="error">Келмади: {absentCount}</Tag>
             </Space>
-          }
-          style={{ height: "calc(100vh - 150px)", overflowY: "auto" }}
-        >
-          <List
-            dataSource={sortedEmployees}
-            locale={{ emptyText: "Кутилayotgan ходимлар йўқ" }}
-            renderItem={(employee) => (
-              <List.Item
-                key={employee._id}
-                style={{
-                  backgroundColor:
-                    employee.status === "waiting"
-                      ? "#fff"
-                      : employee.status === "present"
+          </Space>
+        }
+        style={{ height: "calc(100vh - 150px)" }}
+        styles={{
+          body: {
+            overflowY: "auto",
+            height: "calc(100% - 100px)",
+          },
+        }}
+      >
+        <List
+          dataSource={todayReception}
+          locale={{ emptyText: "Бугун қабулга келган ходимлар йўқ" }}
+          renderItem={(employee) => (
+            <List.Item
+              key={employee.employeeId}
+              style={{
+                backgroundColor:
+                  employee.status === "waiting"
+                    ? "#fff"
+                    : employee.status === "present"
                       ? "#f6ffed"
                       : employee.status === "absent"
-                      ? "#fff1f0"
-                      : undefined,
-                  padding: "12px",
-                  marginBottom: "8px",
-                  borderRadius: "6px",
-                }}
-              >
-                <List.Item.Meta
-                  avatar={
-                    <Avatar
-                      size={48}
-                      icon={<UserOutlined />}
-                      style={{
-                        backgroundColor: "#1890ff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    />
-                  }
-                  title={
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Text strong>{employee.name}</Text>
-                      <Tag color="blue">{employee.position}</Tag>
-                      {getStatusTag(employee.status)}
-                    </div>
-                  }
-                  description={
-                    <Space
-                      direction="vertical"
-                      size="small"
-                      style={{ marginTop: "4px" }}
-                    >
-                      <Text type="secondary">
-                        <BankOutlined /> {employee.department}
-                      </Text>
-                      <Text type="secondary">
+                        ? "#fff1f0"
+                        : undefined,
+                padding: "12px",
+                marginBottom: "8px",
+                borderRadius: "6px",
+                border: "1px solid #f0f0f0",
+              }}
+            >
+              <List.Item.Meta
+                avatar={
+                  <Avatar
+                    size={40}
+                    icon={<UserOutlined />}
+                    style={{
+                      backgroundColor: "#1890ff",
+                    }}
+                  />
+                }
+                title={
+                  <Space>
+                    <Text strong>{employee.name}</Text>
+                    <Tag color="blue" size="small">
+                      {employee.position}
+                    </Tag>
+                    {getStatusTag(employee.status)}
+                  </Space>
+                }
+                description={
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary" style={{ fontSize: "12px" }}>
+                      <BankOutlined /> {employee.department}
+                    </Text>
+                    {employee.phone && (
+                      <Text type="secondary" style={{ fontSize: "12px" }}>
                         <PhoneOutlined /> {employee.phone}
                       </Text>
-                    </Space>
-                  }
-                />
-                {employee.status === "waiting" && (
-                  <Space>
-                    <Button
-                      type="primary"
-                      onClick={() =>
-                        handleStatusUpdate(employee._id, "present")
-                      }
-                      style={{
-                        backgroundColor: "#52c41a",
-                        borderColor: "#52c41a",
-                      }}
-                    >
-                      Келди
-                    </Button>
-                    <Button
-                      type="primary"
-                      danger
-                      onClick={() => handleStatusUpdate(employee._id, "absent")}
-                    >
-                      Келмади
-                    </Button>
+                    )}
+                    {employee.task && (
+                      <Text type="secondary" style={{ fontSize: "12px" }}>
+                        Топшириқ: {employee.task.description}
+                      </Text>
+                    )}
+                    <Text type="secondary" style={{ fontSize: "11px" }}>
+                      Қўшилди: {dayjs(employee.timeUpdated).format("HH:mm")}
+                    </Text>
                   </Space>
-                )}
-              </List.Item>
-            )}
-          />
-        </Card>
-      </>
+                }
+              />
+              {employee.status === "waiting" && (
+                <Space size="small">
+                  <Button
+                    size="small"
+                    type="primary"
+                    onClick={() => handleStatusUpdate(employee, "present")}
+                    style={{
+                      backgroundColor: "#52c41a",
+                      borderColor: "#52c41a",
+                    }}
+                  >
+                    Келди
+                  </Button>
+                  <Button
+                    size="small"
+                    type="primary"
+                    danger
+                    onClick={() => handleStatusUpdate(employee, "absent")}
+                  >
+                    Келмади
+                  </Button>
+                </Space>
+              )}
+            </List.Item>
+          )}
+        />
+      </Card>
     );
   };
 
@@ -427,9 +428,8 @@ const HomePage = ({
   const ScheduledMeetingsPanel = () => {
     const now = dayjs();
 
-    const upcomingMeetings = meetings
+    const upcomingMeetings = (meetings || [])
       .filter((meeting) => {
-        // Make sure we're using the correct date format
         const meetingDateTime = dayjs(meeting.date);
         return (
           meetingDateTime.isValid() &&
@@ -482,8 +482,7 @@ const HomePage = ({
                   <Space>
                     <TeamOutlined />
                     <Text type="secondary">
-                      {meeting.participants.length} киши:{" "}
-                      {meeting.participants.map((p) => p.name).join(", ")}
+                      {meeting.participants?.length || 0} киши
                     </Text>
                   </Space>
                 </Space>
@@ -495,9 +494,37 @@ const HomePage = ({
     );
   };
 
-  const handleModalClose = () => {
-    if (onDataFetch) {
-      onDataFetch();
+  const getEmployeeId = (emp) =>
+    typeof emp.employeeId === 'object'
+      ? emp.employeeId._id
+      : emp.employeeId || emp._id || emp.id;
+  const handleTaskSave = async (taskData) => {
+    try {
+
+      // Employee ID to'g'ri olish
+      const empId = getEmployeeId(selectedEmployee);
+
+      if (!empId) {
+        throw new Error('Employee ID topilmadi');
+      }
+
+      await updateReceptionStatus(empId, {
+        status: 'present',
+        task: taskData
+      });
+
+      appMessageApi.success('Топшириқ муваффақиятли берилди');
+      setShowTaskModal(false);
+      setSelectedEmployee(null);
+
+      await fetchTodayReception(); // Listni yangilaymiz
+      if (fetchData) {
+        await fetchData();
+      }
+
+    } catch (error) {
+      console.error('Task save error:', error);
+      appMessageApi.error('Топшириқ беришда хатолик юз берди');
     }
   };
 
@@ -508,13 +535,15 @@ const HomePage = ({
           <EmployeeListPanel />
         </Col>
         <Col span={8}>
-          <BossReceptionPanel />
+          <TodayBossReceptionPanel />
         </Col>
         <Col span={8}>
           <ScheduledMeetingsPanel />
         </Col>
-      </Row>{" "}
-      {contextHolder}{" "}
+      </Row>
+
+      {contextHolder}
+
       <AddMeetingModal
         visible={meetingModalVisible}
         onClose={(success) => {
@@ -531,7 +560,17 @@ const HomePage = ({
           });
         }}
         preSelectedEmployees={selectedEmployees}
-        employees={employees}
+        employees={employees || []}
+      />
+
+      <TaskAssignmentModal
+        visible={showTaskModal}
+        onClose={() => {
+          setShowTaskModal(false);
+          setSelectedEmployee(null);
+        }}
+        onSave={handleTaskSave}
+        employeeName={selectedEmployee?.name}
       />
     </>
   );
