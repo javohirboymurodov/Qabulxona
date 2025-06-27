@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, Input, Select, InputNumber, DatePicker, Upload, Button, message } from 'antd';
+import { Modal, Form, Input, Select, InputNumber, DatePicker, Upload, Button, App } from 'antd';
 import { 
   UserOutlined, 
   PhoneOutlined, 
@@ -17,7 +17,7 @@ const { TextArea } = Input;
 const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
   const [form] = Form.useForm();
   const [fileList, setFileList] = React.useState([]);
-   const { message } = App.useApp(); 
+  const { message } = App.useApp();
 
   React.useEffect(() => {
     if (initialValues) {
@@ -40,6 +40,7 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
       }
     }
   }, [initialValues, form]);
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -71,7 +72,7 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
       }
 
       await onSave(formData);
-      message.success(initialValues ? 'Ходим маълумотлари янгиланди' : 'Ходим muvaffaqиятли қўшилди');
+      // Message'larni olib tashladik - faqat App.js da bo'ladi
       form.resetFields();
       setFileList([]);
       onClose();
@@ -79,7 +80,8 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
       if (error.errorFields) {
         return;
       }
-      message.error('Хатолик юз берди');
+      // Faqat validation error uchun message qoldiramiz
+      message.error('Форманы тўлдиришда хатолик');
     }
   };
 
