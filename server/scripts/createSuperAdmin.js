@@ -2,7 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
-const Role = require('../models/Role');
+// const Role = require('../models/Role'); // Role modeli olib tashlandi
 const bcrypt = require('bcryptjs');
 
 async function createSuperAdmin() {
@@ -18,21 +18,6 @@ async function createSuperAdmin() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB ga muvaffaqiyatli ulandi');
 
-    // Super Admin roli yaratish
-    const superAdminRole = await Role.findOneAndUpdate(
-      { name: 'super_admin' },
-      {
-        name: 'super_admin',
-        permissions: [
-          'manage_admins',
-          'manage_meetings',
-          'manage_employees',
-          'manage_schedule',
-          'view_all'
-        ]
-      },
-      { upsert: true, new: true }
-    );
 
     // Super Admin yaratish
     const superAdmin = await Admin.findOneAndUpdate(
@@ -41,7 +26,7 @@ async function createSuperAdmin() {
         username: 'superadmin',
         password: await bcrypt.hash('123', 12),
         fullName: 'Super Administrator',
-        role: superAdminRole._id,
+        role: 'super_admin',
         isActive: true
       },
       { upsert: true, new: true }
@@ -49,7 +34,7 @@ async function createSuperAdmin() {
 
     console.log('Super Admin yaratildi:');
     console.log('Username:', superAdmin.username);
-    console.log('Password: Admin123!');
+    console.log('Password: 123');
 
   } catch (error) {
     console.error('Xatolik yuz berdi:', error.message);

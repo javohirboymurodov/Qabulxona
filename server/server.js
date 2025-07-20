@@ -13,7 +13,6 @@ const receptionHistoryRoutes = require("./routes/receptionHistory");
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 
-require('./models/Role');  // Add this line before routes
 require('./models/Admin'); // Add this line before routes
 
 const app = express();

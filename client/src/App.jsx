@@ -356,7 +356,7 @@ const AppContent = ({ admin, onLogout }) => {
           />
         );
       case "admins":
-        return admin?.role === "superadmin" ? (
+        return admin?.role === 'super_admin' ? (
           <AdminManager currentAdmin={admin} showMessage={showMessage} />
         ) : (
           <div style={{ textAlign: "center", padding: "50px" }}>

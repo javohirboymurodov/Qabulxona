@@ -3,7 +3,6 @@ import { Row, Col, Card, List, Tag, Space, Button, message, Typography, Calendar
 import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
 import dayjs from 'dayjs';
-import './BossReception.css';
 
 const { Text, Title } = Typography;
 

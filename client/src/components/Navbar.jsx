@@ -24,12 +24,12 @@ const Navbar = ({ onViewChange, activeView, onLogout, admin }) => {
     {
       key: 'employees',
       icon: <TeamOutlined />,
-      label: 'Ходимлар Базаси'
+      label: 'Раҳбар ходимлар'
     },
     {
       key: 'meetings',
       icon: <CalendarOutlined />,
-      label: 'Мажлислар Базаси'
+      label: 'Мажлислар Тарихи'
     },
     {
       key: 'boss-schedule',
@@ -44,7 +44,7 @@ const Navbar = ({ onViewChange, activeView, onLogout, admin }) => {
   ];
 
   // Faqat superadmin uchun Adminlar menyusini qo'shamiz
-  if (admin && admin.role === 'superadmin') {
+  if (admin && admin.role === 'super_admin') {
     menuItems.push({
       key: 'admins',
       icon: <UsergroupAddOutlined />,

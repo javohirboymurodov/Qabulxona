@@ -38,6 +38,8 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
   const [editingMeeting, setEditingMeeting] = useState(null);
   const [viewingMeeting, setViewingMeeting] = useState(null);
   const [form] = Form.useForm();
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Modal ochilganda form ni to'g'ri set qilish
   useEffect(() => {
@@ -214,16 +216,12 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
             type="link"
             icon={<EyeOutlined />}
             onClick={() => handleViewMeeting(record)}
-          >
-            Кўриш
-          </Button>
+          ></Button>
           <Button
             type="link"
             icon={<EditOutlined />}
             onClick={() => handleEditMeeting(record)}
-          >
-            Таҳрир
-          </Button>
+          ></Button>
           <Popconfirm
             title="Ушбу мажлисни ўчирмоқчимисиз?"
             onConfirm={() => handleDeleteMeeting(record._id)}
@@ -234,9 +232,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
               type="link"
               danger
               icon={<DeleteOutlined />}
-            >
-              Ўчириш
-            </Button>
+            ></Button>
           </Popconfirm>
         </Space>
       )
@@ -270,10 +266,15 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
           loading={loading}
           rowKey={(record) => record._id || record.id}
           pagination={{
-            pageSize: 10,
+            current: currentPage,
+            pageSize: pageSize,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `Жами ${total} та мажлис`
+            showTotal: (total) => `Жами ${total} та мажлис`,
+            onChange: (page, size) => {
+              setCurrentPage(page);
+              setPageSize(size);
+            }
           }}
           locale={{
             emptyText: "Мажлислар топилмади"

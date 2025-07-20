@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const Admin = require('../models/Admin');
-const Role = require('../models/Role');
+// const Role = require('../models/Role'); // Role modeli olib tashlandi
 const { protect } = require('../middleware/auth');
 
 // Get all admins
 router.get('/', protect, async (req, res) => {
   try {
-    const admins = await Admin.find().populate('role').select('-password');
+    const admins = await Admin.find().select('-password'); // populate('role') olib tashlandi
     res.json({ success: true, data: admins });
   } catch (error) {
     res.status(500).json({ 
@@ -20,7 +20,7 @@ router.get('/', protect, async (req, res) => {
 // Create new admin
 router.post('/', protect, async (req, res) => {
   try {
-    const { username, password, fullName, role: roleName } = req.body;
+    const { username, password, fullName, role } = req.body;
 
     // Check if username already exists
     const existingAdmin = await Admin.findOne({ username });
@@ -31,9 +31,8 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    // Get role
-    const role = await Role.findOne({ name: roleName });
-    if (!role) {
+    // Role string enum tekshiruvi
+    if (!['super_admin', 'admin'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Нотўғри роль танланган'
@@ -44,7 +43,7 @@ router.post('/', protect, async (req, res) => {
       username,
       password,
       fullName,
-      role: role._id
+      role
     });
 
     res.status(201).json({
@@ -66,34 +65,28 @@ router.post('/', protect, async (req, res) => {
 // Update admin
 router.put('/:id', protect, async (req, res) => {
   try {
-    const { username, fullName, role: roleName } = req.body;
-    
-    const role = await Role.findOne({ name: roleName });
-    if (!role) {
+    const { username, fullName, role } = req.body;
+    if (!['super_admin', 'admin'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Нотўғри роль танланган'
       });
     }
-
     const admin = await Admin.findByIdAndUpdate(
       req.params.id,
-      { username, fullName, role: role._id },
+      { username, fullName, role },
       { new: true }
-    ).populate('role');
-
+    );
     if (!admin) {
       return res.status(404).json({
         success: false,
         message: 'Админ топилмади'
       });
     }
-
     res.json({
       success: true,
       data: admin
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,

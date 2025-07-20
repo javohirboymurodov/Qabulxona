@@ -37,6 +37,7 @@ exports.getEmployeeById = async (req, res, next) => {
 // Create new employee
 exports.createEmployee = async (req, res, next) => {
   try {
+    // console.log('Yangi xodim uchun yuklangan fayl:', req.file);
     const employee = await employeeService.createEmployee(req.body, req.file);
     res.status(201).json(employee);
   } catch (error) {
@@ -47,6 +48,7 @@ exports.createEmployee = async (req, res, next) => {
 // Update employee
 exports.updateEmployee = async (req, res, next) => {
   try {
+    // console.log('Xodim yangilash uchun yuklangan fayl:', req.file);
     const employee = await employeeService.updateEmployee(req.params.id, req.body, req.file);
     res.json(employee);
   } catch (error) {

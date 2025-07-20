@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 exports.createAdmin = async (req, res) => {
   try {
     // Faqat Super Admin yangi admin yarata oladi
-    if (!req.admin.role.permissions.includes('manage_admins')) {
+    if (req.admin.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
         message: 'Админ яратиш учун рухсат йўқ'

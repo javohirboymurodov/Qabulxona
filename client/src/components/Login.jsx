@@ -13,7 +13,6 @@ const LoginPage = ({ onLogin }) => {
   const handleSubmit = async (values) => {
     try {
       setLoading(true);
-      console.log('Login attempt with:', values);
       
       const result = await onLogin(values);
       console.log('Login result:', result);

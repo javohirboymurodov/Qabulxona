@@ -59,7 +59,7 @@ const AdminManager = () => {
     },
     {
       title: 'Роль',
-      dataIndex: ['role', 'name'],
+      dataIndex: 'role',
       key: 'role',
       render: (role) => (
         <Tag color={role === 'super_admin' ? 'gold' : 'blue'}>
@@ -83,7 +83,7 @@ const AdminManager = () => {
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record._id)}
-            disabled={record.role?.name === 'super_admin'} // Super adminni o'chirib bo'lmaydi
+            disabled={record.role === 'super_admin'}
           />
         </Space>
       ),

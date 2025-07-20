@@ -13,7 +13,7 @@ const AddAdminModal = ({ visible, onClose, onSuccess, editingAdmin }) => {
         form.setFieldsValue({
           username: editingAdmin.username,
           fullName: editingAdmin.fullName,
-          role: editingAdmin.role?.name || 'admin'
+          role: editingAdmin.role || 'admin'
         });
       } else {
         form.resetFields();

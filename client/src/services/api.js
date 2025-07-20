@@ -40,11 +40,8 @@ api.interceptors.response.use(
 // Login endpoint
 export const login = async (credentials) => {
   try {
-    console.log('API login request:', credentials); // Debug
     
     const response = await api.post('/auth/login', credentials);
-    
-    console.log('API login response:', response.data); // Debug
     
     return response.data;
   } catch (error) {
@@ -75,7 +72,11 @@ export const getEmployees = async () => {
 
 export const addEmployee = async (employeeData) => {
   try {
-    const response = await api.post('/employees', employeeData);
+    const response = await api.post('/employees', employeeData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Add employee error:', error);
@@ -85,7 +86,11 @@ export const addEmployee = async (employeeData) => {
 
 export const updateEmployee = async (id, employeeData) => {
   try {
-    const response = await api.put(`/employees/${id}`, employeeData);
+    const response = await api.put(`/employees/${id}`, employeeData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   } catch (error) {
     console.error('Update employee error:', error);

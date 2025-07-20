@@ -16,8 +16,8 @@ const adminSchema = new mongoose.Schema({
     required: true
   },
   role: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Role',
+    type: String,
+    enum: ['super_admin', 'admin'],
     required: true
   },
   createdBy: {
