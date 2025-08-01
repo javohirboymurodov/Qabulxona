@@ -320,4 +320,15 @@ export const deleteAdmin = async (id) => {
   }
 };
 
+// Task status yangilash uchun yangi funksiya
+export const updateTaskStatus = async (receptionId, data) => {
+  try {
+    const response = await api.put(`/reception-history/task/${receptionId}/status`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Update task status error:', error);
+    throw error.response?.data || error;
+  }
+};
+
 export default api;

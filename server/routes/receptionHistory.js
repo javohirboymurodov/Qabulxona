@@ -7,7 +7,8 @@ const {
   getByDate,
   getByDateRange,
   getTodayReception,
-  getReceptionStats
+  getReceptionStats,
+  updateTaskStatus
 } = require('../controllers/receptionHistoryController');
 
 // All routes require authentication
@@ -30,6 +31,9 @@ router.get('/range/:startDate/:endDate', getByDateRange);
 
 // Update employee status in reception
 router.put('/:date/employee/:employeeId/status', updateReceptionStatus);
+
+// Task status yangilash
+router.put('/task/:receptionId/status', updateTaskStatus);
 
 // Legacy route support
 router.get('/:date', getByDate);

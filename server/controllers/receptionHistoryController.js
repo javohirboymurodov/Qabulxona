@@ -14,9 +14,25 @@ exports.getTodayReception = async (req, res) => {
       }
     }).populate('employees.employeeId', 'name position department');
 
+    let receptionData = { date: dayjs().format('YYYY-MM-DD'), employees: [] };
+    
+    if (response) {
+      // Employees arrayini timeUpdated yoki createdAt bo'yicha kamayuvchi tartibda saralamiz
+      const sortedEmployees = response.employees.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.timeUpdated);
+        const dateB = new Date(b.createdAt || b.timeUpdated);
+        return dateB - dateA; // Kamayuvchi tartib
+      });
+      
+      receptionData = {
+        ...response.toObject(),
+        employees: sortedEmployees
+      };
+    }
+
     res.json({
       success: true,
-      data: response || { date: dayjs().format('YYYY-MM-DD'), employees: [] }
+      data: receptionData
     });
   } catch (error) {
     console.error('Error getting today reception:', error);
@@ -90,7 +106,8 @@ exports.addToReception = async (req, res) => {
         department: department || employee.department,
         phone: phone || employee.phone || '',
         status: status,
-        timeUpdated: new Date()
+        timeUpdated: new Date(),
+        createdAt: new Date()
       };
 
       // Add task if provided
@@ -223,50 +240,45 @@ exports.updateReceptionStatus = async (req, res) => {
 exports.getByDate = async (req, res) => {
   try {
     const { date } = req.params;
-
+    
     if (!date) {
       return res.status(400).json({
         success: false,
-        message: 'Сана параметри талаб қилинади'
+        message: 'Сана талаб қилинади'
       });
     }
 
+    const startDate = dayjs(date).startOf('day');
+    const endDate = dayjs(date).endOf('day');
+
     const reception = await ReceptionHistory.findOne({
       date: {
-        $gte: dayjs(date).startOf('day').toDate(),
-        $lte: dayjs(date).endOf('day').toDate()
+        $gte: startDate.toDate(),
+        $lte: endDate.toDate()
       }
-    }).populate('employees.employeeId', 'name position department');
+    });
 
     if (!reception) {
       return res.json({
         success: true,
-        data: [],
-        count: 0
+        data: []
       });
     }
 
-    // Format response to match frontend expectations
-    const formattedData = reception.employees.map(emp => ({
-      _id: emp._id,
-      name: emp.name || emp.employeeId?.name || 'Номаълум',
-      position: emp.position || emp.employeeId?.position || '-',
-      department: emp.department || emp.employeeId?.department || '-',
-      phone: emp.phone || '',
-      status: emp.status,
-      task: emp.task,
-      timeUpdated: emp.timeUpdated,
-      employeeId: emp.employeeId
-    }));
+    // Employees arrayini createdAt bo'yicha kamayuvchi tartibda saralamiz (oxirgi qo'shilgan birinchi)
+    const sortedEmployees = reception.employees.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.timeUpdated);
+      const dateB = new Date(b.createdAt || b.timeUpdated);
+      return dateB - dateA; // Kamayuvchi tartib
+    });
 
     res.json({
       success: true,
-      data: formattedData,
-      count: formattedData.length
+      data: sortedEmployees
     });
 
   } catch (error) {
-    console.error('Get by date error:', error);
+    console.error('Get reception by date error:', error);
     res.status(500).json({
       success: false,
       message: 'Маълумотларни олишда хатолик',
@@ -487,6 +499,69 @@ exports.getArchiveStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Архив статусини олишда хатолик',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update task status
+ */
+exports.updateTaskStatus = async (req, res) => {
+  try {
+    const { receptionId } = req.params;
+    const { task } = req.body;
+
+    if (!receptionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reception ID talab qilinadi'
+      });
+    }
+
+    // Reception history dan employee ni topish
+    const reception = await ReceptionHistory.findOne({
+      'employees._id': receptionId
+    });
+
+    if (!reception) {
+      return res.status(404).json({
+        success: false,
+        message: 'Қабул маълумоти топилмади'
+      });
+    }
+
+    // Employee ni topish
+    const employeeIndex = reception.employees.findIndex(
+      emp => emp._id.toString() === receptionId.toString()
+    );
+
+    if (employeeIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим топилмади'
+      });
+    }
+
+    // Task statusini yangilash
+    if (reception.employees[employeeIndex].task) {
+      reception.employees[employeeIndex].task.status = task.status;
+      reception.employees[employeeIndex].timeUpdated = new Date();
+    }
+
+    await reception.save();
+
+    res.json({
+      success: true,
+      message: 'Топшириқ ҳолати муваффақиятли янгиланди',
+      data: reception.employees[employeeIndex]
+    });
+
+  } catch (error) {
+    console.error('Update task status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Топшириқ ҳолатини янгилашда хатолик',
       error: error.message
     });
   }

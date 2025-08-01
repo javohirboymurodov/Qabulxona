@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import ViewMeetingModal from './ViewMeetingModal';
+import SearchableMeetingList from './SearchableMeetingList';
 import { updateMeeting, createMeeting } from '../../services/api'; // API funksiyalarini import qilamiz
 
 const { Title } = Typography;
@@ -40,6 +41,11 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
   const [form] = Form.useForm();
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filteredMeetings, setFilteredMeetings] = React.useState(meetings);
+
+  React.useEffect(() => {
+    setFilteredMeetings(meetings);
+  }, [meetings]);
 
   // Modal ochilganda form ni to'g'ri set qilish
   useEffect(() => {
@@ -210,32 +216,42 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
     {
       title: 'Амаллар',
       key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewMeeting(record)}
-          ></Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEditMeeting(record)}
-          ></Button>
-          <Popconfirm
-            title="Ушбу мажлисни ўчирмоқчимисиз?"
-            onConfirm={() => handleDeleteMeeting(record._id)}
-            okText="Ҳа"
-            cancelText="Йўқ"
-          >
+      render: (_, record) => {
+        const meetingDate = dayjs(record.date);
+        const today = dayjs();
+        const isPastMeeting = meetingDate.isBefore(today, 'day');
+
+        return (
+          <Space>
             <Button
               type="link"
-              danger
-              icon={<DeleteOutlined />}
+              icon={<EyeOutlined />}
+              onClick={() => handleViewMeeting(record)}
             ></Button>
-          </Popconfirm>
-        </Space>
-      )
+            {!isPastMeeting && (
+              <>
+                <Button
+                  type="link"
+                  icon={<EditOutlined />}
+                  onClick={() => handleEditMeeting(record)}
+                ></Button>
+                <Popconfirm
+                  title="Ушбу мажлисни ўчирмоқчимисиз?"
+                  onConfirm={() => handleDeleteMeeting(record._id)}
+                  okText="Ҳа"
+                  cancelText="Йўқ"
+                >
+                  <Button
+                    type="link"
+                    danger
+                    icon={<DeleteOutlined />}
+                  ></Button>
+                </Popconfirm>
+              </>
+            )}
+          </Space>
+        );
+      }
     }
   ];
 
@@ -260,14 +276,20 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
           </Button>
         }
       >
+        <SearchableMeetingList
+            meetingOptions={meetings}
+            onChange={setFilteredMeetings}
+            placeholder="Мажлисларни қидириш"
+          />
         <Table
           columns={columns}
-          dataSource={sortedMeetings}
+          dataSource={filteredMeetings}
           loading={loading}
           rowKey={(record) => record._id || record.id}
           pagination={{
             current: currentPage,
             pageSize: pageSize,
+            total: filteredMeetings.length,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total) => `Жами ${total} та мажлис`,

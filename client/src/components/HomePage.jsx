@@ -62,7 +62,16 @@ const HomePage = ({
       // Backend'dagi today endpoint ishlatamiz
       const response = await getTodayReception();
       if (response.success && response.data) {
-        setTodayReception(response.data.employees || []);
+        const employees = response.data.employees || [];
+        
+        // Employees arrayini timeUpdated yoki createdAt bo'yicha kamayuvchi tartibda saralamiz
+        const sortedEmployees = employees.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.timeUpdated);
+          const dateB = new Date(b.createdAt || b.timeUpdated);
+          return dateB - dateA; // Kamayuvchi tartib (oxirgi qo'shilgan birinchi)
+        });
+        
+        setTodayReception(sortedEmployees);
       }
     } catch (error) {
       console.error("Bugungi qabullarni olishda xato:", error);
@@ -365,7 +374,7 @@ const HomePage = ({
                   />
                 }
                 title={
-                  <Space>
+                  <Space wrap>
                     <Text strong>{employee.name}</Text>
                     <Tag color="blue" size="small">
                       {employee.position}

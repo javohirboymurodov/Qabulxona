@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, List, Tag, Space, Button, message, Typography, Calendar, Skeleton, Table } from 'antd';
-import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Table } from 'antd';
+import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
+import ViewReceptionModal from './ViewReceptionModal';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -11,11 +12,8 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [historyData, setHistoryData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [dataLoading, setDataLoading] = useState(!meetings || !meetings.length);
-
-  useEffect(() => {
-    setDataLoading(!meetings || !meetings.length);
-  }, [meetings]);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [selectedReception, setSelectedReception] = useState(null);
 
   useEffect(() => {
     // Component yuklanganda bugungi ma'lumotlarni olish
@@ -75,45 +73,69 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     loadHistoryData(date);
   };
 
-  const getStatusTag = (status) => {
-    switch (status) {
-      case 'present':
-        return <Tag color="success">Келган</Tag>;
-      case 'absent':
-        return <Tag color="error">Келмаган</Tag>;
-      case 'waiting':
-        return <Tag color="warning">Кутилмоқда</Tag>;
-      default:
-        return <Tag>Номаълум</Tag>;
+  const handleViewReception = (record) => {
+    setSelectedReception(record);
+    setViewModalVisible(true);
+  };
+
+  const handleViewModalClose = () => {
+    setViewModalVisible(false);
+    setSelectedReception(null);
+  };
+
+  const handleModalUpdate = async () => {
+    // Ma'lumotlarni yangilash
+    console.log('Refreshing data for date:', selectedDate.format('YYYY-MM-DD'));
+    await loadHistoryData(selectedDate);
+    
+    // Agar fetchData mavjud bo'lsa, uni ham chaqiramiz
+    if (fetchData) {
+      await fetchData();
     }
   };
 
-  // Bugungi rahbar qabuliga tanlangan xodimlarni filterlash
-  const todaysMeetingEmployees = employees.filter(emp => {
-    if (!meetings || !meetings.length || !emp) return false;
-    const todayStr = dayjs().format('YYYY-MM-DD');
-    return meetings.some(meeting => 
-      meeting && 
-      meeting.date &&
-      meeting.participants && 
-      dayjs(meeting.date).format('YYYY-MM-DD') === todayStr && 
-      meeting.participants.some(p => p && p._id === emp._id)
-    );
-  });
+  const getTaskStatusDisplay = (task) => {
+    if (!task) return '-';
+
+    const assignedDate = dayjs(task.assignedAt);
+    const currentDate = dayjs();
+    const deadlineDate = assignedDate.add(task.deadline, 'day');
+    const remainingDays = deadlineDate.diff(currentDate, 'day');
+
+    switch (task.status) {
+      case 'completed':
+        return <Tag color="success">Бажарилди</Tag>;
+      case 'overdue':
+        return <Tag color="error">Бажарилмади</Tag>;
+      default: // pending
+        if (remainingDays < 0) {
+          return <Tag color="error">{Math.abs(remainingDays)} кун кечикди</Tag>;
+        } else if (remainingDays === 0) {
+          return <Tag color="warning">Бугун муддат</Tag>;
+        } else {
+          return <Tag color="processing">{remainingDays} кун қолди</Tag>;
+        }
+    }
+  };
 
   // Table columns
   const historyColumns = [
     {
       title: 'Ҳолат',
       key: 'status',
-      width: 80,
-      render: (_, record) => (
-        record.status === 'present' ? 
-          <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '18px' }} /> : 
-          record.status === 'absent' ?
-          <CloseCircleOutlined style={{ color: '#f5222d', fontSize: '18px' }} /> :
-          <CloseCircleOutlined style={{ color: '#faad14', fontSize: '18px' }} />
-      )
+      width: 100,
+      render: (_, record) => {
+        switch (record.status) {
+          case 'present':
+            return <Tag color="success">Келди</Tag>;
+          case 'absent':
+            return <Tag color="error">Келмади</Tag>;
+          case 'waiting':
+            return <Tag color="warning">Кутилмоқда</Tag>;
+          default:
+            return <Tag>Номаълум</Tag>;
+        }
+      }
     },
     {
       title: 'Ф.И.Ш.',
@@ -136,7 +158,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     {
       title: 'Вақт',
       key: 'timeUpdated',
-      width: 100,
+      width: 80,
       render: (_, record) => (
         <Text type="secondary">
           {record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-'}
@@ -145,17 +167,50 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     },
     {
       title: 'Топшириқ',
-      key: 'task',
+      key: 'taskStatus',
       render: (_, record) => {
-        if (!record.task) return '-';
+        // Agar xodim kelmagan bo'lsa, task ma'lumotlarini ko'rsatmaymiz
+        if (record.status === 'absent') {
+          return '-';
+        }
+        
+        // Agar task yo'q bo'lsa yoki description yo'q bo'lsa
+        if (!record.task || !record.task.description) {
+          return '-';
+        }
+        
+        // Agar task completed yoki overdue bo'lsa, faqat statusni ko'rsatamiz
+        if (record.task.status === 'completed' || record.task.status === 'overdue') {
+          return getTaskStatusDisplay(record.task);
+        }
+        
+        // Pending holatda description va statusni ko'rsatamiz
         return (
           <div>
-            <Text style={{ fontSize: '12px' }}>{record.task.description}</Text>
-            <br />
-            <Tag color="blue" size="small">{record.task.deadline} кун</Tag>
+            <div style={{ marginBottom: '4px' }}>
+              <Text style={{ fontSize: '12px' }}>
+                {record.task.description && record.task.description.length > 30 
+                  ? `${record.task.description.substring(0, 30)}...` 
+                  : record.task.description || '-'}
+              </Text>
+            </div>
+            {getTaskStatusDisplay(record.task)}
           </div>
         );
       }
+    },
+    {
+      title: 'Амаллар',
+      key: 'actions',
+      width: 80,
+      render: (_, record) => (
+        <Button
+          type="link"
+          icon={<EyeOutlined />}
+          onClick={() => handleViewReception(record)}
+          size="small"
+        />
+      )
     }
   ];
 
@@ -163,70 +218,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     <div className="boss-reception">
       {contextHolder}
       <Row gutter={[16, 16]}>
-        {/* Chap ustun - Bugungi qabullar */}
-        <Col xs={24} lg={8}>
-          <Card 
-            title="Бугунги қабуллар" 
-            className="reception-card today-meetings"
-            extra={<Text type="secondary">{dayjs().format('DD.MM.YYYY')}</Text>}
-          >
-            {dataLoading ? (
-              <List
-                size="small"
-                dataSource={[1, 2, 3]}
-                renderItem={(item, index) => (
-                  <List.Item key={`skeleton-${index}`}>
-                    <Skeleton active avatar paragraph={{ rows: 2 }} />
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <List
-                size="small"
-                dataSource={todaysMeetingEmployees}
-                locale={{ emptyText: 'Бугунги раҳбар қабулларига ходимлар танланмаган' }}
-                renderItem={(employee) => (
-                  <List.Item
-                    key={employee._id || employee.id}
-                    className={`status-${employee.status}`}
-                  >
-                    <List.Item.Meta
-                      avatar={<UserOutlined className="employee-avatar" />}
-                      title={<Text strong>{employee.name || employee.fullName}</Text>}
-                      description={
-                        <Space direction="vertical" size={0}>
-                          <Text type="secondary">{employee.position}</Text>
-                          <Text type="secondary">{employee.department}</Text>
-                          {getStatusTag(employee.status)}
-                        </Space>
-                      }
-                    />
-                    <Space>
-                      <Button 
-                        type="primary" 
-                        size="small"
-                        onClick={() => handleStatusUpdate(employee._id, 'present')}
-                        disabled={employee.status === 'present'}
-                      >
-                        Келди
-                      </Button>
-                      <Button 
-                        danger 
-                        size="small"
-                        onClick={() => handleStatusUpdate(employee._id, 'absent')}
-                        disabled={employee.status === 'absent'}
-                      >
-                        Келмади
-                      </Button>
-                    </Space>
-                  </List.Item>
-                )}
-              />
-            )}
-          </Card>
-        </Col>
-
-        {/* O'rta ustun - Kalendar */}
+        {/* Chap ustun - Kalendar (1/3) */}
         <Col xs={24} lg={8}>
           <Card title="Қабул кунлари тарихи">
             <Calendar 
@@ -237,8 +229,8 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
           </Card>
         </Col>
 
-        {/* O'ng ustun - Tanlangan kun ma'lumotлари */}
-        <Col xs={24} lg={8}>
+        {/* O'ng ustun - Tanlangan кун ma'lumotлари (2/3) */}
+        <Col xs={24} lg={16}>
           <Card 
             title={`Танланган кун: ${selectedDate.format('DD.MM.YYYY')}`}
             className="history-card"
@@ -254,11 +246,18 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
               locale={{ 
                 emptyText: `${selectedDate.format('DD.MM.YYYY')} санада қабул маълумотлари мавжуд эмас` 
               }}
-              scroll={{ y: 300 }}
+              scroll={{ y: 400 }}
             />
           </Card>
         </Col>
       </Row>
+
+      <ViewReceptionModal
+        visible={viewModalVisible}
+        onClose={handleViewModalClose}
+        reception={selectedReception}
+        onUpdate={handleModalUpdate}
+      />
     </div>
   );
 };
