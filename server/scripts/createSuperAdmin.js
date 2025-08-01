@@ -2,7 +2,6 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
-// const Role = require('../models/Role'); // Role modeli olib tashlandi
 const bcrypt = require('bcryptjs');
 
 async function createSuperAdmin() {
