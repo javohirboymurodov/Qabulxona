@@ -7,7 +7,7 @@ import Navbar from "./components/Navbar";
 import MeetingManager from "./components/Meetings/MeetingManager";
 import AddMeetingModal from "./components/Meetings/AddMeetingModal";
 import AddEmployeeModal from "./components/Employees/AddEmployeeModal";
-import BossWorkSchedule from "./components/BossWorkSchedule";
+import BossWorkSchedule from "./components/BossWorkSchedule"; // 
 import HomePage from "./components/HomePage";
 import BossReception from "./components/Reseption/BossReception";
 import AppFooter from "./components/Footer";
@@ -194,14 +194,10 @@ const AppContent = ({ admin, onLogout }) => {
       setLoading(true);
 
       const employeesResponse = await getEmployees();
-      // console.log("Employees response:", employeesResponse);
-
       const employeesData = employeesResponse?.data || employeesResponse;
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
 
       const meetingsResponse = await getMeetings();
-      // console.log("Meetings response:", meetingsResponse);
-
       const meetingsData = meetingsResponse?.data || meetingsResponse;
       setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
     } catch (error) {
@@ -343,7 +339,7 @@ const AppContent = ({ admin, onLogout }) => {
           />
         );
       case "boss-schedule":
-        return <BossWorkSchedule showMessage={showMessage} fetchData={fetchData} />;
+        return <BossWorkSchedule showMessage={showMessage} />; {/* fetchData prop ni olib tashladim */}
       case "reception-history":
         return (
           <BossReception

@@ -304,7 +304,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         />
       </Card>
 
-      {/* Edit/Add Modal - destroyOnClose o'rniga destroyOnHidden */}
+      {/* Edit/Add Modal  */}
       <Modal
         title={editingMeeting ? 'Мажлисни таҳрирлаш' : 'Янги мажлис қўшиш'}
         open={modalVisible}
@@ -312,7 +312,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         onCancel={handleModalCancel}
         confirmLoading={loading}
         width={600}
-        destroyOnHidden={true} // destroyOnClose o'rniga
+        destroyOnHidden={true}
       >
         <Form
           form={form}

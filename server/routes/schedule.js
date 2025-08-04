@@ -4,16 +4,18 @@ const {
   getScheduleByDate,
   createSchedule,
   updateSchedule,
-  checkFutureDate
+  checkFutureDate,
+  getDailyPlan,
+  saveDailyPlan
 } = require('../controllers/scheduleController');
 
-// GET - Barcha kunlar uchun
+// Eski API'lar (faqat vazifalar uchun)
 router.get('/:date', getScheduleByDate);
-
-// POST - Faqat bugungi va kelasi kunlar uchun
 router.post('/:date', checkFutureDate, createSchedule);
-
-// PUT - Faqat bugungi va kelasi kunlar uchun
 router.put('/:date', checkFutureDate, updateSchedule);
+
+// Yangi API'lar (universal kunlik reja)
+router.get('/daily-plan/:date', getDailyPlan);
+router.post('/daily-plan/save', checkFutureDate, saveDailyPlan);
 
 module.exports = router;

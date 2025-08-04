@@ -331,4 +331,29 @@ export const updateTaskStatus = async (receptionId, data) => {
   }
 };
 
+// Kunlik rejani olish
+export const getDailyPlan = async (date) => {
+  try {
+    const response = await axios.get(`/api/schedule/daily-plan/${date}`);
+    return response;
+  } catch (error) {
+    console.error('Daily plan fetch error:', error);
+    throw error;
+  }
+};
+
+// Kunlik rejani saqlash  
+export const saveDailyPlan = async (date, items) => {
+  try {
+    const response = await axios.post('/api/schedule/daily-plan/save', {
+      date,
+      items
+    });
+    return response;
+  } catch (error) {
+    console.error('Daily plan save error:', error);
+    throw error;
+  }
+};
+
 export default api;
