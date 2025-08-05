@@ -169,3 +169,17 @@ body {
 .ant-empty-description {
     color: #8c8c8c;
 }
+
+
+.custom-calendar-cell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.custom-calendar-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+}

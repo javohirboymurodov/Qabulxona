@@ -160,7 +160,7 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
           {getStatusTag(reception.status)}
         </Descriptions.Item>
         
-        <Descriptions.Item label="Вақти">
+        <Descriptions.Item label="Янгиланган вақти">
           <Space>
             <ClockCircleOutlined />
             <Text>

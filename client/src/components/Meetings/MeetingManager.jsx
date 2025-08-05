@@ -26,6 +26,7 @@ import dayjs from 'dayjs';
 import ViewMeetingModal from './ViewMeetingModal';
 import SearchableMeetingList from './SearchableMeetingList';
 import { updateMeeting, createMeeting } from '../../services/api'; // API funksiyalarini import qilamiz
+import AddMeetingModal from './AddMeetingModal'; // <-- Import qo'shish
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -34,11 +35,10 @@ const { TextArea } = Input;
 const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchData }) => {
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false); // <-- Modal state o'zgartirish
   const [viewModalVisible, setViewModalVisible] = useState(false);
-  const [editingMeeting, setEditingMeeting] = useState(null);
+  const [editingMeeting, setEditingMeeting] = useState(null); // <-- Tahrirlash uchun
   const [viewingMeeting, setViewingMeeting] = useState(null);
-  const [form] = Form.useForm();
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [filteredMeetings, setFilteredMeetings] = React.useState(meetings);
@@ -47,35 +47,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
     setFilteredMeetings(meetings);
   }, [meetings]);
 
-  // Modal ochilganda form ni to'g'ri set qilish
-  useEffect(() => {
-    if (modalVisible && editingMeeting) {
-      const formValues = {
-        name: editingMeeting.name || '',
-        description: editingMeeting.description || '',
-        date: editingMeeting.date ? dayjs(editingMeeting.date) : dayjs(),
-        time: editingMeeting.time ? dayjs(editingMeeting.time, 'HH:mm') : dayjs('09:00', 'HH:mm'),
-        location: editingMeeting.location || '',
-        participants: editingMeeting.participants ? 
-          editingMeeting.participants.map(p => p._id || p) : []
-      };
-      
-      console.log('Setting form values:', formValues);
-      console.log('Editing meeting:', editingMeeting);
-      
-      // Form ni to'g'ri set qilish
-      setTimeout(() => {
-        form.setFieldsValue(formValues);
-      }, 100);
-      
-    } else if (modalVisible && !editingMeeting) {
-      form.resetFields();
-      form.setFieldsValue({
-        date: dayjs(),
-        time: dayjs('09:00', 'HH:mm')
-      });
-    }
-  }, [modalVisible, editingMeeting, form]);
+  // Form useEffect'larni olib tashlash - AddMeetingModal o'zi boshqaradi
 
   const safeMeetings = Array.isArray(meetings) ? meetings : [];
   
@@ -85,14 +57,14 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
   });
 
   const handleAddMeeting = () => {
-    setEditingMeeting(null);
-    setModalVisible(true);
+    setEditingMeeting(null); // <-- Yangi mažlis uchun null
+    setShowMeetingModal(true);
   };
 
   const handleEditMeeting = (record) => {
     console.log('Editing meeting:', record);
-    setEditingMeeting(record);
-    setModalVisible(true);
+    setEditingMeeting(record); // <-- Tahrirlash uchun record ni set qilish
+    setShowMeetingModal(true);
   };
 
   const handleViewMeeting = (record) => {
@@ -117,53 +89,19 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
     }
   };
 
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      setLoading(true);
-
-      const meetingData = {
-        name: values.name,
-        description: values.description,
-        date: values.date.format('YYYY-MM-DD'),
-        time: values.time.format('HH:mm'),
-        location: values.location,
-        participants: values.participants || []
-      };
-
-      console.log('Saving meeting data:', meetingData);
-
-      if (editingMeeting) {
-        // Update meeting - to'g'ridan-to'g'ri API chaqiramiz
-        console.log('Updating meeting ID:', editingMeeting._id);
-        const response = await updateMeeting(editingMeeting._id, meetingData);
-        console.log('Update response:', response);
-        message.success('Мажлис муваффақиятли янгиланди');
-      } else {
-        // Create new meeting
-        const response = await createMeeting(meetingData);
-        console.log('Create response:', response);
-        message.success('Мажлис муваффақиятли қўшилди');
-      }
-
-      handleModalCancel();
-      
-      // Ma'lumotlarni yangilash
-      if (fetchData) {
-        await fetchData();
-      }
-    } catch (error) {
-      console.error('Save meeting error:', error);
-      message.error('Мажлисни сақлашда хатолик: ' + (error.message || 'Номаълум хато'));
-    } finally {
-      setLoading(false);
+  // AddMeetingModal callback'lari
+  const handleMeetingModalClose = async (success) => {
+    setShowMeetingModal(false);
+    setEditingMeeting(null);
+    
+    if (success && fetchData) {
+      await fetchData(); // <-- Ma'lumotlarni yangilash
     }
   };
 
-  const handleModalCancel = () => {
-    setModalVisible(false);
-    setEditingMeeting(null);
-    form.resetFields();
+  const handleMeetingSave = (meetingData) => {
+    // AddMeetingModal o'zi success message ko'rsatadi
+    console.log('Meeting saved:', meetingData);
   };
 
   const columns = [
@@ -227,14 +165,14 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
               type="link"
               icon={<EyeOutlined />}
               onClick={() => handleViewMeeting(record)}
-            ></Button>
+            />
             {!isPastMeeting && (
               <>
                 <Button
                   type="link"
                   icon={<EditOutlined />}
                   onClick={() => handleEditMeeting(record)}
-                ></Button>
+                />
                 <Popconfirm
                   title="Ушбу мажлисни ўчирмоқчимисиз?"
                   onConfirm={() => handleDeleteMeeting(record._id)}
@@ -245,7 +183,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
                     type="link"
                     danger
                     icon={<DeleteOutlined />}
-                  ></Button>
+                  />
                 </Popconfirm>
               </>
             )}
@@ -277,10 +215,10 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         }
       >
         <SearchableMeetingList
-            meetingOptions={meetings}
-            onChange={setFilteredMeetings}
-            placeholder="Мажлисларни қидириш"
-          />
+          meetingOptions={meetings}
+          onChange={setFilteredMeetings}
+          placeholder="Мажлисларни қидириш"
+        />
         <Table
           columns={columns}
           dataSource={filteredMeetings}
@@ -304,98 +242,17 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         />
       </Card>
 
-      {/* Edit/Add Modal  */}
-      <Modal
-        title={editingMeeting ? 'Мажлисни таҳрирлаш' : 'Янги мажлис қўшиш'}
-        open={modalVisible}
-        onOk={handleModalOk}
-        onCancel={handleModalCancel}
-        confirmLoading={loading}
-        width={600}
-        destroyOnHidden={true}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          preserve={false}
-        >
-          <Form.Item
-            name="name"
-            label="Мажлис номи"
-            rules={[{ required: true, message: 'Мажлис номини киритинг' }]}
-          >
-            <Input placeholder="Мажлис номини киритинг" />
-          </Form.Item>
+      {/* Eski modallarni olib tashlash va AddMeetingModal qo'shish */}
+      <AddMeetingModal
+        visible={showMeetingModal}
+        onClose={handleMeetingModalClose}
+        onSave={handleMeetingSave}
+        employees={employees}
+        initialData={editingMeeting} // <-- Tahrirlash uchun ma'lumot
+        preSelectedEmployees={[]}
+      />
 
-          <Form.Item
-            name="description"
-            label="Тафсилот"
-          >
-            <TextArea
-              rows={3}
-              placeholder="Мажлис ҳақида тафсилот"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="date"
-            label="Сана"
-            rules={[{ required: true, message: 'Санани танланг' }]}
-          >
-            <DatePicker
-              style={{ width: '100%' }}
-              format="DD.MM.YYYY"
-              placeholder="Санани танланг"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="time"
-            label="Вақт"
-            rules={[{ required: true, message: 'Вақтни танланг' }]}
-          >
-            <TimePicker
-              style={{ width: '100%' }}
-              format="HH:mm"
-              placeholder="Вақтни танланг"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="location"
-            label="Жой"
-          >
-            <Input placeholder="Мажлис ўтказиладиган жой" />
-          </Form.Item>
-
-          <Form.Item
-            name="participants"
-            label="Иштирокчилар"
-          >
-            <Select
-              mode="multiple"
-              placeholder="Иштирокчиларни танланг"
-              style={{ width: '100%' }}
-              allowClear
-              showSearch
-              filterOption={(input, option) =>
-                option?.children?.toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {employees.map(employee => (
-                <Option 
-                  key={employee._id} 
-                  value={employee._id}
-                >
-                  {employee.fullName || employee.name} - {employee.position}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* View Modal */}
+      {/* View Modal - shu qolsin */}
       <ViewMeetingModal
         visible={viewModalVisible}
         onClose={handleViewModalClose}

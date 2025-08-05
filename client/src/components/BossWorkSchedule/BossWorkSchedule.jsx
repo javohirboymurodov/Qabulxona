@@ -28,25 +28,15 @@ dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
 
 const BossWorkSchedule = ({ showMessage }) => {
-  if (!showMessage || typeof showMessage.error !== 'function') {
-    console.error('showMessage prop is required with error function');
-    return null;
-  }
-
   const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [isDailyPlanModalVisible, setIsDailyPlanModalVisible] = useState(false);
-  const [dailyPlanData, setDailyPlanData] = useState(null);
+  const [dailyPlanData, setDailyPlanData] = useState({});
   const [loading, setLoading] = useState(false);
-  const [calendarData, setCalendarData] = useState({}); // Kalendar uchun badge ma'lumotlari
+  const [isDailyPlanModalVisible, setIsDailyPlanModalVisible] = useState(false);
 
+  // useEffect'lar
   useEffect(() => {
     fetchDailyPlan(selectedDate);
   }, [selectedDate]);
-
-  // Oylik ma'lumotlarni yuklash (kalendar badge'lari uchun)
-  useEffect(() => {
-    loadMonthlyData(selectedDate);
-  }, [selectedDate.format('YYYY-MM')]);
 
   const isDateEditable = (date) => {
     const selectedDay = dayjs(date).startOf('day');
@@ -58,112 +48,40 @@ const BossWorkSchedule = ({ showMessage }) => {
   const fetchDailyPlan = async (date) => {
     try {
       setLoading(true);
-      const formattedDate = dayjs(date).format("YYYY-MM-DD");
-      const response = await axios.get(`/api/schedule/daily-plan/${formattedDate}`);
-
-      if (response.data?.success) {
-        setDailyPlanData(response.data.data);
-      } else {
-        setDailyPlanData(null);
-      }
+      const dateStr = date.format('YYYY-MM-DD');
+      // API call logikasi...
+      
+      // Test data
+      setDailyPlanData({
+        items: [], // plan items
+        summary: {
+          totalItems: 0,
+          totalTasks: 0,
+          totalReceptions: 0,
+          totalMeetings: 0
+        }
+      });
     } catch (error) {
-      console.error("Kunlik reja yuklashda xatolik:", error);
-      // 404 xatolikni ignore qilish (reja yo'q bo'lsa)
-      if (error.response?.status !== 404) {
-        showMessage.error("Кунлик режа маълумотларини юклашда хатолик");
-      }
-      setDailyPlanData(null);
+      console.error('Daily plan fetch error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Oylik ma'lumotlarni yuklash
-  const loadMonthlyData = async (date) => {
-    try {
-      const startOfMonth = date.startOf('month').format('YYYY-MM-DD');
-      const endOfMonth = date.endOf('month').format('YYYY-MM-DD');
-
-      const response = await axios.get(`/api/schedule/monthly-summary`, {
-        params: { startDate: startOfMonth, endDate: endOfMonth }
-      });
-
-      if (response.data?.success) {
-        setCalendarData(response.data.data || {});
-      }
-    } catch (error) {
-      console.error("Oylik ma'lumotlarni yuklashda xatolik:", error);
-    }
+  // Calendar onSelect handler
+  const onSelect = (date) => {
+    setSelectedDate(date);
+    fetchDailyPlan(date);
   };
 
-  // Modal ochish
   const handleModalOpen = () => {
     setIsDailyPlanModalVisible(true);
   };
 
-  // Modal yopish va ma'lumotlarni yangilash
   const handleModalClose = () => {
     setIsDailyPlanModalVisible(false);
+    // Ma'lumotlarni yangilash
     fetchDailyPlan(selectedDate);
-    loadMonthlyData(selectedDate);
-  };
-
-  // Element uchun ikonka olish
-  const getItemIcon = (type) => {
-    switch (type) {
-      case 'task':
-        return <CalendarOutlined style={{ color: '#1890ff' }} />;
-      case 'reception':
-        return <UserOutlined style={{ color: '#52c41a' }} />;
-      case 'meeting':
-        return <TeamOutlined style={{ color: '#faad14' }} />;
-      default:
-        return <CalendarOutlined />;
-    }
-  };
-
-  // Element uchun tag olish
-  const getItemTag = (type) => {
-    switch (type) {
-      case 'task':
-        return <Tag color="blue">Вазифа</Tag>;
-      case 'reception':
-        return <Tag color="green">Қабул</Tag>;
-      case 'meeting':
-        return <Tag color="orange">Мажлис</Tag>;
-      default:
-        return <Tag>Номаълум</Tag>;
-    }
-  };
-
-  // Calendar cell render - yangi format
-  const cellRender = (current, info) => {
-    // Faqat date cell'lar uchun
-    if (info.type !== 'date') {
-      return info.originNode;
-    }
-
-    const dateKey = current.format('YYYY-MM-DD');
-    const dayData = calendarData[dateKey];
-
-    if (!dayData || dayData.totalItems === 0) {
-      return info.originNode;
-    }
-
-    return (
-      <div style={{ position: 'relative' }}>
-        {info.originNode}
-        <div style={{ position: 'absolute', top: 2, right: 2 }}>
-          <Badge
-            count={dayData.totalItems}
-            size="small"
-            style={{
-              backgroundColor: dayData.totalItems > 3 ? '#ff4d4f' : '#52c41a'
-            }}
-          />
-        </div>
-      </div>
-    );
   };
 
   // Rejalar mavjudligini tekshirish
@@ -171,194 +89,183 @@ const BossWorkSchedule = ({ showMessage }) => {
   const totalItems = dailyPlanData?.summary?.totalItems || 0;
 
   return (
-    <Row gutter={[16, 16]}>
-      {/* Calendar */}
-      <Col span={8}>
-        <Card>
-          <Calendar
-            fullscreen={false}
-            value={selectedDate}
-            onChange={setSelectedDate}
-            cellRender={cellRender}
-          />
-        </Card>
-      </Col>
+    <div className="boss-work-schedule">
+      <Row gutter={[16, 16]}>
+        {/* Chap ustun - Kalendar (1/3) */}
+        <Col xs={24} lg={8}>
+          <Card title="Иш режаси календари">
+            <Calendar 
+              fullscreen={false} 
+              onSelect={onSelect}
+              value={selectedDate}
+              // cellRender ni umuman olib tashlash - sodda kalendar
+            />
+          </Card>
+        </Col>
 
-      {/* Kunlik reja ko'rinishi */}
-      <Col span={16}>
-        <Card
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>{selectedDate.format("DD MMMM YYYY")}</span>
-              {totalItems > 0 && (
-                <Tag color="blue">{totalItems} та режа</Tag>
-              )}
-            </div>
-          }
-          extra={
-            isDateEditable(selectedDate) && (
-              <Button
-                type="primary"
-                icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
-                onClick={handleModalOpen}
-              >
-                {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
-              </Button>
-            )
-          }
-        >
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "50px" }}>
-              <Spin size="large" />
-              <div style={{ marginTop: 16 }}>Юкланмоқда...</div>
-            </div>
-          ) : hasPlans ? (
-            <div>
-              {/* Qisqacha hisobot */}
-              <div style={{
-                marginBottom: 16,
-                padding: '12px',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '6px',
-                display: 'flex',
-                gap: 16,
-                flexWrap: 'wrap'
-              }}>
-                {dailyPlanData.summary.totalTasks > 0 && (
-                  <span>
-                    <CalendarOutlined style={{ color: '#1890ff', marginRight: 4 }} />
-                    {dailyPlanData.summary.totalTasks} вазифа
-                  </span>
-                )}
-                {dailyPlanData.summary.totalReceptions > 0 && (
-                  <span>
-                    <UserOutlined style={{ color: '#52c41a', marginRight: 4 }} />
-                    {dailyPlanData.summary.totalReceptions} қабул
-                  </span>
-                )}
-                {dailyPlanData.summary.totalMeetings > 0 && (
-                  <span>
-                    <TeamOutlined style={{ color: '#faad14', marginRight: 4 }} />
-                    {dailyPlanData.summary.totalMeetings} мажлис
-                  </span>
+        {/* O'ng ustun - Tanlangan kun ma'lumotlari (2/3) */}
+        <Col xs={24} lg={16}>
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{selectedDate.format("DD MMMM YYYY")}</span>
+                {totalItems > 0 && (
+                  <Tag color="blue">{totalItems} та режа</Tag>
                 )}
               </div>
+            }
+            extra={
+              isDateEditable(selectedDate) && (
+                <Button
+                  type="primary"
+                  icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
+                  onClick={handleModalOpen}
+                >
+                  {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
+                </Button>
+              )
+            }
+            loading={loading}
+          >
+            {loading ? (
+              <div style={{ textAlign: "center", padding: "50px" }}>
+                <Spin size="large" />
+                <div style={{ marginTop: 16 }}>Юкланмоқда...</div>
+              </div>
+            ) : hasPlans ? (
+              <div>
+                {/* Summary */}
+                <div style={{
+                  marginBottom: 16,
+                  padding: '12px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  gap: 16,
+                  flexWrap: 'wrap'
+                }}>
+                  {dailyPlanData.summary.totalTasks > 0 && (
+                    <span>
+                      <CalendarOutlined style={{ color: '#1890ff', marginRight: 4 }} />
+                      {dailyPlanData.summary.totalTasks} вазифа
+                    </span>
+                  )}
+                  {dailyPlanData.summary.totalReceptions > 0 && (
+                    <span>
+                      <UserOutlined style={{ color: '#52c41a', marginRight: 4 }} />
+                      {dailyPlanData.summary.totalReceptions} қабул
+                    </span>
+                  )}
+                  {dailyPlanData.summary.totalMeetings > 0 && (
+                    <span>
+                      <TeamOutlined style={{ color: '#faad14', marginRight: 4 }} />
+                      {dailyPlanData.summary.totalMeetings} мажлис
+                    </span>
+                  )}
+                </div>
 
-              {/* Rejalar ro'yxati */}
-              <List
-                dataSource={dailyPlanData.items}
-                renderItem={(item) => (
-                  <List.Item style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      width: '100%'
-                    }}>
-                      {/* Ikonka */}
-                      <div style={{ marginTop: 4 }}>
-                        {getItemIcon(item.type)}
-                      </div>
-
-                      {/* Ma'lumotlar */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          marginBottom: 4
-                        }}>
-                          <strong style={{ fontSize: '14px' }}>
-                            {item.time}
-                            {item.endTime && ` - ${item.endTime}`}
-                          </strong>
-                          {getItemTag(item.type)}
+                {/* Plan items list */}
+                <List
+                  dataSource={dailyPlanData.items}
+                  renderItem={(item) => (
+                    <List.Item style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        width: '100%'
+                      }}>
+                        <div style={{ marginTop: 4 }}>
+                          {getItemIcon(item.type)}
                         </div>
 
-                        <div style={{
-                          fontSize: '15px',
-                          fontWeight: 500,
-                          color: '#262626',
-                          marginBottom: 2
-                        }}>
-                          {item.title}
-                        </div>
-
-                        {item.description && (
+                        <div style={{ flex: 1 }}>
                           <div style={{
-                            fontSize: '13px',
-                            color: '#666',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginBottom: 4
+                          }}>
+                            <strong style={{ fontSize: '14px' }}>
+                              {item.time}
+                              {item.endTime && ` - ${item.endTime}`}
+                            </strong>
+                            {getItemTag(item.type)}
+                          </div>
+
+                          <div style={{
+                            fontSize: '15px',
+                            fontWeight: 500,
+                            color: '#262626',
                             marginBottom: 2
                           }}>
-                            {item.description}
+                            {item.title}
                           </div>
-                        )}
 
-                        {/* Qo'shimcha ma'lumotlar */}
-                        {item.type === 'reception' && (item.department || item.position) && (
-                          <div style={{ fontSize: '12px', color: '#999' }}>
-                            {item.position && `${item.position}`}
-                            {item.department && ` • ${item.department}`}
-                          </div>
-                        )}
+                          {item.description && (
+                            <div style={{
+                              fontSize: '13px',
+                              color: '#666',
+                              marginBottom: 2
+                            }}>
+                              {item.description}
+                            </div>
+                          )}
 
-                        {item.type === 'meeting' && item.location && (
-                          <div style={{ fontSize: '12px', color: '#999' }}>
-                            📍 {item.location}
-                            {item.participants && ` • Иштирокчилар: ${item.participants.length}`}
-                          </div>
-                        )}
+                          {/* Type-specific details */}
+                          {item.type === 'reception' && (item.department || item.position) && (
+                            <div style={{ fontSize: '12px', color: '#999' }}>
+                              {item.position && `${item.position}`}
+                              {item.department && ` • ${item.department}`}
+                            </div>
+                          )}
+
+                          {item.type === 'meeting' && item.location && (
+                            <div style={{ fontSize: '12px', color: '#999' }}>
+                              📍 {item.location}
+                              {item.participants && ` • Иштирокчилар: ${item.participants.length}`}
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    </List.Item>
+                  )}
+                />
+              </div>
+            ) : (
+              <Empty
+                description={
+                  <div>
+                    <div style={{ marginBottom: 8 }}>
+                      {isDateEditable(selectedDate)
+                        ? "Бу кун учун режа тузилмаган"
+                        : "Бу кун учун иш режа мавжуд эмас"
+                      }
                     </div>
-                  </List.Item>
-                )}
+                    <div style={{ fontSize: '12px', color: '#999' }}>
+                      {isDateEditable(selectedDate)
+                        ? "Янги режа тузиш учун юқоридаги тугмани босинг"
+                        : "Фақат келажак сана учун режа тузиш мумкин"
+                      }
+                    </div>
+                  </div>
+                }
+                style={{ padding: '60px 20px' }}
               />
-            </div>
-          ) : (
-            <Empty
-              description={
-                <div>
-                  <div style={{ marginBottom: 8 }}>
-                    {isDateEditable(selectedDate)
-                      ? "Бу кун учун режа тузилмаган"
-                      : "Бу кун учун иш режа мавжуд эмас"
-                    }
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>
-                    {isDateEditable(selectedDate)
-                      ? "Янги режа тузиш учун юқоридаги тугмани босинг"  // <-- Bu qatorni o'zgartirdim
-                      : "Фақат келажак сана учун режа тузиш мумкин"
-                    }
-                  </div>
-                </div>
-              }
-              style={{ padding: '60px 20px' }}
-            >
-              {/* Bu Button ni olib tashlash kerak */}
-              {/* Chunki yuqorida Card extra qismida tugma bor */}
-            </Empty>
-          )}
-        </Card>
-      </Col>
+            )}
+          </Card>
+        </Col>
+      </Row>
 
-      {/* DailyPlanModal */}
+      {/* Daily Plan Modal */}
       <DailyPlanModal
         date={selectedDate.format('YYYY-MM-DD')}
         isOpen={isDailyPlanModalVisible}
         onClose={handleModalClose}
         showMessage={showMessage}
       />
-    </Row>
+    </div>
   );
-};
-
-BossWorkSchedule.propTypes = {
-  showMessage: PropTypes.shape({
-    success: PropTypes.func.isRequired,
-    error: PropTypes.func.isRequired,
-    warning: PropTypes.func.isRequired,
-    info: PropTypes.func.isRequired
-  }).isRequired
 };
 
 export default BossWorkSchedule;

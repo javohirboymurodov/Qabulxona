@@ -37,7 +37,8 @@ const receptionHistorySchema = new mongoose.Schema({
     timeUpdated: {
       type: Date,
       default: Date.now
-    }
+    },
+    createdAt: { type: Date, default: Date.now },
   }]
 }, { 
   timestamps: true,
