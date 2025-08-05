@@ -1,19 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Row,
-  Col,
-  Card,
-  Space,
-  Tag,
-  Typography,
-  Button,
-  message,
-  List,
-  Avatar,
-  Empty,
-  Checkbox,
-  App,
-} from "antd";
+import {Row,Col,Card,Space,Tag,Typography,Button,message,List,Avatar,Checkbox,App,} from "antd";
 import {
   UserOutlined,
   CalendarOutlined,
@@ -22,35 +8,27 @@ import {
   PhoneOutlined,
   BankOutlined,
 } from "@ant-design/icons";
-import {
-  addToReception,
-  getTodayReception,
-  updateReceptionStatus,
+import {addToReception, getTodayReception, updateReceptionStatus,
 } from "../services/api";
 import SearchableEmployeeList from "./Employees/SearchableEmployeeList";
 import AddMeetingModal from "./Meetings/AddMeetingModal";
 import TaskAssignmentModal from "./Reseption/TaskAssignmentModal";
+import AddReceptionModal from './Reseption/AddReceptionModal'; // <-- To'g'ri path
 import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
 
-const HomePage = ({
-  employees = [], // Default qiymat qo'shamiz
-  meetings = [],
-  onAddToBossReception,
-  onAddMeeting,
-  fetchData,
-  onViewChange,
-}) => {
-
+const HomePage = ({ employees = [], meetings = [], fetchData }) => {
+  // Faqat App.useApp() dan foydalaning
+  const { message: messageApi } = App.useApp();
+  
 
   const [selectedEmployees, setSelectedEmployees] = useState([]);
-  const [messageApi, contextHolder] = message.useMessage();
   const [meetingModalVisible, setMeetingModalVisible] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [todayReception, setTodayReception] = useState([]);
-  const { message: appMessageApi } = App.useApp();
+  const [receptionModalVisible, setReceptionModalVisible] = useState(false);
 
   // Bugungi qabullarni olish
   useEffect(() => {
@@ -63,14 +41,12 @@ const HomePage = ({
       const response = await getTodayReception();
       if (response.success && response.data) {
         const employees = response.data.employees || [];
-        
         // Employees arrayini timeUpdated yoki createdAt bo'yicha kamayuvchi tartibda saralamiz
         const sortedEmployees = employees.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.timeUpdated);
           const dateB = new Date(b.createdAt || b.timeUpdated);
           return dateB - dateA; // Kamayuvchi tartib (oxirgi qo'shilgan birinchi)
         });
-        
         setTodayReception(sortedEmployees);
       }
     } catch (error) {
@@ -78,7 +54,6 @@ const HomePage = ({
       setTodayReception([]);
     }
   };
-
   // Left Panel - Employee List Component
   const EmployeeListPanel = () => {
     const [localMessageApi, contextHolder] = message.useMessage();
@@ -87,54 +62,6 @@ const HomePage = ({
     React.useEffect(() => {
       setFilteredEmployees(employees || []);
     }, [employees]);
-
-    const handleAddToBossReception = async () => {
-      try {
-        if (selectedEmployees.length === 0) {
-          localMessageApi.warning({
-            content: "Илтимос, ходимларни танланг",
-            duration: 3,
-          });
-          return;
-        }
-
-        // Tanlangan xodimlarni qabulga qo'shamiz
-        const selectedEmployeesData = (employees || []).filter((emp) =>
-          selectedEmployees.includes(emp._id)
-        );
-
-        for (const employee of selectedEmployeesData) {
-          await addToReception({
-            employeeId: employee._id,
-            name:
-              employee.fullName ||
-              employee.name ||
-              `${employee.firstName} ${employee.lastName}`,
-            position: employee.position,
-            department: employee.department,
-            phone: employee.phone,
-            status: "waiting",
-          });
-        }
-
-        localMessageApi.success({
-          content: `${selectedEmployees.length} та ходим раҳбар қабулга қўшилди`,
-          duration: 3,
-        });
-
-        setSelectedEmployees([]);
-        await fetchTodayReception(); // Bugungi qabullarni yangilaymiz
-        if (fetchData) {
-          await fetchData();
-        }
-      } catch (error) {
-        localMessageApi.error({
-          content: "Қабулга қўшишда хатолик юз берди",
-          duration: 3,
-        });
-        console.error("Error adding to boss reception:", error);
-      }
-    };
 
     const handleAddToMeeting = () => {
       if (selectedEmployees.length === 0) {
@@ -241,7 +168,17 @@ const HomePage = ({
                 <Button
                   type="primary"
                   icon={<UserOutlined />}
-                  onClick={handleAddToBossReception}
+                  onClick={() => {
+                    // Rahbar qabuliga - modaldan foydalanish
+                    if (selectedEmployees.length === 0) {
+                      localMessageApi.warning({
+                        content: "Илтимос, ходимларни танланг",
+                        duration: 3,
+                      });
+                      return;
+                    }
+                    setReceptionModalVisible(true); // Modal ochish
+                  }}
                 >
                   Раҳбар қабулига ({selectedEmployees.length})
                 </Button>
@@ -282,7 +219,7 @@ const HomePage = ({
         if (status === "absent") {
           // Kelmadi tugmasi bosilsa status yangilanadi
           await updateReceptionStatus(employeeId, { status });
-          appMessageApi.success('Ходим ҳолати "Келмади" га ўзгартирилди');
+          messageApi.success('Ходим ҳолати "Келмади" га ўзгартирилди');
 
           await fetchTodayReception(); // Listni yangilaymiz
 
@@ -293,7 +230,7 @@ const HomePage = ({
         }
       } catch (error) {
         console.error("Status update error:", error);
-        appMessageApi.error("Ходим ҳолатини янгилашда хатолик юз берди");
+        messageApi.error("Ходим ҳолатини янгилашда хатолик юз берди");
       }
     };
 
@@ -522,7 +459,7 @@ const HomePage = ({
         task: taskData
       });
 
-      appMessageApi.success('Топшириқ муваффақиятли берилди');
+      messageApi.success('Топшириқ муваффақиятли берилди');
       setShowTaskModal(false);
       setSelectedEmployee(null);
 
@@ -533,7 +470,18 @@ const HomePage = ({
 
     } catch (error) {
       console.error('Task save error:', error);
-      appMessageApi.error('Топшириқ беришда хатолик юз берди');
+      messageApi.error('Топшириқ беришда хатолик юз берди');
+    }
+  };
+
+  const handleReceptionModalClose = async (success) => {
+    setReceptionModalVisible(false);
+    if (success) {
+      await fetchTodayReception(); // Bugungi qabulni yangilash
+      if (fetchData) {
+        await fetchData(); // Umumiy ma'lumotlarni yangilash
+      }
+      setSelectedEmployees([]); // Tanlovni tozalash
     }
   };
 
@@ -551,7 +499,7 @@ const HomePage = ({
         </Col>
       </Row>
 
-      {contextHolder}
+      {/* contextHolder ni ham olib tashlang */}
 
       <AddMeetingModal
         visible={meetingModalVisible}
@@ -580,6 +528,22 @@ const HomePage = ({
         }}
         onSave={handleTaskSave}
         employeeName={selectedEmployee?.name}
+      />
+
+      <AddReceptionModal
+        visible={receptionModalVisible}
+        onClose={handleReceptionModalClose}
+        onSave={(receptionData) => {
+          messageApi.success({
+            content: "Ходимлар рахбар қабулига муваффақиятли қўшилди",
+            duration: 3,
+          });
+        }}
+        employees={employees || []}
+        preSelectedEmployees={selectedEmployees.map(id => 
+          employees.find(emp => emp._id === id)
+        ).filter(Boolean)} // <-- ID'larni object'larga aylantirish
+        defaultDate={dayjs().format('YYYY-MM-DD')}
       />
     </>
   );

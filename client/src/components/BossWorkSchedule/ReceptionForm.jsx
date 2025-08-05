@@ -24,7 +24,6 @@ const ReceptionForm = ({ receptions, onAddReception, onRemoveReception, employee
         department: selectedEmployee.department,
         phone: selectedEmployee.phone,
         time: values.receptionTime ? values.receptionTime.format('HH:mm') : '09:00',
-        purpose: values.purpose || 'Рахбар қабули',
         status: 'waiting'
       };
 
@@ -101,18 +100,6 @@ const ReceptionForm = ({ receptions, onAddReception, onRemoveReception, employee
               style={{ width: '100%' }}
               placeholder="Қабул вақтини танланг"
             />
-          </Form.Item>
-
-          <Form.Item name="purpose" label="Қабул мақсади">
-            <Select placeholder="Қабул мақсадини танланг" allowClear>
-              <Option value="Рахбар қабули">Рахбар қабули</Option>
-              <Option value="Ишга қабул қилиш">Ишга қабул қилиш</Option>
-              <Option value="Маслаҳат олиш">Маслаҳат олиш</Option>
-              <Option value="Ҳисобот бериш">Ҳисобот бериш</Option>
-              <Option value="Лойиҳа муҳокамаси">Лойиҳа муҳокамаси</Option>
-              <Option value="Масала ҳал қилиш">Масала ҳал қилиш</Option>
-              <Option value="Бошқа">Бошқа</Option>
-            </Select>
           </Form.Item>
 
           <Button
@@ -197,17 +184,6 @@ const ReceptionForm = ({ receptions, onAddReception, onRemoveReception, employee
                         marginBottom: 4
                       }}>
                         📞 {reception.phone}
-                      </div>
-                    )}
-
-                    {/* Maqsad */}
-                    {reception.purpose && (
-                      <div style={{
-                        fontSize: '13px',
-                        color: '#666',
-                        lineHeight: 1.4
-                      }}>
-                        <strong>Мақсад:</strong> {reception.purpose}
                       </div>
                     )}
                   </div>

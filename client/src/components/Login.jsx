@@ -7,7 +7,7 @@ const { Title } = Typography;
 
 const LoginPage = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
-  const [messageState, setMessageState] = useState(null); // { type: 'success'|'error', content: string }
+  const [messageState, setMessageState] = useState(null); 
   const navigate = useNavigate();
   const { message } = App.useApp();
 
@@ -18,7 +18,7 @@ const LoginPage = ({ onLogin }) => {
       } else {
         message.error(messageState.content);
       }
-      setMessageState(null); // to avoid re-trigger
+      setMessageState(null);
     }
   }, [messageState, message]);
 

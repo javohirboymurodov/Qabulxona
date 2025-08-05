@@ -3,11 +3,7 @@ import {
   Card,
   Table,
   Button,
-  Modal,
-  Form,
   Input,
-  DatePicker,
-  TimePicker,
   Select,
   Space,
   Popconfirm,
@@ -25,7 +21,6 @@ import {
 import dayjs from 'dayjs';
 import ViewMeetingModal from './ViewMeetingModal';
 import SearchableMeetingList from './SearchableMeetingList';
-import { updateMeeting, createMeeting } from '../../services/api'; // API funksiyalarini import qilamiz
 import AddMeetingModal from './AddMeetingModal'; // <-- Import qo'shish
 
 const { Title } = Typography;
@@ -50,7 +45,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
   // Form useEffect'larni olib tashlash - AddMeetingModal o'zi boshqaradi
 
   const safeMeetings = Array.isArray(meetings) ? meetings : [];
-  
+
   const sortedMeetings = safeMeetings.sort((a, b) => {
     if (!a.createdAt || !b.createdAt) return 0;
     return new Date(b.createdAt) - new Date(a.createdAt);
@@ -93,7 +88,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
   const handleMeetingModalClose = async (success) => {
     setShowMeetingModal(false);
     setEditingMeeting(null);
-    
+
     if (success && fetchData) {
       await fetchData(); // <-- Ma'lumotlarni yangilash
     }
@@ -124,7 +119,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
       render: (text) => text || '09:00'
     },
     {
-      title: 'Жой',
+      title: 'Ўтказиладиган жой',
       dataIndex: 'location',
       key: 'location',
       render: (text) => text || '-'
@@ -139,13 +134,8 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         }
         return (
           <Space wrap>
-            {participants.slice(0, 2).map((participant, index) => (
-              <Tag key={participant._id || index} color="blue">
-                {participant.name || participant.fullName || participant}
-              </Tag>
-            ))}
-            {participants.length > 2 && (
-              <Tag key="more">+{participants.length - 2} та</Tag>
+            {participants.length > 0 && (
+              <Tag key="more">{participants.length} та киши</Tag>
             )}
           </Space>
         );
@@ -242,7 +232,6 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         />
       </Card>
 
-      {/* Eski modallarni olib tashlash va AddMeetingModal qo'shish */}
       <AddMeetingModal
         visible={showMeetingModal}
         onClose={handleMeetingModalClose}

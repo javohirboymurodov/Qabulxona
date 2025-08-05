@@ -36,7 +36,7 @@ const ViewMeetingModal = ({ visible, onClose, meeting }) => {
             <Text>{meeting.time}</Text>
           </Space>
         </Descriptions.Item>
-        <Descriptions.Item label="Жой">
+        <Descriptions.Item label="Ўтказиладиган жой">
           <Space>
             <ClockCircleOutlined />
             <Text>{meeting.location}</Text>

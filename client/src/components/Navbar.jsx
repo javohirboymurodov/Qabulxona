@@ -1,15 +1,6 @@
 import React from 'react';
 import { Layout, Menu, Avatar, Space, Dropdown } from 'antd';
-import {
-  HomeOutlined,
-  TeamOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  ScheduleOutlined,
-  CaretDownOutlined,
-  LogoutOutlined,
-  HistoryOutlined,
-  UsergroupAddOutlined
+import {HomeOutlined,TeamOutlined,CalendarOutlined,UserOutlined,ScheduleOutlined,CaretDownOutlined,LogoutOutlined,HistoryOutlined,UsergroupAddOutlined
 } from '@ant-design/icons';
 
 const { Header } = Layout;
