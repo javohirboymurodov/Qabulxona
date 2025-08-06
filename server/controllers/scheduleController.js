@@ -1,10 +1,15 @@
 const scheduleService = require("../services/scheduleService");
 const { handleError } = require("../utils/helpers");
-const Schedule = require('../models/Schedule');
-const Meeting = require('../models/Meeting');
-const ReceptionHistory = require('../models/ReceptionHistory');
-const Employee = require('../models/Employee');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+const Schedule = require('../models/Schedule');
+const ReceptionHistory = require('../models/ReceptionHistory');
+const Meeting = require('../models/Meeting');
+
+// dayjs plugin'larni yoqish
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // O'tgan kunlar uchun cheklov
 const checkFutureDate = (req, res, next) => {
@@ -46,12 +51,32 @@ const getScheduleByDate = async (req, res) => {
   }
 };
 
-// Yangi jadval yaratish (eski API - faqat vazifalar)
+// Yangi jadval yaratish (eski API - faqat vazифалар)
 const createSchedule = async (req, res) => {
   try {
-    const targetDate = dayjs(req.params.date);
+    const { date, tasks } = req.body;
     
-    // Mavjud schedule borligini tekshirish
+    console.log('Create schedule request:', { date, tasks });
+
+    if (!date || !tasks || !Array.isArray(tasks)) {
+      return res.status(400).json({
+        success: false,
+        message: "Сана ва вазифалар массиви талаб қилинади"
+      });
+    }
+
+    // Date validation
+    const targetDate = dayjs(date);
+    if (!targetDate.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: "Нотўғри сана формати"
+      });
+    }
+
+    console.log('Target date for schedule:', targetDate.format('YYYY-MM-DD'));
+
+    // Mavjud schedule topish
     let schedule = await Schedule.findOne({
       date: {
         $gte: targetDate.startOf('day').toDate(),
@@ -60,33 +85,37 @@ const createSchedule = async (req, res) => {
     });
 
     if (schedule) {
-      // Mavjud bo'lsa yangilash
-      schedule.tasks = req.body.tasks;
-      await schedule.save();
+      // Mavjud schedule yangilash
+      schedule.tasks = [...schedule.tasks, ...tasks];
+      schedule.updatedAt = new Date();
     } else {
-      // Yangi yaratish
+      // Yangi schedule yaratish
       schedule = new Schedule({
         date: targetDate.toDate(),
-        tasks: req.body.tasks
+        tasks: tasks,
+        createdAt: new Date()
       });
-      await schedule.save();
     }
-    
-    res.status(201).json({ 
-      success: true, 
-      data: schedule,
-      message: "Иш режа муваффақиятли сақланди"
+
+    await schedule.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Иш режа муваффақиятли яратилди",
+      data: schedule
     });
+
   } catch (error) {
     console.error('Create schedule error:', error);
     res.status(500).json({
       success: false,
-      message: "Иш режани сақлашда хатолик юз берди"
+      message: "Иш режани яратишда хатолик юз берди",
+      error: error.message
     });
   }
 };
 
-// Jadval yangilash (eski API - faqat vazifalar)
+// Jadval yangilash (eski API - faqat вазифалар)
 const updateSchedule = async (req, res) => {
   try {
     const targetDate = dayjs(req.params.date);
@@ -126,6 +155,13 @@ const getDailyPlan = async (req, res) => {
     
     console.log(`Fetching daily plan for: ${targetDate.format('YYYY-MM-DD')}`);
     
+    if (!targetDate.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Нотўғри сана формати'
+      });
+    }
+
     // Parallel ravishda barcha ma'lumotlarni olish
     const [schedule, meetings, reception] = await Promise.all([
       // Kunlik vazifalar
@@ -234,7 +270,8 @@ const getDailyPlan = async (req, res) => {
     console.error('Daily plan fetch error:', error);
     res.status(500).json({
       success: false,
-      message: 'Kunlik rejani olishda xatolik'
+      message: 'Кунлик режани олишда хатолик',
+      error: error.message
     });
   }
 };
@@ -242,9 +279,12 @@ const getDailyPlan = async (req, res) => {
 /**
  * Save daily plan (YANGI API - birlashtirilgan saqlash)
  */
-const saveDailyPlan = async (req, res) => {  // <-- const bilan e'lon qilish
+const saveDailyPlan = async (req, res) => {
   try {
     const { date, items } = req.body;
+    
+    console.log('Saving daily plan request:', { date, itemsCount: items?.length });
+    console.log('Items to save:', items);
     
     if (!date || !Array.isArray(items)) {
       return res.status(400).json({
@@ -253,43 +293,166 @@ const saveDailyPlan = async (req, res) => {  // <-- const bilan e'lon qilish
       });
     }
 
+    // Date'ni to'g'ri formatga o'tkazish
     const targetDate = dayjs(date);
+    
+    // Date validation
+    if (!targetDate.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Нотўғри сана формати'
+      });
+    }
+
+    console.log('Target date:', targetDate.format('YYYY-MM-DD'));
+
+    // Faqat yangi item'larni saqlash
+    const newItems = items.filter(item => item.isNew !== false);
+    
+    console.log('New items to save:', newItems);
+    
+    if (newItems.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Сақлаш учун янги маълумотлар йўқ',
+        data: { saved: 0 }
+      });
+    }
+
     const results = {
-      tasks: [],
-      meetings: [],
-      receptions: []
+      tasks: 0,
+      meetings: 0,
+      receptions: 0,
+      errors: []
     };
 
     // Ma'lumotlarni turga qarab ajratish va saqlash
-    for (const item of items) {
+    for (const item of newItems) {
       try {
+        console.log(`Processing ${item.type}:`, item);
+        
         switch (item.type) {
           case 'task':
-            const taskResult = await saveTask(targetDate, item);
-            results.tasks.push(taskResult);
+            console.log('=== SAVING TASK TO SCHEDULE ===');
+            console.log('Task data:', JSON.stringify(item, null, 2));
+
+            if (!item.title) {
+              results.errors.push('Вазифа номи киритилмаган');
+              break;
+            }
+
+            let schedule = await Schedule.findOne({
+              date: {
+                $gte: targetDate.startOf('day').toDate(),
+                $lte: targetDate.endOf('day').toDate()
+              }
+            });
+
+            if (!schedule) {
+              schedule = new Schedule({
+                date: targetDate.toDate(),
+                tasks: [],
+                notes: ''
+              });
+            }
+
+            schedule.tasks.push({
+              title: item.title,
+              description: item.description || '',
+              startTime: item.time || '09:00',
+              endTime: item.endTime || '10:00',
+              priority: item.priority || 'normal',
+              status: item.status || 'pending'
+            });
+
+            await schedule.save();
+            results.tasks++;
             break;
             
           case 'meeting':
-            const meetingResult = await saveMeeting(targetDate, item);
-            results.meetings.push(meetingResult);
+            console.log('=== SAVING MEETING ===');
+            console.log('Meeting data:', JSON.stringify(item, null, 2));
+            
+            if (!item.name && !item.title) {
+              console.log('ERROR: Meeting name missing');
+              results.errors.push('Meeting nomi kiritilmagan');
+              break;
+            }
+            
+            // Meeting'ni Meeting modeliga saqlash
+            const meeting = new Meeting({
+              name: item.title || item.name,
+              description: item.description || '',
+              date: targetDate.toDate(),
+              time: item.time,
+              location: item.location || '',
+              participants: item.participants || [],
+              createdAt: new Date()
+            });
+            
+            const savedMeeting = await meeting.save();
+            console.log('Meeting saved with ID:', savedMeeting._id);
+            results.meetings++;
             break;
             
           case 'reception':
-            const receptionResult = await saveReception(targetDate, item);
-            results.receptions.push(receptionResult);
+            // Reception'ni ReceptionHistory modeliga saqlash
+            let receptionHistory = await ReceptionHistory.findOne({
+              date: {
+                $gte: targetDate.startOf('day').toDate(),
+                $lte: targetDate.endOf('day').toDate()
+              }
+            });
+
+            if (!receptionHistory) {
+              receptionHistory = new ReceptionHistory({
+                date: targetDate.toDate(),
+                employees: []
+              });
+            }
+
+            // Employee qo'shish (duplicate check)
+            const existingEmployee = receptionHistory.employees.find(
+              emp => emp.employeeId === item.employeeId
+            );
+
+            if (!existingEmployee) {
+              receptionHistory.employees.push({
+                employeeId: item.employeeId,
+                name: item.name,
+                position: item.position || '',
+                department: item.department || '',
+                phone: item.phone || '',
+                status: item.status || 'waiting',
+                timeUpdated: new Date(),
+                createdAt: new Date()
+              });
+              await receptionHistory.save();
+            }
+            
+            results.receptions++;
+            console.log('Reception saved successfully');
             break;
             
           default:
             console.warn('Noma\'lum tur:', item.type);
+            results.errors.push(`Noma'lum tur: ${item.type}`);
         }
       } catch (itemError) {
         console.error(`Error saving ${item.type}:`, itemError);
+        results.errors.push(`${item.type} saqlashda xatolik: ${itemError.message}`);
       }
     }
 
+    console.log('=== FINAL SAVE RESULTS ===');
+    console.log('Tasks saved:', results.tasks);
+    console.log('Meetings saved:', results.meetings);
+    console.log('Receptions saved:', results.receptions);
+    console.log('Errors:', results.errors);
+
     res.json({
       success: true,
-      message: 'Kunlik reja muvaffaqiyatli saqlandi',
+      message: 'Кунлик режа муваффақиятли сақланди',
       data: results
     });
 
@@ -303,75 +466,11 @@ const saveDailyPlan = async (req, res) => {  // <-- const bilan e'lon qilish
   }
 };
 
-// Yordamchi funksiyalar
-async function saveTask(date, taskData) {
-  let schedule = await Schedule.findOne({
-    date: {
-      $gte: date.startOf('day').toDate(),
-      $lte: date.endOf('day').toDate()
-    }
-  });
-  
-  if (!schedule) {
-    schedule = new Schedule({
-      date: date.toDate(),
-      tasks: []
-    });
-  }
-  
-  // Yangi vazifa qo'shish yoki mavjudini yangilash
-  if (taskData.id && taskData.id !== 'new') {
-    const taskIndex = schedule.tasks.findIndex(task => task._id.toString() === taskData.id.toString());
-    if (taskIndex !== -1) {
-      schedule.tasks[taskIndex] = { ...schedule.tasks[taskIndex], ...taskData };
-    } else {
-      schedule.tasks.push(taskData);
-    }
-  } else {
-    schedule.tasks.push(taskData);
-  }
-  
-  return await schedule.save();
-}
-
-async function saveMeeting(date, meetingData) {
-  const meeting = new Meeting({
-    ...meetingData,
-    date: date.toDate()
-  });
-  
-  return await meeting.save();
-}
-
-async function saveReception(date, receptionData) {
-  // receptionHistoryController dagi addToReception funksiyasidan foydalanish
-  const receptionController = require('./receptionHistoryController');
-  
-  const mockReq = {
-    body: {
-      employeeId: receptionData.employeeId,
-      name: receptionData.name,
-      position: receptionData.position,
-      department: receptionData.department,
-      phone: receptionData.phone,
-      status: receptionData.status || 'waiting',
-      task: receptionData.task
-    }
-  };
-  
-  const mockRes = {
-    status: () => mockRes,
-    json: (data) => data
-  };
-  
-  return await receptionController.addToReception(mockReq, mockRes);
-}
-
 module.exports = {
   checkFutureDate,
   getScheduleByDate,
   createSchedule,
   updateSchedule,
   getDailyPlan,
-  saveDailyPlan    // <-- Bu qator bor bo'lishi kerak
+  saveDailyPlan
 };

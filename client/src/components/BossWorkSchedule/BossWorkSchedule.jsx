@@ -28,10 +28,12 @@ dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
 
 const BossWorkSchedule = ({ showMessage }) => {
+  // State'larni tozalash
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [dailyPlanData, setDailyPlanData] = useState({});
   const [loading, setLoading] = useState(false);
-  const [isDailyPlanModalVisible, setIsDailyPlanModalVisible] = useState(false);
+  // const [isDailyPlanModalVisible, setIsDailyPlanModalVisible] = useState(false); // OLIB TASHLASH
+  const [showDailyPlan, setShowDailyPlan] = useState(false); // FAQAT BUNI QOLDIRISH
 
   // useEffect'lar
   useEffect(() => {
@@ -44,16 +46,46 @@ const BossWorkSchedule = ({ showMessage }) => {
     return selectedDay.isSameOrAfter(today);
   };
 
-  // Kunlik rejani yuklash
+  // Kunlik rejani yuklash (haqiqiy API call)
   const fetchDailyPlan = async (date) => {
     try {
       setLoading(true);
       const dateStr = date.format('YYYY-MM-DD');
-      // API call logikasi...
       
-      // Test data
+      console.log('Fetching daily plan for:', dateStr);
+      
+      // Haqiqiy API call
+      const response = await axios.get(`http://localhost:5000/api/schedule/daily-plan/${dateStr}`);
+      
+      console.log('Daily plan response:', response.data);
+      
+      if (response.data.success) {
+        setDailyPlanData({
+          items: response.data.data.items || [],
+          summary: response.data.data.summary || {
+            totalItems: 0,
+            totalTasks: 0,
+            totalReceptions: 0,
+            totalMeetings: 0
+          }
+        });
+      } else {
+        // Ma'lumot topilmagan holatda
+        setDailyPlanData({
+          items: [],
+          summary: {
+            totalItems: 0,
+            totalTasks: 0,
+            totalReceptions: 0,
+            totalMeetings: 0
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Daily plan fetch error:', error);
+      // Xatolik holatida ham bo'sh data
       setDailyPlanData({
-        items: [], // plan items
+        items: [],
         summary: {
           totalItems: 0,
           totalTasks: 0,
@@ -61,8 +93,6 @@ const BossWorkSchedule = ({ showMessage }) => {
           totalMeetings: 0
         }
       });
-    } catch (error) {
-      console.error('Daily plan fetch error:', error);
     } finally {
       setLoading(false);
     }
@@ -74,12 +104,13 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(date);
   };
 
+  // Modal ochish/yopish funksiyalarini tuzatish
   const handleModalOpen = () => {
-    setIsDailyPlanModalVisible(true);
+    setShowDailyPlan(true); // to'g'ri state ishlatish
   };
 
   const handleModalClose = () => {
-    setIsDailyPlanModalVisible(false);
+    setShowDailyPlan(false);
     // Ma'lumotlarni yangilash
     fetchDailyPlan(selectedDate);
   };
@@ -119,7 +150,7 @@ const BossWorkSchedule = ({ showMessage }) => {
                 <Button
                   type="primary"
                   icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
-                  onClick={handleModalOpen}
+                  onClick={handleModalOpen} // Bu to'g'ri
                 >
                   {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
                 </Button>
@@ -259,13 +290,50 @@ const BossWorkSchedule = ({ showMessage }) => {
 
       {/* Daily Plan Modal */}
       <DailyPlanModal
-        date={selectedDate.format('YYYY-MM-DD')}
-        isOpen={isDailyPlanModalVisible}
-        onClose={handleModalClose}
-        showMessage={showMessage}
+        date={selectedDate}
+        isOpen={showDailyPlan}
+        onClose={() => {
+          setShowDailyPlan(false);
+          // Modal yopilganda ma'lumotlarni qayta yuklash
+          fetchDailyPlan(selectedDate);
+        }}
+        onSave={(savedData) => {
+          console.log('Daily plan saved:', savedData);
+          // Saqlangandan keyin ham ma'lumotlarni yangilash
+          setTimeout(() => {
+            fetchDailyPlan(selectedDate);
+          }, 500);
+        }}
       />
     </div>
   );
+};
+
+// Helper funksiyalar (component ichida yoki tashqarida)
+const getItemIcon = (type) => {
+  switch (type) {
+    case 'task':
+      return <CalendarOutlined style={{ color: '#1890ff' }} />;
+    case 'reception':
+      return <UserOutlined style={{ color: '#52c41a' }} />;
+    case 'meeting':
+      return <TeamOutlined style={{ color: '#faad14' }} />;
+    default:
+      return <CalendarOutlined />;
+  }
+};
+
+const getItemTag = (type) => {
+  switch (type) {
+    case 'task':
+      return <Tag color="blue">Вазифа</Tag>;
+    case 'reception':
+      return <Tag color="green">Қабул</Tag>;
+    case 'meeting':
+      return <Tag color="orange">Мажлис</Tag>;
+    default:
+      return <Tag>Номаълум</Tag>;
+  }
 };
 
 export default BossWorkSchedule;

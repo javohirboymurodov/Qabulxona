@@ -37,10 +37,9 @@ const taskSchema = new mongoose.Schema({
 });
 
 const scheduleSchema = new mongoose.Schema({
-  date: {
-    type: Date,
-    required: true,
-    index: true
+  date: { 
+    type: Date, 
+    required: true 
   },
   tasks: [taskSchema],
   notes: {

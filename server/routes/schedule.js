@@ -1,21 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const {
+  checkFutureDate,
   getScheduleByDate,
   createSchedule,
   updateSchedule,
-  checkFutureDate,
   getDailyPlan,
-  saveDailyPlan
+  saveDailyPlan // Import qo'shish
 } = require('../controllers/scheduleController');
 
-// Eski API'lar (faqat vazifalar uchun)
+// Existing routes
+router.use(checkFutureDate);
 router.get('/:date', getScheduleByDate);
-router.post('/:date', checkFutureDate, createSchedule);
-router.put('/:date', checkFutureDate, updateSchedule);
+router.post('/', createSchedule);
+router.put('/:id', updateSchedule);
 
-// Yangi API'lar (universal kunlik reja)
+// Daily plan routes
 router.get('/daily-plan/:date', getDailyPlan);
-router.post('/daily-plan/save', checkFutureDate, saveDailyPlan);
+router.post('/daily-plan', saveDailyPlan); // Route qo'shish
 
 module.exports = router;

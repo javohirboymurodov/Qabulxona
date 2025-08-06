@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, TimePicker, message, Select, Card } from 'antd';
-import { createMeeting, updateMeeting } from '../../services/api';
+import { updateMeeting, addMeeting } from '../../services/api';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -10,6 +10,7 @@ const AddMeetingModal = ({
   visible, 
   onClose, 
   onSave, 
+  onSuccess,
   employees = [], 
   initialData, 
   preSelectedEmployees = [],
@@ -49,41 +50,93 @@ const AddMeetingModal = ({
     }
   }, [visible, initialData, form, preSelectedEmployees, defaultDate]);
 
+  // Form validation rules
+  const validateMessages = {
+    required: '${label} майдони тўлдирилиши шарт!',
+    types: {
+      email: '${label} нотўғри форматда!',
+    },
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
 
-      const meetingData = {
-        name: values.name,
-        description: values.description || '',
-        date: values.date.format('YYYY-MM-DD'),
-        time: values.time.format('HH:mm'),
-        location: values.location || '',
-        participants: values.participants || []
-      };
+      console.log('=== AddMeetingModal Submit ===');
+      console.log('Form values:', values);
+      console.log('defaultDate:', defaultDate);
+      console.log('onSave function exists:', !!onSave);
 
-      if (initialData) {
-        await updateMeeting(initialData._id, meetingData);
-        messageApi.success('Мажлис муваффақиятли янгиланди');
-      } else {
-        await createMeeting(meetingData);
-        messageApi.success('Янги мажлис муваффақиятли яратилди');
-      }
+      const isDailyPlanContext = defaultDate && onSave;
 
-      // onSave callback chaqirish - meeting data билан
-      if (onSave) {
+      if (isDailyPlanContext) {
+        console.log('DailyPlan context: saving meeting');
+        
+        const meetingData = {
+          time: values.time.format('HH:mm'),
+          data: {
+            name: values.name,
+            description: values.description,
+            location: values.location,
+            participants: values.participants || [],
+            date: defaultDate
+          }
+        };
+
+        console.log('Calling onSave with meeting data:', meetingData);
         onSave(meetingData);
+        
+        messageApi.success({
+          content: 'Мажлис кунлик режага қўшилди',
+          duration: 3
+        });
+      } else {
+        // HomePage yoki umumiy context
+        const meetingApiData = {
+          name: values.name,
+          description: values.description,
+          date: values.date.format('YYYY-MM-DD'),
+          time: values.time.format('HH:mm'),
+          location: values.location,
+          participants: values.participants || []
+        };
+
+        if (initialData && initialData._id) {
+          // UPDATE MODE
+          console.log('Updating meeting:', initialData._id, meetingApiData);
+          const result = await updateMeeting(initialData._id, meetingApiData);
+          console.log('Meeting update response:', result);
+
+          messageApi.success({
+            content: 'Мажлис муваффақиятли таҳрирланди',
+            duration: 3
+          });
+        } else {
+          // CREATE MODE
+          console.log('Creating meeting:', meetingApiData);
+          const result = await addMeeting(meetingApiData);
+          console.log('Meeting create response:', result);
+
+          messageApi.success({
+            content: 'Мажлис муваффақиятли сақланди',
+            duration: 3
+          });
+        }
+
+        if (onSuccess && typeof onSuccess === 'function') {
+          onSuccess();
+        }
       }
-      
+
+      console.log('=== Modal closing ===');
       onClose(true);
     } catch (error) {
-      if (error.errorFields) {
-        messageApi.error("Илтимос, барча майдонларни тўлдиринг");
-      } else {
-        console.error('Форма валидатсиясида хатолик:', error);
-        messageApi.error('Хатолик юз берди');
-      }
+      console.error('=== Meeting add/update error ===', error);
+      messageApi.error({
+        content: error.message || 'Мажлисни сақлашда хатолик',
+        duration: 3
+      });
     } finally {
       setLoading(false);
     }
@@ -114,6 +167,12 @@ const AddMeetingModal = ({
         <Form
           form={form}
           layout="vertical"
+          validateMessages={validateMessages}
+          initialValues={{
+            date: defaultDate ? dayjs(defaultDate) : dayjs(),
+            time: dayjs(),
+            participants: preSelectedEmployees?.map(emp => emp._id) || []
+          }}
           name="addMeetingForm"
           style={{ maxWidth: '100%' }}
         >
@@ -123,7 +182,7 @@ const AddMeetingModal = ({
             rules={[{ required: true, message: 'Мажлис номини киритинг' }]}
           >
             <Input 
-              placeholder="Мажлис номини киритинг"
+              placeholder="Мисол: Ҳафталик планерка"
               size="large"
             />
           </Form.Item>
@@ -131,12 +190,22 @@ const AddMeetingModal = ({
           <Form.Item
             name="description"
             label="Тафсилот"
+            rules={[{ required: true, message: 'Мажлис тафсилотини киритинг' }]}
           >
-            <TextArea
-              rows={4}
-              placeholder="Мажлис ҳақида тафсилот"
-              showCount
-              maxLength={500}
+            <Input.TextArea
+              rows={3}
+              placeholder="Мажлис мавзуси ва кун тартиби"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="location"
+            label="Жой"
+            rules={[{ required: true, message: 'Мажлис жойини киритинг' }]}
+          >
+            <Input 
+              placeholder="Мисол: Мажлислар зали"
+              size="large"
             />
           </Form.Item>
 
@@ -167,16 +236,6 @@ const AddMeetingModal = ({
               />
             </Form.Item>
           </div>
-
-          <Form.Item
-            name="location"
-            label="Жой"
-          >
-            <Input 
-              placeholder="Мажлис ўтказиладиган жой"
-              size="large"
-            />
-          </Form.Item>
 
           <Form.Item
             name="participants"

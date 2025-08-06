@@ -63,6 +63,8 @@ const DailyPlanView = ({
       case 'meeting':
         onRemoveMeeting?.(item.id);
         break;
+      default:
+        console.warn('Unknown item type:', item.type);
     }
   };
 

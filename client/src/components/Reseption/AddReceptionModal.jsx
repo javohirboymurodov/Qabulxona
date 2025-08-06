@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { Modal, Form, TimePicker, message, Select, Card } from 'antd';
-import { addToReception } from '../../services/api';
+import { Modal, Form, Select, TimePicker, Button, message, Card } from 'antd'; // Card qo'shildi
 import dayjs from 'dayjs';
+import { addToReception } from '../../services/api';
 
 const { Option } = Select;
 
@@ -35,43 +35,84 @@ const AddReceptionModal = ({
       const values = await form.validateFields();
       setLoading(true);
 
-      // Tanlangan employeeni topish
       const selectedEmployee = employees.find(emp => emp._id === values.selectedEmployee);
       
+      console.log('=== AddReceptionModal Submit ===');
+      console.log('Context check:', {
+        defaultDate,
+        onSave: !!onSave,
+        isDailyPlanContext: defaultDate && onSave && typeof onSave === 'function'
+      });
+      
       if (!selectedEmployee) {
-        throw new Error('Ходим топильмади');
+        throw new Error('Ходим топільмади');
       }
 
-      const receptionData = {
-        employeeId: selectedEmployee._id,
-        name: selectedEmployee.fullName || selectedEmployee.name,
-        position: selectedEmployee.position,
-        department: selectedEmployee.department,
-        phone: selectedEmployee.phone || '',
-        status: 'waiting', // Default holat - kutilmoqda
-        scheduledTime: values.time.format('HH:mm') // Faqat vaqt
-      };
-
-      await addToReception(receptionData);
-
-      messageApi.success({
-        content: `${selectedEmployee.fullName || selectedEmployee.name} рахбар қабулига қўшилди`,
-        duration: 3
-      });
-
-      // onSave callback chaqirish
-      if (onSave) {
-        onSave({
+      // DailyPlan context'ini aniqroq aniqlash
+      // DefaultDate mavjud VA onSave funksiya bo'lsa - DailyPlan context
+      const isDailyPlanContext = defaultDate && onSave && typeof onSave === 'function';
+      
+      if (isDailyPlanContext) {
+        console.log('DailyPlan context: calling onSave callback');
+        // DailyPlan dan chaqirilsa - faqat callback (API chaqirmaslik)
+        const receptionData = {
           employee: selectedEmployee,
-          time: values.time.format('HH:mm')
+          time: values.time.format('HH:mm'),
+          data: {
+            employeeId: selectedEmployee._id,
+            name: selectedEmployee.fullName || selectedEmployee.name,
+            position: selectedEmployee.position,
+            department: selectedEmployee.department,
+            phone: selectedEmployee.phone || '',
+            status: 'waiting',
+            date: defaultDate
+          }
+        };
+
+        onSave(receptionData);
+        
+        messageApi.success({
+          content: `${selectedEmployee.fullName || selectedEmployee.name} кунлик режага қўшилди`,
+          duration: 3
         });
+      } else {
+        console.log('HomePage context: calling API');
+        // HomePage dan chaqirilsa - API ga yuborish
+        const receptionApiData = {
+          employeeId: selectedEmployee._id,
+          name: selectedEmployee.fullName || selectedEmployee.name,
+          position: selectedEmployee.position,
+          department: selectedEmployee.department,
+          phone: selectedEmployee.phone || '',
+          status: 'waiting'
+          // date yubormaslik - backend bugungi sanani ishlatadi
+        };
+
+        console.log('API call with data:', receptionApiData);
+        
+        const result = await addToReception(receptionApiData);
+        console.log('API response:', result);
+
+        messageApi.success({
+          content: `${selectedEmployee.fullName || selectedEmployee.name} бугунги қабулга қўшилди`,
+          duration: 3
+        });
+
+        // HomePage callback (agar mavjud bo'lsa)
+        if (onSave && typeof onSave === 'function') {
+          console.log('Calling HomePage onSave callback');
+          onSave({
+            employee: selectedEmployee,
+            time: values.time.format('HH:mm')
+          });
+        }
       }
       
-      onClose(true); // success = true
+      onClose(true);
     } catch (error) {
       console.error('Reception add error:', error);
       messageApi.error({
-        content: 'Рахбар қабулига қўшишда хатолик юз берди',
+        content: error.message || 'Қабулга қўшишда хатолик',
         duration: 3
       });
     } finally {
@@ -221,8 +262,10 @@ const AddReceptionModal = ({
           fontSize: '13px',
           color: '#8c4b00'
         }}>
-          <strong>Эслатма:</strong> Ходим "Бугунги Раҳбар Қабули" рўйхатига қўшилади. 
-          Топшириқ бериш ходим келганда амалга оширилади.
+          <strong>Эслатма:</strong> {defaultDate 
+            ? `Ходим ${defaultDate} санасидаги кунлик режага қўшилади.`
+            : 'Ходим "Бугунги Раҳбар Қабули" рўйхатига қўшилади.'
+          } Топшириқ бериш ходим келганда амалга оширилади.
         </div>
       </Card>
     </Modal>

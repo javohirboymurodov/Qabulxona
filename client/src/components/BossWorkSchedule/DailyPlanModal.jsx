@@ -1,52 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Tabs, Button, Spin } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { 
+  Modal, 
+  Tabs, 
+  Button, 
+  List, 
+  Tag, 
+  Empty, 
+  Spin, 
+  App,
+  Card,
+  Space
+} from 'antd';
+
+// ICON'LARNI IMPORT QILISH
+import { 
+  UserOutlined, 
+  TeamOutlined, 
+  CalendarOutlined,
+  SaveOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ClockCircleOutlined
+} from '@ant-design/icons';
+
+// Components import
 import dayjs from 'dayjs';
-
-// Components
+import AddReceptionModal from '../Reseption/AddReceptionModal';
+import AddMeetingModal from '../Meetings/AddMeetingModal';
+import TaskModal from './TaskModal';
 import DailyPlanView from './DailyPlanView';
-import TaskForm from './TaskForm';
-import ReceptionForm from './ReceptionForm';
-import AddMeetingModal from '../Meetings/AddMeetingModal'; // <-- Mavjud modal
 
-// API services
+// API services import
 import { getDailyPlan, saveDailyPlan, getEmployees } from '../../services/api';
 
 const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
+  const { message: messageApi } = App.useApp();
+
   const [activeTab, setActiveTab] = useState('view');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
 
   // State for each type
   const [tasks, setTasks] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [meetings, setMeetings] = useState([]);
-  const [employees, setEmployees] = useState([]); // <-- Employees uchun
+  const [employees, setEmployees] = useState([]);
+  const [items, setItems] = useState([]); // Barcha item'lar uchun umumiy state
 
-  // Meeting modal state
+  // Modal states
   const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [showReceptionModal, setShowReceptionModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState(null);
 
-  // Load employees
+  // Load employees when modal opens
   useEffect(() => {
     if (isOpen) {
       loadEmployees();
-      loadDailyPlan();
-    }
-  }, [isOpen, date]);
-
-  const loadEmployees = async () => {
-    try {
-      const response = await getEmployees();
-      setEmployees(response.data || []);
-    } catch (error) {
-      console.error('Employees yuklashda xatolik:', error);
-    }
-  };
-
-  // Load data when modal opens
-  useEffect(() => {
-    if (isOpen && date) {
       loadDailyPlan();
     }
   }, [isOpen, date]);
@@ -58,65 +70,198 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       setTasks([]);
       setReceptions([]);
       setMeetings([]);
+      setEmployees([]); // Employees ham reset qilish
+      setItems([]); // Items ham reset qilish
     }
   }, [isOpen]);
+
+  const loadEmployees = async () => {
+    try {
+      setEmployeesLoading(true);
+      console.log('Loading employees...');
+      
+      const response = await getEmployees();
+      console.log('Employees response:', response);
+      
+      if (response?.data && Array.isArray(response.data)) {
+        setEmployees(response.data);
+        console.log('Employees loaded:', response.data.length);
+      } else if (response && Array.isArray(response)) {
+        setEmployees(response);
+        console.log('Employees loaded (direct array):', response.length);
+      } else {
+        console.warn('Employees data not found or invalid format');
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error('Employees yuklashda xatolik:', error);
+      setEmployees([]);
+      showMessage?.error('Ходимларни юклашда хатолик');
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
 
   const loadDailyPlan = async () => {
     try {
       setLoading(true);
-      const response = await getDailyPlan(date);
+      console.log('Loading daily plan for date:', date);
       
-      if (response.data?.success) {
-        const data = response.data.data;
+      const response = await getDailyPlan(date);
+      console.log('Daily plan loaded:', response);
+      
+      if (response.success && response.data) {
+        const allItems = response.data.items || [];
         
-        // Separate data by type
-        const taskItems = data.items?.filter(item => item.type === 'task') || [];
-        const receptionItems = data.items?.filter(item => item.type === 'reception') || [];
-        const meetingItems = data.items?.filter(item => item.type === 'meeting') || [];
+        // Barcha item'larni set qilish
+        setItems(allItems);
         
-        setTasks(taskItems);
+        // Type bo'yicha ajratish
+        const receptionItems = allItems.filter(item => item.type === 'reception');
+        const meetingItems = allItems.filter(item => item.type === 'meeting');
+        const taskItems = allItems.filter(item => item.type === 'task');
+        
         setReceptions(receptionItems);
         setMeetings(meetingItems);
+        setTasks(taskItems);
+        
+        console.log('Data loaded and separated:', {
+          total: allItems.length,
+          receptions: receptionItems.length,
+          meetings: meetingItems.length,
+          tasks: taskItems.length
+        });
       }
     } catch (error) {
-      console.error('Kunlik rejani yuklashda xatolik:', error);
-      if (error.response?.status !== 404) {
-        showMessage?.error('Маълумотларни юклашда хатолик');
-      }
+      console.error('Daily plan load error:', error);
+      messageApi.error('Ma\'lumotlarni yuklashda xatolik');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleReceptionModalSave = (receptionData) => {
+    console.log('Reception modal data received:', receptionData);
+    
+    const newReception = {
+      id: Date.now(), // Vaqtinchalik ID
+      type: 'reception',
+      employeeId: receptionData.data.employeeId,
+      name: receptionData.data.name,
+      position: receptionData.data.position,
+      department: receptionData.data.department,
+      phone: receptionData.data.phone,
+      status: receptionData.data.status,
+      time: receptionData.time,
+      date: date, // selectedDate -> date
+      isNew: true // Yangi item flag
+    };
+    
+    console.log('Adding reception to local state:', newReception);
+    setItems(prev => [...prev, newReception]);
+    setShowReceptionModal(false);
+  };
+
+  const handleMeetingModalSave = (meetingData) => {
+    console.log('Meeting modal data received:', meetingData);
+    
+    const newMeeting = {
+      id: Date.now(), // Vaqtinchalik ID
+      type: 'meeting', // TYPE QO'SHISH MUHIM!
+      time: meetingData.time,
+      title: meetingData.data.name, // name -> title
+      name: meetingData.data.name, // Backend uchun name ham kerak
+      description: meetingData.data.description,
+      location: meetingData.data.location,
+      participants: meetingData.data.participants || [],
+      date: date,
+      isNew: true // Yangi item flag
+    };
+    
+    console.log('Adding meeting to local state:', newMeeting);
+    setItems(prev => [...prev, newMeeting]);
+    setShowMeetingModal(false);
+  };
+
+  // DailyPlanModal.jsx da handleTaskModalSave callback qo'shish
+  const handleTaskModalSave = (taskData) => {
+    console.log('Task modal data received:', taskData);
+    
+    const newTask = {
+      id: Date.now(),
+      type: 'task',
+      time: taskData.time,
+      title: taskData.data.title,
+      description: taskData.data.description,
+      priority: taskData.data.priority || 'normal',
+      status: taskData.data.status || 'pending',
+      date: date,
+      isNew: true
+    };
+    
+    console.log('Adding task to local state:', newTask);
+    setItems(prev => [...prev, newTask]);
+    setTasks(prev => [...prev, newTask]);
+    setShowTaskModal(false);
+  };
+
+  // DailyPlanModal.jsx da handleSaveAll funksiyasida
   const handleSaveAll = async () => {
     try {
-      setSaving(true);
+      setLoading(true);
       
-      const allItems = [
-        ...tasks.map(task => ({ ...task, type: 'task' })),
-        ...receptions.map(reception => ({ ...reception, type: 'reception' })),
-        ...meetings.map(meeting => ({ ...meeting, type: 'meeting' }))
-      ];
-
-      if (allItems.length === 0) {
-        showMessage?.warning('Сақлаш учун камида бита режа қўшинг');
+      const newItems = items.filter(item => typeof item.id === 'number' || item.isNew === true);
+      
+      console.log('=== SAVE ALL DEBUG ===');
+      console.log('All items:', items);
+      console.log('New items to save:', newItems);
+      console.log('Tasks:', tasks);
+      console.log('Receptions:', receptions);
+      console.log('Meetings:', meetings);
+      
+      if (newItems.length === 0) {
+        setLoading(false);
+        messageApi.info('Сақлаш учун янги маълумотлар йўқ');
         return;
       }
 
-      const response = await saveDailyPlan(date, allItems);
-      
-      if (response.data?.success) {
-        showMessage?.success('Кунлик режа муваффақиятли сақланди');
-        onSave?.();
-        onClose();
+      const response = await saveDailyPlan(date, newItems);
+      console.log('Save response:', response);
+
+      if (response.success) {
+        messageApi.success(`${newItems.length} та элемент муваффақиятли сақланди`);
+        
+        // Local state'ni yangilash - vaqtinchalik ID'larni server ID'ga almashtirish
+        const updatedItems = items.map(item => {
+          if (typeof item.id === 'number') {
+            return {
+              ...item,
+              id: `saved_${item.id}`,
+              isNew: false
+            };
+          }
+          return item;
+        });
+        
+        setItems(updatedItems);
+        
+        // Backend'dan yangi ma'lumotlarni qayta yuklash
+        console.log('Reloading data from backend...');
+        await loadDailyPlan();
+        
+        // Modal'ni yopish (2-3 soniya kutib)
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+        
       } else {
-        throw new Error(response.data?.message || 'Сақлашда хатолик');
+        messageApi.error(response.message || 'Сақлашда хатолик юз берди');
       }
     } catch (error) {
       console.error('Saqlashda xatolik:', error);
-      showMessage?.error('Режани сақлашда хатолик юз берди');
+      messageApi.error('Сақлашда хатолик юз берди');
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
@@ -129,8 +274,42 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setTasks(prev => prev.filter(task => task.id !== taskId));
   };
 
-  const handleReceptionAdd = (newReception) => {
-    setReceptions(prev => [...prev, { ...newReception, id: Date.now() }]);
+  // Reception handlers
+  const handleReceptionAdd = () => {
+    if (employees.length === 0) {
+      showMessage?.warning('Ходимлар юкланмаган. Илтимос, бир оз кутинг.');
+      return;
+    }
+    setShowReceptionModal(true);
+  };
+
+  const handleReceptionModalClose = (shouldRefresh, receptionData) => {
+    setShowReceptionModal(false);
+    
+    if (shouldRefresh && receptionData) {
+      console.log('Reception modal data received:', receptionData);
+      
+      // receptionData.data dan ma'lumotlarni olish
+      const data = receptionData.data || receptionData;
+      
+      const newReception = {
+        id: Date.now(),
+        type: 'reception', // Type qo'shish
+        employeeId: receptionData.employee._id,
+        name: receptionData.employee.fullName || receptionData.employee.name,
+        position: receptionData.employee.position,
+        department: receptionData.employee.department,
+        phone: receptionData.employee.phone || '',
+        time: receptionData.time,
+        status: 'waiting',
+        date: date // DailyPlanModal date'ini ishlatish
+      };
+      
+      console.log('Adding reception to local state:', newReception);
+      setReceptions(prev => [...prev, newReception]);
+      setItems(prev => [...prev, { ...newReception, isNew: true }]); // Items ga ham qo'shish
+      showMessage?.success('Қабул кунлик режага қўшилди');
+    }
   };
 
   const handleReceptionRemove = (receptionId) => {
@@ -139,6 +318,10 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
 
   // Meeting handlers
   const handleMeetingAdd = () => {
+    if (employees.length === 0) {
+      showMessage?.warning('Ходимлар юкланмаган. Илтимос, бир оз кутинг.');
+      return;
+    }
     setEditingMeeting(null);
     setShowMeetingModal(true);
   };
@@ -152,7 +335,6 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setShowMeetingModal(false);
     setEditingMeeting(null);
     
-    // Agar meeting saqlandi - local state'ga qo'shish
     if (shouldRefresh && meetingData) {
       const newMeeting = {
         id: Date.now(),
@@ -164,6 +346,8 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
         date: meetingData.date
       };
       setMeetings(prev => [...prev, newMeeting]);
+      setItems(prev => [...prev, { ...newMeeting, isNew: true }]); // Items ga ham qo'shish
+      showMessage?.success('Мажлис муваффақиятли қўшилди');
     }
   };
 
@@ -199,23 +383,120 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       key: 'task',
       label: `Вазифалар (${tasks.length})`,
       children: (
-        <TaskForm
-          tasks={tasks}
-          onAddTask={handleTaskAdd}
-          onRemoveTask={handleTaskRemove}
-        />
+        <div>
+          {/* Task qo'shish tugmasi */}
+          <Button 
+            type="dashed" 
+            onClick={() => setShowTaskModal(true)}
+            block
+            size="large"
+            style={{ marginBottom: 16 }}
+          >
+            Вазифа қўшиш
+          </Button>
+          
+          {/* Tasks list */}
+          {tasks.length > 0 && (
+            <div>
+              {tasks.map(task => (
+                <div key={task.id} style={{ 
+                  border: '1px solid #d9d9d9', 
+                  padding: 12, 
+                  marginBottom: 8,
+                  borderRadius: 6
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <strong>{task.title}</strong>
+                      <div>{task.time} | {task.priority}</div>
+                      {task.description && (
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {task.description}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Button 
+                        size="small" 
+                        danger 
+                        onClick={() => handleTaskRemove(task.id)}
+                      >
+                        Ўчириш
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )
     },
     {
       key: 'reception',
       label: `Қабуллар (${receptions.length})`,
       children: (
-        <ReceptionForm
-          receptions={receptions}
-          onAddReception={handleReceptionAdd}
-          onRemoveReception={handleReceptionRemove}
-          employees={employees} // <-- Employees prop qo'shish
-        />
+        <div>
+          {/* Reception qo'shish tugmasi */}
+          <Button 
+            type="dashed" 
+            onClick={handleReceptionAdd}
+            block
+            size="large"
+            style={{ marginBottom: 16 }}
+            loading={employeesLoading}
+            disabled={employeesLoading}
+          >
+            {employeesLoading ? 'Ходимлар юкланмоқда...' : 'Қабулга қўшиш'}
+          </Button>
+          
+          {/* Employees info */}
+          {!employeesLoading && (
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#666', 
+              marginBottom: 16,
+              padding: '8px 12px',
+              backgroundColor: '#f6f8fa',
+              borderRadius: 4
+            }}>
+              Мавжуд ходимлар: {employees.length} та
+            </div>
+          )}
+          
+          {/* Receptions list */}
+          {receptions.length > 0 && (
+            <div>
+              {receptions.map(reception => (
+                <div key={reception.id} style={{ 
+                  border: '1px solid #d9d9d9', 
+                  padding: 12, 
+                  marginBottom: 8,
+                  borderRadius: 6
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <strong>{reception.name}</strong>
+                      <div>{reception.time} | {reception.position}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        {reception.department}
+                      </div>
+                    </div>
+                    <div>
+                      <Button 
+                        size="small" 
+                        danger 
+                        onClick={() => handleReceptionRemove(reception.id)}
+                      >
+                        Ўчириш
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )
     },
     {
@@ -230,9 +511,25 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
             block
             size="large"
             style={{ marginBottom: 16 }}
+            loading={employeesLoading}
+            disabled={employeesLoading}
           >
-            Мажлис қўшиш
+            {employeesLoading ? 'Ходимлар юкланмоқда...' : 'Мажлис қўшиш'}
           </Button>
+          
+          {/* Employees info */}
+          {!employeesLoading && (
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#666', 
+              marginBottom: 16,
+              padding: '8px 12px',
+              backgroundColor: '#f6f8fa',
+              borderRadius: 4
+            }}>
+              Мавжуд ходимлар: {employees.length} та
+            </div>
+          )}
           
           {/* Meetings list */}
           {meetings.length > 0 && (
@@ -304,18 +601,50 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
           items={tabItems}
           size="large"
         />
+        
+        {/* BU TUGMALAR QISMINI OLIB TASHLASH KERAK */}
+        {/* 
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          ...tugmalar...
+        </div>
+        */}
       </Modal>
+      
+      {/* Modallar */}
+      {/* AddMeetingModal - employees yuklangandan keyin ko'rsatish */}
+      {showMeetingModal && employees.length > 0 && (
+        <AddMeetingModal
+          visible={showMeetingModal}
+          onClose={handleMeetingModalClose}
+          onSave={(meetingData) => handleMeetingModalClose(true, meetingData)}
+          employees={employees}
+          initialData={editingMeeting}
+          preSelectedEmployees={[]}
+          defaultDate={date}
+        />
+      )}
 
-      {/* AddMeetingModal - mavjud modal */}
-      <AddMeetingModal
-        visible={showMeetingModal}
-        onClose={handleMeetingModalClose}
-        onSave={(meetingData) => handleMeetingModalClose(true, meetingData)}
-        employees={employees}
-        initialValues={editingMeeting}
-        preSelectedEmployees={[]}
-        defaultDate={date}
-      />
+      {/* AddReceptionModal - reception modal */}
+      {showReceptionModal && employees.length > 0 && (
+        <AddReceptionModal
+          visible={showReceptionModal}
+          onClose={() => setShowReceptionModal(false)} // Sodda close
+          onSave={handleReceptionModalSave} // Faqat save callback
+          employees={employees}
+          preSelectedEmployees={[]}
+          defaultDate={date}
+        />
+      )}
+
+      {/* DailyPlanModal.jsx da modal chaqirish */}
+      {showTaskModal && (
+        <TaskModal
+          visible={showTaskModal}
+          onClose={() => setShowTaskModal(false)}
+          onSave={handleTaskModalSave}
+          defaultDate={date}
+        />
+      )}
     </>
   );
 };

@@ -166,27 +166,26 @@ export const deleteMeeting = async (id) => {
 
 export const createMeeting = addMeeting; // Alias
 
-// Reception History endpoints (Backend API'ga mos)
-export const addToReception = async (data) => {
+// Reception History endpoints - faqat bitta to'g'ri versiya
+export const addToReception = async (employee) => {
   try {
-    if (!data.employeeId) {
-      throw new Error('Employee ID is required');
-    }
-
-    const response = await api.post('/reception-history/add', {
-      employeeId: data.employeeId,
-      name: data.name,
-      position: data.position,
-      department: data.department,
-      phone: data.phone || '',
-      status: data.status || 'waiting',
-      task: data.task
-    });
+    console.log('=== API addToReception START ===');
+    console.log('Employee data:', employee);
+    console.log('API URL:', '/reception-history/add-employee');
+    
+    const response = await api.post('/reception-history/add-employee', employee);
+    
+    console.log('=== API addToReception SUCCESS ===');
+    console.log('Response status:', response.status);
+    console.log('Response data:', response.data);
     
     return response.data;
   } catch (error) {
-    console.error('Add to reception error:', error);
-    throw error.response?.data || error;
+    console.error('=== API addToReception ERROR ===');
+    console.error('Error status:', error.response?.status);
+    console.error('Error data:', error.response?.data);
+    console.error('Error message:', error.message);
+    throw error;
   }
 };
 
@@ -331,27 +330,47 @@ export const updateTaskStatus = async (receptionId, data) => {
   }
 };
 
-// Kunlik rejani olish
+// Daily Plan API'lari
 export const getDailyPlan = async (date) => {
   try {
-    const response = await axios.get(`/api/schedule/daily-plan/${date}`);
-    return response;
+    console.log('Getting daily plan for:', date);
+    
+    // To'g'ri endpoint - /api/schedule/daily-plan/
+    const response = await api.get(`/schedule/daily-plan/${date}`);
+    console.log('Daily plan response:', response.data);
+    
+    return response.data;
   } catch (error) {
-    console.error('Daily plan fetch error:', error);
+    console.error('getDailyPlan error:', error.response?.data || error);
+    
+    // 404 bo'lsa bo'sh data qaytarish
+    if (error.response?.status === 404) {
+      return {
+        success: true,
+        data: {
+          date,
+          items: [],
+          summary: {
+            totalTasks: 0,
+            totalMeetings: 0,
+            totalReceptions: 0
+          }
+        }
+      };
+    }
+    
     throw error;
   }
 };
 
-// Kunlik rejani saqlash  
 export const saveDailyPlan = async (date, items) => {
   try {
-    const response = await axios.post('/api/schedule/daily-plan/save', {
-      date,
-      items
-    });
-    return response;
+    console.log('Saving daily plan:', { date, items });
+    const response = await api.post('/schedule/daily-plan', { date, items });
+    console.log('Daily plan save response:', response.data);
+    return response.data;
   } catch (error) {
-    console.error('Daily plan save error:', error);
+    console.error('Save daily plan error:', error.response?.data || error);
     throw error;
   }
 };

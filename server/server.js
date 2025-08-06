@@ -13,7 +13,7 @@ const receptionHistoryRoutes = require("./routes/receptionHistory");
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 
-require('./models/Admin'); // Add this line before routes
+require('./models/Admin');
 
 const app = express();
 
@@ -28,10 +28,13 @@ app.use(
 // Routerlarni ulash
 app.use("/api/employees", employeeRoutes);
 app.use("/api/meetings", meetingRoutes);
-app.use("/api/schedule", scheduleRoutes);
+app.use("/api/schedule", scheduleRoutes); // Bu route /api/daily-plan ni ham qamrab oladi
 app.use('/api/auth', authRoutes);
 app.use('/api/reception-history', receptionHistoryRoutes);
 app.use('/api/admins', adminRoutes);
+
+// Daily plan uchun alohida route (agar kerak bo'lsa)
+app.use('/api/daily-plan', scheduleRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

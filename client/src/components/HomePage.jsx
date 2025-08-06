@@ -29,6 +29,7 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [todayReception, setTodayReception] = useState([]);
   const [receptionModalVisible, setReceptionModalVisible] = useState(false);
+  const [showReceptionModal, setShowReceptionModal] = useState(false); // Yangi state
 
   // Bugungi qabullarni olish
   useEffect(() => {
@@ -485,6 +486,14 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
     }
   };
 
+  // HomePage'da modal ochish joyida
+  const openReceptionModal = () => {
+    console.log('=== HomePage: Opening Reception Modal ===');
+    console.log('defaultDate passed to modal:', undefined); // HomePage da defaultDate yo'q
+    console.log('onSave callback exists:', !!handleReceptionSave); // Agar callback bor bo'lsa
+    setShowReceptionModal(true);
+  };
+
   return (
     <>
       <Row gutter={16}>
@@ -543,7 +552,6 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
         preSelectedEmployees={selectedEmployees.map(id => 
           employees.find(emp => emp._id === id)
         ).filter(Boolean)}
-        defaultDate={dayjs().format('YYYY-MM-DD')}
       />
     </>
   );
