@@ -1,4 +1,3 @@
-const scheduleService = require("../services/scheduleService");
 const { handleError } = require("../utils/helpers");
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
