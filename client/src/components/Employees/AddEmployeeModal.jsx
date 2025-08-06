@@ -5,7 +5,6 @@ import {
   PhoneOutlined, 
   BankOutlined, 
   IdcardOutlined,
-  CalendarOutlined,
   UploadOutlined,
   BookOutlined
 } from '@ant-design/icons';

@@ -76,13 +76,20 @@ const AddMeetingModal = ({
         const meetingData = {
           time: values.time.format('HH:mm'),
           data: {
-            name: values.name,
-            description: values.description,
-            location: values.location,
+            name: values.name, // NAME QO'SHISH MUHIM!
+            description: values.description || '',
+            location: values.location || '',
             participants: values.participants || [],
             date: defaultDate
           }
         };
+
+        console.log('=== MEETING DATA TO SAVE ===');
+        console.log('Time:', meetingData.time);
+        console.log('Name:', meetingData.data.name);
+        console.log('Description:', meetingData.data.description);
+        console.log('Location:', meetingData.data.location);
+        console.log('Participants:', meetingData.data.participants);
 
         console.log('Calling onSave with meeting data:', meetingData);
         onSave(meetingData);

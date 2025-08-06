@@ -85,7 +85,6 @@ const AddReceptionModal = ({
           department: selectedEmployee.department,
           phone: selectedEmployee.phone || '',
           status: 'waiting'
-          // date yubormaslik - backend bugungi sanani ishlatadi
         };
 
         console.log('API call with data:', receptionApiData);
@@ -248,7 +247,7 @@ const AddReceptionModal = ({
               size="large"
               format="HH:mm"
               placeholder="Вақтни танланг"
-              minuteStep={15} // 15 daqiqalik qadamlar
+              minuteStep={10} // 15 daqiqalik qadamlar
             />
           </Form.Item>
         </Form>

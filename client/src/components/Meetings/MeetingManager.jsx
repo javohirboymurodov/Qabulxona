@@ -42,7 +42,6 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
     setFilteredMeetings(meetings);
   }, [meetings]);
 
-  // Form useEffect'larni olib tashlash - AddMeetingModal o'zi boshqaradi
 
   const safeMeetings = Array.isArray(meetings) ? meetings : [];
 
@@ -52,7 +51,7 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
   });
 
   const handleAddMeeting = () => {
-    setEditingMeeting(null); // <-- Yangi mažlis uchun null
+    setEditingMeeting(null); // Tahrirlash uchun null qilib qo'yish
     setShowMeetingModal(true);
   };
 
@@ -237,11 +236,10 @@ const MeetingManager = ({ meetings = [], employees = [], onDeleteMeeting, fetchD
         onClose={handleMeetingModalClose}
         onSave={handleMeetingSave}
         employees={employees}
-        initialData={editingMeeting} // <-- Tahrirlash uchun ma'lumot
+        initialData={editingMeeting} 
         preSelectedEmployees={[]}
       />
 
-      {/* View Modal - shu qolsin */}
       <ViewMeetingModal
         visible={viewModalVisible}
         onClose={handleViewModalClose}

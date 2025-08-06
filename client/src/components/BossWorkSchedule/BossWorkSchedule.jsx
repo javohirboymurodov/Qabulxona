@@ -32,10 +32,9 @@ const BossWorkSchedule = ({ showMessage }) => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [dailyPlanData, setDailyPlanData] = useState({});
   const [loading, setLoading] = useState(false);
-  // const [isDailyPlanModalVisible, setIsDailyPlanModalVisible] = useState(false); // OLIB TASHLASH
-  const [showDailyPlan, setShowDailyPlan] = useState(false); // FAQAT BUNI QOLDIRISH
+  const [showDailyPlan, setShowDailyPlan] = useState(false); // 
 
-  // useEffect'lar
+
   useEffect(() => {
     fetchDailyPlan(selectedDate);
   }, [selectedDate]);
@@ -129,7 +128,6 @@ const BossWorkSchedule = ({ showMessage }) => {
               fullscreen={false} 
               onSelect={onSelect}
               value={selectedDate}
-              // cellRender ni umuman olib tashlash - sodda kalendar
             />
           </Card>
         </Col>

@@ -12,17 +12,7 @@ import {
   Space
 } from 'antd';
 
-// ICON'LARNI IMPORT QILISH
-import { 
-  UserOutlined, 
-  TeamOutlined, 
-  CalendarOutlined,
-  SaveOutlined,
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ClockCircleOutlined
-} from '@ant-design/icons';
+import { SaveOutlined} from '@ant-design/icons';
 
 // Components import
 import dayjs from 'dayjs';
@@ -162,24 +152,27 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setShowReceptionModal(false);
   };
 
+  // DailyPlanModal.jsx'da
   const handleMeetingModalSave = (meetingData) => {
+    console.log('=== Meeting Modal Save Callback ===');
     console.log('Meeting modal data received:', meetingData);
     
     const newMeeting = {
-      id: Date.now(), // Vaqtinchalik ID
-      type: 'meeting', // TYPE QO'SHISH MUHIM!
+      id: Date.now(),
+      type: 'meeting', // TYPE MUHIM!
       time: meetingData.time,
-      title: meetingData.data.name, // name -> title
-      name: meetingData.data.name, // Backend uchun name ham kerak
-      description: meetingData.data.description,
-      location: meetingData.data.location,
+      name: meetingData.data.name, // NAME
+      title: meetingData.data.name, // TITLE ham qo'shish
+      description: meetingData.data.description || '',
+      location: meetingData.data.location || '',
       participants: meetingData.data.participants || [],
       date: date,
-      isNew: true // Yangi item flag
+      isNew: true
     };
     
-    console.log('Adding meeting to local state:', newMeeting);
+    console.log('Adding meeting to local state with all fields:', newMeeting);
     setItems(prev => [...prev, newMeeting]);
+    setMeetings(prev => [...prev, newMeeting]);
     setShowMeetingModal(false);
   };
 
@@ -331,26 +324,6 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setShowMeetingModal(true);
   };
 
-  const handleMeetingModalClose = (shouldRefresh, meetingData) => {
-    setShowMeetingModal(false);
-    setEditingMeeting(null);
-    
-    if (shouldRefresh && meetingData) {
-      const newMeeting = {
-        id: Date.now(),
-        name: meetingData.name,
-        time: meetingData.time,
-        location: meetingData.location,
-        description: meetingData.description,
-        participants: meetingData.participants || [],
-        date: meetingData.date
-      };
-      setMeetings(prev => [...prev, newMeeting]);
-      setItems(prev => [...prev, { ...newMeeting, isNew: true }]); // Items ga ham qo'shish
-      showMessage?.success('Мажлис муваффақиятли қўшилди');
-    }
-  };
-
   const handleMeetingRemove = (meetingId) => {
     setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
   };
@@ -437,7 +410,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       label: `Қабуллар (${receptions.length})`,
       children: (
         <div>
-          {/* Reception qo'shish tugmasi */}
+          {/* Reception qo'shish tugmasи */}
           <Button 
             type="dashed" 
             onClick={handleReceptionAdd}
@@ -602,21 +575,14 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
           size="large"
         />
         
-        {/* BU TUGMALAR QISMINI OLIB TASHLASH KERAK */}
-        {/* 
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          ...tugmalar...
-        </div>
-        */}
       </Modal>
       
-      {/* Modallar */}
       {/* AddMeetingModal - employees yuklangandan keyin ko'rsatish */}
       {showMeetingModal && employees.length > 0 && (
         <AddMeetingModal
           visible={showMeetingModal}
-          onClose={handleMeetingModalClose}
-          onSave={(meetingData) => handleMeetingModalClose(true, meetingData)}
+          onClose={() => setShowMeetingModal(false)} // ODDIY CLOSE
+          onSave={handleMeetingModalSave} // TO'G'RI SAVE CALLBACK
           employees={employees}
           initialData={editingMeeting}
           preSelectedEmployees={[]}

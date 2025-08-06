@@ -329,11 +329,46 @@ const saveDailyPlan = async (req, res) => {
     // Ma'lumotlarni turga qarab ajratish va saqlash
     for (const item of newItems) {
       try {
-        console.log(`Processing ${item.type}:`, item);
+        console.log(`Processing ${item.type}:`, JSON.stringify(item, null, 2));
+        
+        if (!item.type) {
+          console.log('ERROR: Item type is missing!');
+          results.errors.push(`Item type yo'q: ${JSON.stringify(item)}`);
+          continue;
+        }
         
         switch (item.type) {
+          case 'meeting':
+            console.log('=== SAVING MEETING ===');
+            console.log('Meeting data received:', JSON.stringify(item, null, 2));
+            console.log('Meeting name:', item.name || item.title);
+            console.log('Meeting time:', item.time);
+            console.log('Meeting location:', item.location);
+            
+            if (!item.name && !item.title) {
+              console.log('ERROR: Meeting name missing');
+              results.errors.push('Meeting nomi kiritilmagan');
+              break;
+            }
+            
+            // Meeting'ni Meeting modeliga saqlash
+            const meeting = new Meeting({
+              name: item.title || item.name,
+              description: item.description || '',
+              date: targetDate.toDate(),
+              time: item.time,
+              location: item.location || '',
+              participants: item.participants || [],
+              createdAt: new Date()
+            });
+            
+            const savedMeeting = await meeting.save();
+            console.log('Meeting saved with ID:', savedMeeting._id);
+            results.meetings++;
+            break;
+            
           case 'task':
-            console.log('=== SAVING TASK TO SCHEDULE ===');
+            console.log('=== SAVING TASK ===');
             console.log('Task data:', JSON.stringify(item, null, 2));
 
             if (!item.title) {
@@ -369,33 +404,8 @@ const saveDailyPlan = async (req, res) => {
             results.tasks++;
             break;
             
-          case 'meeting':
-            console.log('=== SAVING MEETING ===');
-            console.log('Meeting data:', JSON.stringify(item, null, 2));
-            
-            if (!item.name && !item.title) {
-              console.log('ERROR: Meeting name missing');
-              results.errors.push('Meeting nomi kiritilmagan');
-              break;
-            }
-            
-            // Meeting'ni Meeting modeliga saqlash
-            const meeting = new Meeting({
-              name: item.title || item.name,
-              description: item.description || '',
-              date: targetDate.toDate(),
-              time: item.time,
-              location: item.location || '',
-              participants: item.participants || [],
-              createdAt: new Date()
-            });
-            
-            const savedMeeting = await meeting.save();
-            console.log('Meeting saved with ID:', savedMeeting._id);
-            results.meetings++;
-            break;
-            
           case 'reception':
+            console.log('=== SAVING RECEPTION ===');
             // Reception'ni ReceptionHistory modeliga saqlash
             let receptionHistory = await ReceptionHistory.findOne({
               date: {
@@ -435,8 +445,9 @@ const saveDailyPlan = async (req, res) => {
             break;
             
           default:
-            console.warn('Noma\'lum tur:', item.type);
+            console.log(`Noma'lum tur: ${item.type}`);
             results.errors.push(`Noma'lum tur: ${item.type}`);
+            break;
         }
       } catch (itemError) {
         console.error(`Error saving ${item.type}:`, itemError);
