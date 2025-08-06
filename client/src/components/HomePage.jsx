@@ -535,14 +535,14 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
         onClose={handleReceptionModalClose}
         onSave={(receptionData) => {
           messageApi.success({
-            content: "Ходимлар рахбар қабулига муваффақиятли қўшилди",
+            content: `${receptionData.employee.fullName || receptionData.employee.name} рахбар қабулига муваффақиятли қўшилди`,
             duration: 3,
           });
         }}
         employees={employees || []}
         preSelectedEmployees={selectedEmployees.map(id => 
           employees.find(emp => emp._id === id)
-        ).filter(Boolean)} // <-- ID'larni object'larga aylantirish
+        ).filter(Boolean)}
         defaultDate={dayjs().format('YYYY-MM-DD')}
       />
     </>

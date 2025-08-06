@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Descriptions, Tag, Space, Typography } from 'antd';
 import { CalendarOutlined, ClockCircleOutlined, TeamOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
@@ -26,7 +27,7 @@ const ViewMeetingModal = ({ visible, onClose, meeting }) => {
         <Descriptions.Item label="Сана">
           <Space>
             <CalendarOutlined />
-            <Text>{meeting.date}</Text>
+            <Text>{dayjs(meeting.date).format('DD.MM.YYYY')}</Text>
           </Space>
         </Descriptions.Item>
 
