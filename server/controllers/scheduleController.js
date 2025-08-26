@@ -233,7 +233,7 @@ const getDailyPlan = async (req, res) => {
         allItems.push({
           id: emp._id.toString(),
           type: 'reception',
-          time: emp.timeUpdated ? dayjs(emp.timeUpdated).format('HH:mm') : '09:00',
+          time: emp.time || (emp.timeUpdated ? dayjs(emp.timeUpdated).format('HH:mm') : '09:00'),
           title: emp.name,
           description: emp.task?.description || emp.purpose || 'Рахбар қабули',
           department: emp.department,
