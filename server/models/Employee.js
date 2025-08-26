@@ -70,22 +70,34 @@ const employeeSchema = new mongoose.Schema(
 
 // Virtual for active tasks count
 employeeSchema.virtual('activeTasks').get(function() {
+  if (!this.taskHistory || !Array.isArray(this.taskHistory)) {
+    return 0;
+  }
   return this.taskHistory.filter(task => task.status === 'pending').length;
 });
 
 // Virtual for completed tasks count
 employeeSchema.virtual('completedTasks').get(function() {
+  if (!this.taskHistory || !Array.isArray(this.taskHistory)) {
+    return 0;
+  }
   return this.taskHistory.filter(task => task.status === 'completed').length;
 });
 
 // Method to add task to history
 employeeSchema.methods.addTask = function(taskData) {
+  if (!this.taskHistory) {
+    this.taskHistory = [];
+  }
   this.taskHistory.push(taskData);
   return this.save();
 };
 
 // Method to update task status
 employeeSchema.methods.updateTaskStatus = function(taskId, status, completedAt = null) {
+  if (!this.taskHistory || !Array.isArray(this.taskHistory)) {
+    return null;
+  }
   const task = this.taskHistory.id(taskId);
   if (task) {
     task.status = status;
