@@ -1,28 +1,28 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import PDFDocument from 'pdfkit';
+import blobStream from 'blob-stream';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
-import 'dayjs/locale/uz-latn';
+import 'dayjs/locale/uz';
 
-dayjs.locale('uz-latn');
+dayjs.locale('uz');
 
 // Corporate color scheme
 const colors = {
-  primary: '#1e3a8a',    // To'q ko'k (corporate)
-  secondary: '#1e40af',  // O'rta ko'k  
-  accent: '#3b82f6',     // Ochiq ko'k
-  text: '#1f2937',       // To'q kulrang
-  border: '#d1d5db',     // Ochiq kulrang
-  light: '#f8fafc'       // Och kulrang background
+  primary: '#1e3a8a',    // Тўқ кўк (corporate)
+  secondary: '#1e40af',  // Ўрта кўк  
+  accent: '#3b82f6',     // Очиқ кўк
+  text: '#1f2937',       // Тўқ кулранг
+  border: '#d1d5db',     // Очиқ кулранг
+  light: '#f8fafc'       // Оч кулранг background
 };
 
-// Convert hex color to RGB array for jsPDF
+// Convert hex to RGB for PDFKit
 const hexToRgb = (hex) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? [
-    parseInt(result[1], 16),
-    parseInt(result[2], 16), 
-    parseInt(result[3], 16)
+    parseInt(result[1], 16) / 255,
+    parseInt(result[2], 16) / 255, 
+    parseInt(result[3], 16) / 255
   ] : [0, 0, 0];
 };
 
@@ -49,37 +49,74 @@ const formatTime = (time) => {
   return time.length === 5 ? time : `${time}:00`;
 };
 
-// Get item type emoji and label
+// Get item type info in Cyrillic
 const getItemTypeInfo = (type) => {
   switch (type) {
     case 'task':
-      return { emoji: '📋', label: 'Vazifa', color: colors.primary };
+      return { emoji: '📋', label: 'Вазифа', color: colors.primary };
     case 'reception':
-      return { emoji: '👤', label: 'Qabul', color: colors.secondary };
+      return { emoji: '👤', label: 'Қабул', color: colors.secondary };
     case 'meeting':
-      return { emoji: '🤝', label: 'Majlis', color: colors.accent };
+      return { emoji: '🤝', label: 'Мажлис', color: colors.accent };
     default:
-      return { emoji: '📄', label: 'Ish', color: colors.text };
+      return { emoji: '📄', label: 'Иш', color: colors.text };
   }
+};
+
+// Uzbek Cyrillic month and day names
+const monthNames = [
+  'Январ', 'Феврал', 'Март', 'Апрел', 'Май', 'Июн',
+  'Июл', 'Август', 'Сентябр', 'Октябр', 'Ноябр', 'Декабр'
+];
+
+const dayNames = [
+  'Якшанба', 'Душанба', 'Сешанба', 'Чоршанба', 
+  'Пайшанба', 'Жума', 'Шанба'
+];
+
+// Format date in Uzbek Cyrillic
+const formatDateUz = (date) => {
+  const day = date.date();
+  const month = monthNames[date.month()];
+  const year = date.year();
+  const dayName = dayNames[date.day()];
+  
+  return {
+    dateStr: `${day} ${month} ${year}`,
+    dayName: dayName
+  };
 };
 
 // Main PDF generator function
 export const generateSchedulePDF = async (scheduleData, selectedDate) => {
   try {
-    console.log('📄 Generating PDF for date:', selectedDate.format('YYYY-MM-DD'));
+    console.log('📄 PDFKit: Generating PDF for date:', selectedDate.format('YYYY-MM-DD'));
     console.log('📊 Schedule data:', scheduleData);
 
     // Create new PDF document
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: {
+        top: 50,
+        bottom: 50,
+        left: 50, 
+        right: 50
+      },
+      info: {
+        Title: `Раҳбар Иш Графиги - ${selectedDate.format('DD.MM.YYYY')}`,
+        Author: 'Қабулхона Тизими',
+        Subject: 'Кунлик иш режаси',
+        Creator: 'Қабулхона Тизими PDF Generator'
+      }
     });
 
-    // A4 dimensions
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const margin = 20;
+    // Create blob stream
+    const stream = doc.pipe(blobStream());
+
+    // Page dimensions
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 50;
     const contentWidth = pageWidth - (margin * 2);
 
     let currentY = margin;
@@ -88,50 +125,51 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     // HEADER SECTION
     // ===================
     
-    // Company logo placeholder (you can replace with actual logo)
-    doc.setFillColor(...hexToRgb(colors.primary));
-    doc.circle(35, currentY + 10, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Q', 32, currentY + 13);
+    // Company logo (circle with Q)
+    doc.circle(margin + 20, currentY + 20, 15)
+       .fillColor(colors.primary)
+       .fill();
+    
+    doc.fillColor('white')
+       .fontSize(16)
+       .font('Helvetica-Bold')
+       .text('Қ', margin + 15, currentY + 13);
 
     // Company name and title
-    doc.setTextColor(...hexToRgb(colors.primary));
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('QABULXONA TIZIMI', 50, currentY + 8);
+    doc.fillColor(colors.primary)
+       .fontSize(24)
+       .font('Helvetica-Bold')
+       .text('ҚАБУЛХОНА ТИЗИМИ', margin + 50, currentY + 5);
     
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'normal');
-    doc.text('RAHBAR ISH GRAFIGI', 50, currentY + 16);
+    doc.fontSize(18)
+       .font('Helvetica')
+       .text('РАҲБАР ИШ ГРАФИГИ', margin + 50, currentY + 35);
 
-    currentY += 30;
+    currentY += 70;
 
-    // Date and generation info
-    doc.setDrawColor(...hexToRgb(colors.border));
-    doc.line(margin, currentY, pageWidth - margin, currentY);
-    currentY += 8;
+    // Horizontal line
+    doc.strokeColor(colors.border)
+       .lineWidth(1)
+       .moveTo(margin, currentY)
+       .lineTo(pageWidth - margin, currentY)
+       .stroke();
 
-    doc.setTextColor(...hexToRgb(colors.text));
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
+    currentY += 15;
+
+    // Date information
+    const dateInfo = formatDateUz(selectedDate);
     
-    const dayNames = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
-    const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 
-                       'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+    doc.fillColor(colors.text)
+       .fontSize(14)
+       .font('Helvetica-Bold')
+       .text(`Сана: ${dateInfo.dateStr} (${dateInfo.dayName})`, margin, currentY);
     
-    const dateStr = `${selectedDate.date()} ${monthNames[selectedDate.month()]} ${selectedDate.year()}`;
-    const dayName = dayNames[selectedDate.day()];
-    
-    doc.text(`Sana: ${dateStr} (${dayName})`, margin, currentY);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
     const generatedTime = dayjs().format('DD.MM.YYYY HH:mm');
-    doc.text(`Tayyorlandi: ${generatedTime}`, margin, currentY + 6);
+    doc.fontSize(10)
+       .font('Helvetica')
+       .text(`Тайёрланди: ${generatedTime}`, margin, currentY + 20);
 
-    currentY += 20;
+    currentY += 50;
 
     // ===================
     // SUMMARY SECTION
@@ -141,32 +179,40 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     const totalItems = summary.totalItems || 0;
     
     if (totalItems > 0) {
-      doc.setDrawColor(...hexToRgb(colors.border));
-      doc.line(margin, currentY, pageWidth - margin, currentY);
-      currentY += 8;
-      
-      doc.setTextColor(...hexToRgb(colors.primary));
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('XULOSALAR:', margin, currentY);
-      
-      currentY += 8;
-      doc.setTextColor(...hexToRgb(colors.text));
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const summaryText = [
-        `📋 Jami: ${totalItems} ta ish rejasi`,
-        `📋 Vazifalar: ${summary.totalTasks || 0}`,
-        `👤 Qabullar: ${summary.totalReceptions || 0}`, 
-        `🤝 Majlislar: ${summary.totalMeetings || 0}`
-      ];
-      
-      summaryText.forEach((text, index) => {
-        doc.text(text, margin + (index * 45), currentY);
-      });
+      // Summary line
+      doc.strokeColor(colors.border)
+         .moveTo(margin, currentY)
+         .lineTo(pageWidth - margin, currentY)
+         .stroke();
       
       currentY += 15;
+      
+      doc.fillColor(colors.primary)
+         .fontSize(14)
+         .font('Helvetica-Bold')
+         .text('ХУЛОСАЛАР:', margin, currentY);
+      
+      currentY += 20;
+      
+      doc.fillColor(colors.text)
+         .fontSize(11)
+         .font('Helvetica');
+      
+      const summaryTexts = [
+        `📋 Жами: ${totalItems} та иш режаси`,
+        `📋 Вазифалар: ${summary.totalTasks || 0}`,
+        `👤 Қабуллар: ${summary.totalReceptions || 0}`,
+        `🤝 Мажлислар: ${summary.totalMeetings || 0}`
+      ];
+      
+      // Display summary in 2 columns
+      summaryTexts.forEach((text, index) => {
+        const x = margin + (index % 2) * 250;
+        const y = currentY + Math.floor(index / 2) * 15;
+        doc.text(text, x, y);
+      });
+      
+      currentY += Math.ceil(summaryTexts.length / 2) * 15 + 20;
     }
 
     // ===================
@@ -177,83 +223,136 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     
     if (items.length === 0) {
       // Empty state
-      doc.setTextColor(...hexToRgb(colors.text));
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Bu kun uchun ish rejasi mavjud emas', margin, currentY + 20);
+      doc.fillColor(colors.text)
+         .fontSize(16)
+         .font('Helvetica')
+         .text('Бу кун учун иш режаси мавжуд эмас', margin, currentY + 30);
     } else {
       // Table header
-      doc.setDrawColor(...hexToRgb(colors.primary));
-      doc.setFillColor(...hexToRgb(colors.primary));
-      doc.rect(margin, currentY, contentWidth, 12, 'F');
+      const tableTop = currentY;
+      const tableLeft = margin;
+      const colWidths = [80, 80, contentWidth - 160]; // ВАҚТ, ТУР, ТАФСИЛ
       
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('VAQT', margin + 5, currentY + 8);
-      doc.text('TUR', margin + 35, currentY + 8);
-      doc.text('TAFSIL', margin + 60, currentY + 8);
+      // Header background
+      doc.rect(tableLeft, tableTop, contentWidth, 25)
+         .fillColor(colors.primary)
+         .fill();
       
-      currentY += 15;
+      // Header text
+      doc.fillColor('white')
+         .fontSize(12)
+         .font('Helvetica-Bold')
+         .text('ВАҚТ', tableLeft + 10, tableTop + 8)
+         .text('ТУР', tableLeft + colWidths[0] + 10, tableTop + 8)
+         .text('ТАФСИЛ', tableLeft + colWidths[0] + colWidths[1] + 10, tableTop + 8);
+      
+      currentY = tableTop + 30;
       
       // Table rows
       items.forEach((item, index) => {
         const typeInfo = getItemTypeInfo(item.type);
-        const rowHeight = Math.max(15, Math.ceil((item.description || '').length / 50) * 5 + 10);
         
-        // Zebra striping
-        if (index % 2 === 0) {
-          doc.setFillColor(...hexToRgb(colors.light));
-          doc.rect(margin, currentY, contentWidth, rowHeight, 'F');
-        }
+        // Calculate row height based on content
+        const descriptionLines = item.description ? 
+          Math.ceil(item.description.length / 60) : 1;
+        const detailLines = 1 + descriptionLines + 
+          (item.position ? 1 : 0) + 
+          (item.department ? 1 : 0) + 
+          (item.location ? 1 : 0);
+        const rowHeight = Math.max(30, detailLines * 12 + 10);
         
-        // Border
-        doc.setDrawColor(...hexToRgb(colors.border));
-        doc.rect(margin, currentY, contentWidth, rowHeight);
-        doc.line(margin + 30, currentY, margin + 30, currentY + rowHeight);
-        doc.line(margin + 55, currentY, margin + 55, currentY + rowHeight);
-        
-        // Content
-        doc.setTextColor(...hexToRgb(colors.text));
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formatTime(item.time), margin + 5, currentY + 8);
-        
-        doc.setTextColor(...hexToRgb(typeInfo.color));
-        doc.text(`${typeInfo.emoji} ${typeInfo.label}`, margin + 32, currentY + 8);
-        
-        // Title
-        doc.setTextColor(...hexToRgb(colors.text));
-        doc.setFont('helvetica', 'bold');
-        doc.text(item.title || 'Noma\'lum', margin + 60, currentY + 8);
-        
-        // Details
-        let detailY = currentY + 12;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        
-        if (item.description) {
-          const lines = doc.splitTextToSize(item.description, contentWidth - 65);
-          doc.text(lines, margin + 60, detailY);
-          detailY += lines.length * 4;
-        }
-        
-        // Type-specific details
-        if (item.type === 'reception') {
-          if (item.position) doc.text(`💼 ${item.position}`, margin + 60, detailY);
-          if (item.department) doc.text(`🏢 ${item.department}`, margin + 60, detailY + 4);
-        } else if (item.type === 'meeting') {
-          if (item.location) doc.text(`📍 ${item.location}`, margin + 60, detailY);
-          if (item.participants?.length) doc.text(`👥 ${item.participants.length} ishtirokchi`, margin + 60, detailY + 4);
-        }
-        
-        currentY += rowHeight + 2;
-        
-        // Page break check
-        if (currentY > pageHeight - 60) {
+        // Check if we need a new page
+        if (currentY + rowHeight > pageHeight - 100) {
           doc.addPage();
           currentY = margin;
         }
+        
+        // Zebra striping
+        if (index % 2 === 0) {
+          doc.rect(tableLeft, currentY, contentWidth, rowHeight)
+             .fillColor(colors.light)
+             .fill();
+        }
+        
+        // Row borders
+        doc.strokeColor(colors.border)
+           .lineWidth(0.5)
+           .rect(tableLeft, currentY, contentWidth, rowHeight)
+           .stroke();
+        
+        // Vertical separators
+        doc.moveTo(tableLeft + colWidths[0], currentY)
+           .lineTo(tableLeft + colWidths[0], currentY + rowHeight)
+           .stroke();
+        
+        doc.moveTo(tableLeft + colWidths[0] + colWidths[1], currentY)
+           .lineTo(tableLeft + colWidths[0] + colWidths[1], currentY + rowHeight)
+           .stroke();
+        
+        // Cell content
+        let cellY = currentY + 10;
+        
+        // Time column
+        doc.fillColor(colors.text)
+           .fontSize(12)
+           .font('Helvetica-Bold')
+           .text(formatTime(item.time), tableLeft + 10, cellY);
+        
+        // Type column
+        doc.fillColor(typeInfo.color)
+           .fontSize(11)
+           .font('Helvetica-Bold')
+           .text(`${typeInfo.emoji} ${typeInfo.label}`, 
+                 tableLeft + colWidths[0] + 10, cellY);
+        
+        // Details column
+        const detailX = tableLeft + colWidths[0] + colWidths[1] + 10;
+        
+        // Title
+        doc.fillColor(colors.text)
+           .fontSize(12)
+           .font('Helvetica-Bold')
+           .text(item.title || 'Номаълум', detailX, cellY, {
+             width: colWidths[2] - 20
+           });
+        
+        cellY += 15;
+        
+        // Description
+        if (item.description) {
+          doc.fontSize(10)
+             .font('Helvetica')
+             .text(item.description, detailX, cellY, {
+               width: colWidths[2] - 20
+             });
+          cellY += descriptionLines * 12;
+        }
+        
+        // Type-specific details
+        doc.fontSize(9)
+           .font('Helvetica');
+        
+        if (item.type === 'reception') {
+          if (item.position) {
+            doc.text(`💼 ${item.position}`, detailX, cellY);
+            cellY += 12;
+          }
+          if (item.department) {
+            doc.text(`🏢 ${item.department}`, detailX, cellY);
+            cellY += 12;
+          }
+        } else if (item.type === 'meeting') {
+          if (item.location) {
+            doc.text(`📍 ${item.location}`, detailX, cellY);
+            cellY += 12;
+          }
+          if (item.participants?.length) {
+            doc.text(`👥 ${item.participants.length} иштирокчи`, detailX, cellY);
+            cellY += 12;
+          }
+        }
+        
+        currentY += rowHeight + 1;
       });
     }
 
@@ -262,55 +361,86 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     // ===================
     
     // Move to footer area
-    currentY = pageHeight - 50;
+    currentY = pageHeight - 80;
     
-    // Signature section
-    doc.setDrawColor(...hexToRgb(colors.border));
-    doc.line(margin, currentY, pageWidth - margin, currentY);
-    currentY += 8;
+    // Signature line
+    doc.strokeColor(colors.border)
+       .moveTo(margin, currentY)
+       .lineTo(pageWidth - margin, currentY)
+       .stroke();
     
-    doc.setTextColor(...hexToRgb(colors.text));
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Tasdiqladi: ________________________________', margin, currentY);
-    doc.text('(Rahbar imzosi va sanasi)', margin, currentY + 6);
+    currentY += 15;
+    
+    doc.fillColor(colors.text)
+       .fontSize(11)
+       .font('Helvetica')
+       .text('Тасдиқлади: ________________________________', margin, currentY)
+       .text('(Раҳбар имзоси ва санаси)', margin, currentY + 15);
     
     // QR Code
     const qrData = `${window.location.origin}/schedule/${selectedDate.format('YYYY-MM-DD')}`;
     const qrCodeDataUrl = await generateQRCode(qrData);
     
     if (qrCodeDataUrl) {
-      doc.addImage(qrCodeDataUrl, 'PNG', pageWidth - margin - 25, currentY - 5, 20, 20);
-      doc.setFontSize(8);
-      doc.text('Digital tasdiqlash', pageWidth - margin - 25, currentY + 18);
+      // Convert data URL to buffer for PDFKit
+      const qrBuffer = Buffer.from(qrCodeDataUrl.split(',')[1], 'base64');
+      doc.image(qrBuffer, pageWidth - margin - 60, currentY - 10, {
+        width: 50,
+        height: 50
+      });
+      
+      doc.fontSize(8)
+         .text('Рақамли тасдиқлаш', pageWidth - margin - 65, currentY + 45);
     }
     
     // Page number
-    doc.setFontSize(8);
-    doc.setTextColor(...hexToRgb(colors.text));
-    doc.text(`Sahifa: 1/1`, pageWidth - margin - 15, pageHeight - 10);
+    doc.fontSize(8)
+       .text('Саҳифа: 1/1', pageWidth - margin - 40, pageHeight - 20);
 
     // ===================
-    // SAVE PDF
+    // FINALIZE PDF
     // ===================
     
-    const fileName = `Rahbar_Ish_Grafigi_${selectedDate.format('YYYY-MM-DD')}.pdf`;
-    doc.save(fileName);
+    doc.end();
     
-    console.log('✅ PDF generated successfully:', fileName);
-    
-    return {
-      success: true,
-      fileName: fileName,
-      message: 'PDF muvaffaqiyatli yaratildi va yuklab olindi'
-    };
+    // Return promise that resolves when PDF is ready
+    return new Promise((resolve, reject) => {
+      stream.on('finish', function() {
+        try {
+          const blob = stream.toBlob('application/pdf');
+          const fileName = `Rahbar_Ish_Grafigi_${selectedDate.format('YYYY-MM-DD')}.pdf`;
+          
+          // Create download link
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          console.log('✅ PDFKit: PDF generated successfully:', fileName);
+          
+          resolve({
+            success: true,
+            fileName: fileName,
+            message: 'PDF муваффақиятли яратилди ва юклаб олинди'
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+      
+      stream.on('error', reject);
+    });
     
   } catch (error) {
-    console.error('❌ PDF generation error:', error);
+    console.error('❌ PDFKit: PDF generation error:', error);
     return {
       success: false,
       error: error.message,
-      message: 'PDF yaratishda xatolik yuz berdi'
+      message: 'PDF яратишда хатолик юз берди'
     };
   }
 };

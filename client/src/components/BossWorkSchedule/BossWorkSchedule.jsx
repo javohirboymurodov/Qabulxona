@@ -122,19 +122,19 @@ const BossWorkSchedule = ({ showMessage }) => {
   const handleGeneratePDF = async () => {
     try {
       setPdfGenerating(true);
-      console.log('🔄 Starting PDF generation...');
+      console.log('🔄 PDFKit: Starting PDF generation...');
       
       const result = await generateSchedulePDF(dailyPlanData, selectedDate);
       
-      if (result.success) {
-        showMessage?.success?.(result.message);
+      if (result && result.success) {
+        showMessage?.success?.(result.message || 'PDF муваффақиятли яратилди');
         console.log('✅ PDF generated:', result.fileName);
       } else {
-        throw new Error(result.message);
+        throw new Error(result?.message || 'PDF generation failed');
       }
     } catch (error) {
       console.error('❌ PDF generation failed:', error);
-      showMessage?.error?.('PDF yaratishda xatolik: ' + error.message);
+      showMessage?.error?.('PDF яратишда хатолик: ' + (error.message || 'Номаълум хатолик'));
     } finally {
       setPdfGenerating(false);
     }
