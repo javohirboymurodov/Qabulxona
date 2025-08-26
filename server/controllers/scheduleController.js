@@ -5,6 +5,7 @@ const timezone = require('dayjs/plugin/timezone');
 const Schedule = require('../models/Schedule');
 const ReceptionHistory = require('../models/ReceptionHistory');
 const Meeting = require('../models/Meeting');
+const Employee = require('../models/Employee');
 
 // dayjs plugin'larni yoqish
 dayjs.extend(utc);
@@ -363,6 +364,54 @@ const saveDailyPlan = async (req, res) => {
             
             const savedMeeting = await meeting.save();
             console.log('Meeting saved with ID:', savedMeeting._id);
+            
+            // Populate meeting participants for notifications
+            const populatedMeeting = await Meeting.findById(savedMeeting._id)
+              .populate('participants', 'name position department');
+
+            // Add meeting to each participant's personal history
+            if (item.participants && item.participants.length > 0) {
+              try {
+                for (const participantId of item.participants) {
+                  const participant = await Employee.findById(participantId);
+                  if (participant) {
+                    await participant.addMeeting({
+                      meetingId: populatedMeeting._id,
+                      name: populatedMeeting.name,
+                      date: populatedMeeting.date,
+                      time: populatedMeeting.time,
+                      location: populatedMeeting.location,
+                      description: populatedMeeting.description,
+                      status: 'invited'
+                    });
+                    console.log(`Added meeting to ${participant.name}'s personal history`);
+                  }
+                }
+              } catch (historyError) {
+                console.error('Failed to add meeting to participant histories:', historyError);
+              }
+            }
+
+            // Send Telegram notifications to all participants
+            const notificationService = getNotificationService();
+            if (notificationService && item.participants && item.participants.length > 0) {
+              try {
+                for (const participantId of item.participants) {
+                  await notificationService.sendMeetingNotification(participantId, {
+                    name: populatedMeeting.name,
+                    description: populatedMeeting.description,
+                    date: populatedMeeting.date,
+                    time: populatedMeeting.time,
+                    location: populatedMeeting.location,
+                    participants: populatedMeeting.participants
+                  });
+                }
+                console.log(`📲 Meeting notifications sent to ${item.participants.length} participants`);
+              } catch (notificationError) {
+                console.error('Failed to send meeting notifications:', notificationError);
+              }
+            }
+            
             results.meetings++;
             break;
             
@@ -433,10 +482,42 @@ const saveDailyPlan = async (req, res) => {
                 department: item.department || '',
                 phone: item.phone || '',
                 status: item.status || 'waiting',
+                time: item.time, // Add time field
                 timeUpdated: new Date(),
                 createdAt: new Date()
               });
               await receptionHistory.save();
+
+              // Add to employee's personal reception history
+              try {
+                const employee = await Employee.findById(item.employeeId);
+                if (employee) {
+                  await employee.addReception({
+                    date: targetDate.toDate(),
+                    time: item.time || dayjs().format('HH:mm'),
+                    status: 'waiting',
+                    notes: null
+                  });
+                  console.log(`Added reception to employee ${employee.name}'s personal history`);
+                }
+              } catch (historyError) {
+                console.error('Failed to add reception to employee history:', historyError);
+              }
+
+              // Send Telegram notification to employee
+              const notificationService = getNotificationService();
+              if (notificationService) {
+                try {
+                  await notificationService.sendReceptionNotification(item.employeeId, {
+                    date: targetDate.format('YYYY-MM-DD'),
+                    time: item.time || dayjs().format('HH:mm'),
+                    notes: null
+                  });
+                  console.log(`📲 Reception notification sent to employee ${item.name}`);
+                } catch (notificationError) {
+                  console.error('Failed to send reception notification:', notificationError);
+                }
+              }
             }
             
             results.receptions++;
@@ -475,6 +556,9 @@ const saveDailyPlan = async (req, res) => {
     });
   }
 };
+
+// Telegram notification service helper
+const getNotificationService = () => global.telegramNotificationService || null;
 
 module.exports = {
   checkFutureDate,
