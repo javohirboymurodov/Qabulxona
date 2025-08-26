@@ -233,6 +233,42 @@ exports.updateReceptionStatus = async (req, res) => {
         assignedAt: task.assignedAt || new Date(),
         status: task.status || 'pending'
       };
+
+      // IMPORTANT: Add task to employee's personal taskHistory as well
+      try {
+        const actualEmployeeId = reception.employees[employeeIndex].employeeId;
+        const employee = await Employee.findById(actualEmployeeId);
+        
+        if (employee) {
+          // Create proper task data for employee's history
+          const taskData = {
+            description: task.description,
+            deadline: new Date(Date.now() + (task.deadline * 24 * 60 * 60 * 1000)), // Convert days to date
+            assignedBy: req.admin ? req.admin.fullName : 'Admin',
+            priority: task.priority || 'normal',
+            status: 'pending'
+          };
+
+          // Add to employee's task history
+          await employee.addTask(taskData);
+          console.log(`Task added to employee ${employee.name}'s personal task history`);
+
+          // Send Telegram notification
+          const getNotificationService = () => global.telegramNotificationService || null;
+          const notificationService = getNotificationService();
+          if (notificationService) {
+            try {
+              await notificationService.sendTaskNotification(actualEmployeeId, taskData, taskData.assignedBy);
+              console.log(`Task notification sent to employee ${employee.name}`);
+            } catch (notificationError) {
+              console.error('Failed to send task notification:', notificationError);
+            }
+          }
+        }
+      } catch (taskError) {
+        console.error('Failed to add task to employee history:', taskError);
+        // Don't fail the main operation
+      }
     }
 
     await reception.save();
