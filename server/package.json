@@ -19,8 +19,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.0.3",
     "multer": "^2.0.0",
+    "node-cron": "^3.0.3",
     "node-telegram-bot-api": "^0.65.1",
-    "node-cron": "^3.0.3"
+    "pdfkit": "^0.17.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

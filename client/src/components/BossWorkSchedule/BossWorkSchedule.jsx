@@ -16,13 +16,15 @@ import {
   Spin,
   Badge
 } from "antd";
-import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, TeamOutlined, FilePdfOutlined, DownloadOutlined } from "@ant-design/icons";
 
 // Modal import
 import DailyPlanModal from './DailyPlanModal';
 
 // API services
-import axios from "axios";
+import { getDailyPlan } from '../../services/api';
+
+// PDF Generator will be dynamically imported
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
@@ -32,7 +34,8 @@ const BossWorkSchedule = ({ showMessage }) => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [dailyPlanData, setDailyPlanData] = useState({});
   const [loading, setLoading] = useState(false);
-  const [showDailyPlan, setShowDailyPlan] = useState(false); // 
+  const [showDailyPlan, setShowDailyPlan] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
 
   useEffect(() => {
@@ -53,15 +56,15 @@ const BossWorkSchedule = ({ showMessage }) => {
       
       console.log('Fetching daily plan for:', dateStr);
       
-      // Haqiqiy API call
-      const response = await axios.get(`http://localhost:5000/api/schedule/daily-plan/${dateStr}`);
+      // Haqiqiy API call with JWT token (automatic via service)
+      const response = await getDailyPlan(dateStr);
       
-      console.log('Daily plan response:', response.data);
+      console.log('Daily plan response:', response);
       
-      if (response.data.success) {
+      if (response.success) {
         setDailyPlanData({
-          items: response.data.data.items || [],
-          summary: response.data.data.summary || {
+          items: response.data.items || [],
+          summary: response.data.summary || {
             totalItems: 0,
             totalTasks: 0,
             totalReceptions: 0,
@@ -114,6 +117,31 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(selectedDate);
   };
 
+  // PDF generation handler with dynamic import
+  const handleGeneratePDF = async () => {
+    try {
+      setPdfGenerating(true);
+      console.log('🔄 PDF: Starting PDF generation...');
+      
+      // Dynamic import of PDF generator
+      const { generateSchedulePDF } = await import('../../utils/pdfGenerator');
+      
+      const result = await generateSchedulePDF(dailyPlanData, selectedDate);
+      
+      if (result && result.success) {
+        showMessage?.success?.(result.message || 'PDF муваффақиятли яратилди');
+        console.log('✅ PDF generated:', result.fileName);
+      } else {
+        throw new Error(result?.message || 'PDF generation failed');
+      }
+    } catch (error) {
+      console.error('❌ PDF generation failed:', error);
+      showMessage?.error?.('PDF яратишда хатолик: ' + (error.message || 'Номаълум хатолик'));
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
   // Rejalar mavjudligini tekshirish
   const hasPlans = dailyPlanData?.items?.length > 0;
   const totalItems = dailyPlanData?.summary?.totalItems || 0;
@@ -144,15 +172,30 @@ const BossWorkSchedule = ({ showMessage }) => {
               </div>
             }
             extra={
-              isDateEditable(selectedDate) && (
-                <Button
-                  type="primary"
-                  icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
-                  onClick={handleModalOpen} // Bu to'g'ri
-                >
-                  {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
-                </Button>
-              )
+              <div style={{ display: 'flex', gap: 8 }}>
+                {/* PDF Download Button */}
+                {hasPlans && (
+                  <Button
+                    icon={<FilePdfOutlined />}
+                    onClick={handleGeneratePDF}
+                    loading={pdfGenerating}
+                    title="PDF yuklash"
+                  >
+                    PDF
+                  </Button>
+                )}
+                
+                {/* Edit/Add Button */}
+                {isDateEditable(selectedDate) && (
+                  <Button
+                    type="primary"
+                    icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
+                    onClick={handleModalOpen}
+                  >
+                    {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
+                  </Button>
+                )}
+              </div>
             }
             loading={loading}
           >

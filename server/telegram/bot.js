@@ -709,37 +709,66 @@ async function handleMeetingsCommand(chatId, employee) {
     return;
   }
   
-  const recentMeetings = employee.meetingHistory
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 10);
-  
-  let message = `🤝 **Majlislar tarixi (${recentMeetings.length}/${employee.meetingHistory.length}):**\n\n`;
-  
-  recentMeetings.forEach((meeting, index) => {
-    const statusEmoji = meeting.status === 'attended' ? '✅' : meeting.status === 'missed' ? '❌' : '📧';
-    const meetingDate = new Date(meeting.date);
+  try {
+    // OPTIMIZED: Populate meeting details from Meeting collection
+    const Employee = require('../models/Employee');
+    const populatedEmployee = await Employee.findById(employee._id)
+      .populate({
+        path: 'meetingHistory.meetingId',
+        select: 'name date time location description'
+      });
     
-    message += `${index + 1}. ${statusEmoji} **${meeting.name}**\n`;
-    message += `   📅 Sana: ${meetingDate.toLocaleDateString('uz-UZ')}\n`;
-    message += `   ⏰ Vaqt: ${meeting.time}\n`;
-    if (meeting.location) {
-      message += `   📍 Joy: ${meeting.location}\n`;
+    if (!populatedEmployee || !populatedEmployee.meetingHistory) {
+      throw new Error('Failed to load meeting details');
     }
-    message += `   📊 Holat: ${meeting.status === 'attended' ? 'Qatnashgan' : meeting.status === 'missed' ? 'Qatnashmagan' : 'Taklif etilgan'}\n`;
-    if (meeting.description) {
-      message += `   📄 Tavsif: ${meeting.description}\n`;
-    }
-    message += '\n';
-  });
-  
-  bot.sendMessage(chatId, message, {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
-      ]
-    }
-  });
+    
+    const recentMeetings = populatedEmployee.meetingHistory
+      .filter(m => m.meetingId) // Only show meetings that still exist
+      .sort((a, b) => new Date(b.joinedAt || b.createdAt) - new Date(a.joinedAt || a.createdAt))
+      .slice(0, 10);
+    
+    let message = `🤝 **Majlislar tarixi (${recentMeetings.length}/${populatedEmployee.meetingHistory.length}):**\n\n`;
+    
+    recentMeetings.forEach((meetingHistory, index) => {
+      const meeting = meetingHistory.meetingId; // Populated meeting data
+      const statusEmoji = meetingHistory.status === 'attended' ? '✅' : meetingHistory.status === 'missed' ? '❌' : '📧';
+      const meetingDate = new Date(meeting.date);
+      
+      message += `${index + 1}. ${statusEmoji} **${meeting.name}**\n`;
+      message += `   📅 Sana: ${meetingDate.toLocaleDateString('uz-UZ')}\n`;
+      message += `   ⏰ Vaqt: ${meeting.time}\n`;
+      if (meeting.location) {
+        message += `   📍 Joy: ${meeting.location}\n`;
+      }
+      message += `   📊 Holat: ${meetingHistory.status === 'attended' ? 'Qatnashgan' : meetingHistory.status === 'missed' ? 'Qatnashmagan' : 'Taklif etilgan'}\n`;
+      if (meeting.description) {
+        message += `   📄 Tavsif: ${meeting.description}\n`;
+      }
+      if (meetingHistory.notes) {
+        message += `   📝 Eslatma: ${meetingHistory.notes}\n`;
+      }
+      message += '\n';
+    });
+    
+    bot.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+        ]
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error loading meeting history:', error);
+    bot.sendMessage(chatId, '❌ Majlislar tarixini yuklashda xatolik yuz berdi.', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+        ]
+      }
+    });
+  }
 }
 
 // Make notification service globally available

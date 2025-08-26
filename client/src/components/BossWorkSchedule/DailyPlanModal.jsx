@@ -149,7 +149,9 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     
     console.log('Adding reception to local state:', newReception);
     setItems(prev => [...prev, newReception]);
+    setReceptions(prev => [...prev, newReception]); // BU QO'SHILMAGAN EDI!
     setShowReceptionModal(false);
+    showMessage?.success('Қабул кунлик режага қўшилди');
   };
 
   // DailyPlanModal.jsx'da
@@ -276,34 +278,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setShowReceptionModal(true);
   };
 
-  const handleReceptionModalClose = (shouldRefresh, receptionData) => {
-    setShowReceptionModal(false);
-    
-    if (shouldRefresh && receptionData) {
-      console.log('Reception modal data received:', receptionData);
-      
-      // receptionData.data dan ma'lumotlarni olish
-      const data = receptionData.data || receptionData;
-      
-      const newReception = {
-        id: Date.now(),
-        type: 'reception', // Type qo'shish
-        employeeId: receptionData.employee._id,
-        name: receptionData.employee.fullName || receptionData.employee.name,
-        position: receptionData.employee.position,
-        department: receptionData.employee.department,
-        phone: receptionData.employee.phone || '',
-        time: receptionData.time,
-        status: 'waiting',
-        date: date // DailyPlanModal date'ini ishlatish
-      };
-      
-      console.log('Adding reception to local state:', newReception);
-      setReceptions(prev => [...prev, newReception]);
-      setItems(prev => [...prev, { ...newReception, isNew: true }]); // Items ga ham qo'shish
-      showMessage?.success('Қабул кунлик режага қўшилди');
-    }
-  };
+  // handleReceptionModalClose - o'chirildi, handleReceptionModalSave ishlatiladi
 
   const handleReceptionRemove = (receptionId) => {
     setReceptions(prev => prev.filter(reception => reception.id !== receptionId));
