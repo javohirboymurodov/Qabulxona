@@ -2,6 +2,15 @@ const Meeting = require('../models/Meeting');
 const Employee = require('../models/Employee');
 const mongoose = require('mongoose');
 
+// Telegram notification service
+let notificationService = null;
+try {
+  const { notificationService: telegramNotificationService } = require('../telegram/bot');
+  notificationService = telegramNotificationService;
+} catch (error) {
+  console.log('Telegram bot not available for notifications');
+}
+
 // Get all meetings
 exports.getAllMeetings = async (req, res, next) => {
     try {
@@ -42,6 +51,26 @@ exports.createMeeting = async (req, res, next) => {
         const newMeeting = await meeting.save();
         const populatedMeeting = await Meeting.findById(newMeeting._id)
             .populate('participants', 'name position department');
+
+        // Send Telegram notifications to all participants
+        if (notificationService && participants && participants.length > 0) {
+            try {
+                for (const participantId of participants) {
+                    await notificationService.sendMeetingNotification(participantId, {
+                        name: populatedMeeting.name,
+                        description: populatedMeeting.description,
+                        date: populatedMeeting.date,
+                        time: populatedMeeting.time,
+                        location: populatedMeeting.location,
+                        participants: populatedMeeting.participants
+                    });
+                }
+                console.log(`Meeting notifications sent to ${participants.length} participants`);
+            } catch (notificationError) {
+                console.error('Failed to send meeting notifications:', notificationError);
+                // Don't fail the main operation if notification fails
+            }
+        }
 
         res.status(201).json(populatedMeeting);
     } catch (error) {

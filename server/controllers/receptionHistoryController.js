@@ -2,6 +2,15 @@ const ReceptionHistory = require('../models/ReceptionHistory');
 const Employee = require('../models/Employee');
 const dayjs = require('dayjs');
 
+// Telegram notification service
+let notificationService = null;
+try {
+  const { notificationService: telegramNotificationService } = require('../telegram/bot');
+  notificationService = telegramNotificationService;
+} catch (error) {
+  console.log('Telegram bot not available for notifications');
+}
+
 /**
  * Get today's reception data
  */
@@ -124,6 +133,21 @@ exports.addToReception = async (req, res) => {
     }
 
     await reception.save();
+
+    // Send Telegram notification to employee
+    if (notificationService && employeeIndex === -1) { // Only for new additions
+      try {
+        await notificationService.sendReceptionNotification(employeeId, {
+          date: today,
+          time: 'Белгиланган вақтда', // Default time text
+          notes: task ? `Топшириқ: ${task.description}` : null
+        });
+        console.log(`Reception notification sent to employee ${employeeId}`);
+      } catch (notificationError) {
+        console.error('Failed to send reception notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
 
     res.status(201).json({
       success: true,
