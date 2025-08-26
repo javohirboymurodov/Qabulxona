@@ -2,6 +2,9 @@ const Meeting = require('../models/Meeting');
 const Employee = require('../models/Employee');
 const mongoose = require('mongoose');
 
+// Telegram notification service
+const getNotificationService = () => global.telegramNotificationService || null;
+
 // Get all meetings
 exports.getAllMeetings = async (req, res, next) => {
     try {
@@ -42,6 +45,51 @@ exports.createMeeting = async (req, res, next) => {
         const newMeeting = await meeting.save();
         const populatedMeeting = await Meeting.findById(newMeeting._id)
             .populate('participants', 'name position department');
+
+        // Add meeting to each participant's personal history
+        if (participants && participants.length > 0) {
+            try {
+                for (const participantId of participants) {
+                    const participant = await Employee.findById(participantId);
+                    if (participant) {
+                        await participant.addMeeting({
+                            meetingId: populatedMeeting._id,
+                            name: populatedMeeting.name,
+                            date: populatedMeeting.date,
+                            time: populatedMeeting.time,
+                            location: populatedMeeting.location,
+                            description: populatedMeeting.description,
+                            status: 'invited'
+                        });
+                        console.log(`Added meeting to ${participant.name}'s personal history`);
+                    }
+                }
+            } catch (historyError) {
+                console.error('Failed to add meeting to participant histories:', historyError);
+                // Don't fail main operation
+            }
+        }
+
+        // Send Telegram notifications to all participants
+        const notificationService = getNotificationService();
+        if (notificationService && participants && participants.length > 0) {
+            try {
+                for (const participantId of participants) {
+                    await notificationService.sendMeetingNotification(participantId, {
+                        name: populatedMeeting.name,
+                        description: populatedMeeting.description,
+                        date: populatedMeeting.date,
+                        time: populatedMeeting.time,
+                        location: populatedMeeting.location,
+                        participants: populatedMeeting.participants
+                    });
+                }
+                console.log(`Meeting notifications sent to ${participants.length} participants`);
+            } catch (notificationError) {
+                console.error('Failed to send meeting notifications:', notificationError);
+                // Don't fail the main operation if notification fails
+            }
+        }
 
         res.status(201).json(populatedMeeting);
     } catch (error) {

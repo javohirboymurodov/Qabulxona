@@ -23,15 +23,16 @@ const Navbar = ({ onViewChange, activeView, onLogout, admin }) => {
       label: 'Мажлислар Тарихи'
     },
     {
-      key: 'boss-schedule',
-      icon: <ScheduleOutlined />,
-      label: 'Раҳбар Иш Графиги'
-    },
-    {
       key: 'reception-history',
       icon: <HistoryOutlined />,
       label: 'Қабул Тарихи'
+    },
+    {
+      key: 'boss-schedule',
+      icon: <ScheduleOutlined />,
+      label: 'Раҳбар Иш Графиги'
     }
+
   ];
 
   // Faqat superadmin uchun Adminlar menyusini qo'shamiz

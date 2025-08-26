@@ -1,5 +1,10 @@
 const employeeService = require('../services/employeeService');
 const path = require('path');
+const Employee = require('../models/Employee');
+const dayjs = require('dayjs');
+
+// Telegram notification service
+const getNotificationService = () => global.telegramNotificationService || null;
 
 // Get all employees
 exports.getAllEmployees = async (req, res, next) => {
@@ -98,6 +103,176 @@ exports.updateEmployeeStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Ходим ҳолатини янгилашда хатолик юз берди'
+    });
+  }
+};
+
+// Assign task to employee
+exports.assignTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description, deadline, priority = 'normal' } = req.body;
+    const assignedBy = req.admin ? req.admin.fullName : 'Admin';
+
+    // Validation
+    if (!description || !deadline) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topshiriq tavsifi va muddati talab qilinadi'
+      });
+    }
+
+    const employee = await Employee.findById(id);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим топилмади'
+      });
+    }
+
+    // Create task data
+    const taskData = {
+      description,
+      deadline: new Date(deadline),
+      assignedBy,
+      priority,
+      status: 'pending'
+    };
+
+    // Add task to employee's history
+    await employee.addTask(taskData);
+
+    // Send Telegram notification
+    const notificationService = getNotificationService();
+    if (notificationService) {
+      try {
+        await notificationService.sendTaskNotification(id, taskData, assignedBy);
+        console.log(`Task notification sent to employee ${employee.name}`);
+      } catch (notificationError) {
+        console.error('Failed to send task notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Topshiriq muvaffaqiyatli tayinlandi',
+      data: {
+        task: taskData,
+        employee: {
+          id: employee._id,
+          name: employee.name,
+          position: employee.position
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Assign task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Topshiriq tayinlashda xatolik yuz berdi'
+    });
+  }
+};
+
+// Update task status
+exports.updateTaskStatus = async (req, res) => {
+  try {
+    const { id, taskId } = req.params;
+    const { status } = req.body;
+
+    if (!['pending', 'completed', 'overdue'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Noto\'g\'ri status qiymati'
+      });
+    }
+
+    const employee = await Employee.findById(id);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим топилмади'
+      });
+    }
+
+    const completedAt = status === 'completed' ? new Date() : null;
+    const result = await employee.updateTaskStatus(taskId, status, completedAt);
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Topshiriq topilmadi'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Topshiriq holati yangilandi',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Update task status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Topshiriq holatini yangilashda xatolik'
+    });
+  }
+};
+
+// Get employee's task history
+exports.getTaskHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, limit = 50 } = req.query;
+
+    const employee = await Employee.findById(id).select('name position taskHistory');
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим топилмади'
+      });
+    }
+
+    let tasks = employee.taskHistory;
+
+    // Filter by status if provided
+    if (status) {
+      tasks = tasks.filter(task => task.status === status);
+    }
+
+    // Sort by creation date (newest first) and limit
+    tasks = tasks
+      .sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt))
+      .slice(0, parseInt(limit));
+
+    const summary = {
+      total: employee.taskHistory.length,
+      pending: employee.taskHistory.filter(t => t.status === 'pending').length,
+      completed: employee.taskHistory.filter(t => t.status === 'completed').length,
+      overdue: employee.taskHistory.filter(t => t.status === 'overdue').length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        employee: {
+          id: employee._id,
+          name: employee.name,
+          position: employee.position
+        },
+        tasks,
+        summary
+      }
+    });
+
+  } catch (error) {
+    console.error('Get task history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Topshiriqlar tarixini olishda xatolik'
     });
   }
 };

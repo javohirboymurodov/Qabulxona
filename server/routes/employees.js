@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const employeeController = require('../controllers/employeeController');
 const { upload } = require('../middleware/fileUpload');
+const { protect } = require('../middleware/auth');
+
+// Apply authentication to all routes
+router.use(protect);
 
 // Get all employees
 router.get('/', employeeController.getAllEmployees);
@@ -14,6 +18,11 @@ router.get('/:id', employeeController.getEmployeeById);
 
 // Get employee PDF
 router.get('/:id/obektivka', employeeController.getEmployeePDF);
+
+// Task management routes
+router.post('/:id/tasks', employeeController.assignTask);
+router.get('/:id/tasks', employeeController.getTaskHistory);
+router.put('/:id/tasks/:taskId', employeeController.updateTaskStatus);
 
 // Create new employee with file upload
 router.post('/', upload.single('obektivka'), employeeController.createEmployee);
