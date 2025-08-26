@@ -120,6 +120,23 @@ router.post('/add-employee', async (req, res) => {
     receptionHistory.employees.push(newEmployee);
     const savedHistory = await receptionHistory.save();
 
+    // Send Telegram notification to employee
+    const getNotificationService = () => global.telegramNotificationService || null;
+    const notificationService = getNotificationService();
+    if (notificationService) {
+      try {
+        await notificationService.sendReceptionNotification(employeeData.employeeId, {
+          date: targetDate,
+          time: 'Белгиланган вақтда', // Default time text
+          notes: employeeData.task ? `Топшириқ: ${employeeData.task.description}` : null
+        });
+        console.log(`Reception notification sent to employee ${employeeData.employeeId}`);
+      } catch (notificationError) {
+        console.error('Failed to send reception notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
+
     console.log('=== BACKEND SUCCESS ===');
     console.log('Saved reception history ID:', savedHistory._id);
     console.log('Total employees after save:', savedHistory.employees.length);
