@@ -174,6 +174,29 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setItems(prev => [...prev, newMeeting]);
     setMeetings(prev => [...prev, newMeeting]);
     setShowMeetingModal(false);
+    
+    // Auto-save: immediately save meeting to database
+    const autoSaveMeeting = async () => {
+      try {
+        setSaving(true);
+        const response = await saveDailyPlan(date, [{ ...newMeeting, isNew: true }]);
+        if (response.success) {
+          console.log('Meeting auto-saved successfully');
+          showMessage?.success('Мажлис дарҳол сақланди');
+          // Reload data to get updated counts
+          setTimeout(() => {
+            loadDailyPlan();
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Meeting auto-save failed:', error);
+        showMessage?.error('Мажлис автосақлашда хатолик');
+      } finally {
+        setSaving(false);
+      }
+    };
+    
+    autoSaveMeeting();
   };
 
   // DailyPlanModal.jsx da handleTaskModalSave callback qo'shish
@@ -196,6 +219,29 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setItems(prev => [...prev, newTask]);
     setTasks(prev => [...prev, newTask]);
     setShowTaskModal(false);
+    
+    // Auto-save: immediately save task to database
+    const autoSaveTask = async () => {
+      try {
+        setSaving(true);
+        const response = await saveDailyPlan(date, [{ ...newTask, isNew: true }]);
+        if (response.success) {
+          console.log('Task auto-saved successfully');
+          showMessage?.success('Вазифа дарҳол сақланди');
+          // Reload data to get updated counts
+          setTimeout(() => {
+            loadDailyPlan();
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Task auto-save failed:', error);
+        showMessage?.error('Вазифа автосақлашда хатолик');
+      } finally {
+        setSaving(false);
+      }
+    };
+    
+    autoSaveTask();
   };
 
   // DailyPlanModal.jsx da handleSaveAll funksiyasida
@@ -301,7 +347,29 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       console.log('Adding reception to local state:', newReception);
       setReceptions(prev => [...prev, newReception]);
       setItems(prev => [...prev, { ...newReception, isNew: true }]); // Items ga ham qo'shish
-      showMessage?.success('Қабул кунлик режага қўшилди');
+      
+      // Auto-save: immediately save to database
+      const autoSaveReception = async () => {
+        try {
+          setSaving(true);
+          const response = await saveDailyPlan(date, [{ ...newReception, isNew: true }]);
+          if (response.success) {
+            console.log('Reception auto-saved successfully');
+            showMessage?.success('Қабул дарҳол сақланди');
+            // Reload data to get updated counts
+            setTimeout(() => {
+              loadDailyPlan();
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+          showMessage?.error('Автосақлашда хатолик');
+        } finally {
+          setSaving(false);
+        }
+      };
+      
+      autoSaveReception();
     }
   };
 
