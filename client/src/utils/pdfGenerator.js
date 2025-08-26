@@ -3,6 +3,11 @@ import blobStream from 'blob-stream';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
 import 'dayjs/locale/uz';
+import { Buffer } from 'buffer';
+
+// Import font files as URLs for Vite
+import DejaVuSansFont from '../assets/fonts/DejaVuSans.ttf?url';
+import DejaVuSansBoldFont from '../assets/fonts/DejaVuSans-Bold.ttf?url';
 
 dayjs.locale('uz');
 
@@ -110,6 +115,15 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
       }
     });
 
+    // Load and register custom fonts for Cyrillic support
+    const fontBuffers = await Promise.all([
+      fetch(DejaVuSansFont).then(res => res.arrayBuffer()),
+      fetch(DejaVuSansBoldFont).then(res => res.arrayBuffer())
+    ]);
+    
+    doc.registerFont('DejaVuSans', Buffer.from(fontBuffers[0]));
+    doc.registerFont('DejaVuSans-Bold', Buffer.from(fontBuffers[1]));
+
     // Create blob stream
     const stream = doc.pipe(blobStream());
 
@@ -132,17 +146,17 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     
     doc.fillColor('white')
        .fontSize(16)
-       .font('Helvetica-Bold')
+       .font('DejaVuSans-Bold')
        .text('Қ', margin + 15, currentY + 13);
 
     // Company name and title
     doc.fillColor(colors.primary)
        .fontSize(24)
-       .font('Helvetica-Bold')
+       .font('DejaVuSans-Bold')
        .text('ҚАБУЛХОНА ТИЗИМИ', margin + 50, currentY + 5);
     
     doc.fontSize(18)
-       .font('Helvetica')
+       .font('DejaVuSans')
        .text('РАҲБАР ИШ ГРАФИГИ', margin + 50, currentY + 35);
 
     currentY += 70;
@@ -161,12 +175,12 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     
     doc.fillColor(colors.text)
        .fontSize(14)
-       .font('Helvetica-Bold')
+       .font('DejaVuSans-Bold')
        .text(`Сана: ${dateInfo.dateStr} (${dateInfo.dayName})`, margin, currentY);
     
     const generatedTime = dayjs().format('DD.MM.YYYY HH:mm');
     doc.fontSize(10)
-       .font('Helvetica')
+       .font('DejaVuSans')
        .text(`Тайёрланди: ${generatedTime}`, margin, currentY + 20);
 
     currentY += 50;
@@ -189,14 +203,14 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
       
       doc.fillColor(colors.primary)
          .fontSize(14)
-         .font('Helvetica-Bold')
+         .font('DejaVuSans-Bold')
          .text('ХУЛОСАЛАР:', margin, currentY);
       
       currentY += 20;
       
       doc.fillColor(colors.text)
          .fontSize(11)
-         .font('Helvetica');
+         .font('DejaVuSans');
       
       const summaryTexts = [
         `📋 Жами: ${totalItems} та иш режаси`,
@@ -225,7 +239,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
       // Empty state
       doc.fillColor(colors.text)
          .fontSize(16)
-         .font('Helvetica')
+         .font('DejaVuSans')
          .text('Бу кун учун иш режаси мавжуд эмас', margin, currentY + 30);
     } else {
       // Table header
@@ -241,7 +255,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
       // Header text
       doc.fillColor('white')
          .fontSize(12)
-         .font('Helvetica-Bold')
+         .font('DejaVuSans-Bold')
          .text('ВАҚТ', tableLeft + 10, tableTop + 8)
          .text('ТУР', tableLeft + colWidths[0] + 10, tableTop + 8)
          .text('ТАФСИЛ', tableLeft + colWidths[0] + colWidths[1] + 10, tableTop + 8);
@@ -295,13 +309,13 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
         // Time column
         doc.fillColor(colors.text)
            .fontSize(12)
-           .font('Helvetica-Bold')
+           .font('DejaVuSans-Bold')
            .text(formatTime(item.time), tableLeft + 10, cellY);
         
         // Type column
         doc.fillColor(typeInfo.color)
            .fontSize(11)
-           .font('Helvetica-Bold')
+           .font('DejaVuSans-Bold')
            .text(`${typeInfo.emoji} ${typeInfo.label}`, 
                  tableLeft + colWidths[0] + 10, cellY);
         
@@ -311,7 +325,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
         // Title
         doc.fillColor(colors.text)
            .fontSize(12)
-           .font('Helvetica-Bold')
+           .font('DejaVuSans-Bold')
            .text(item.title || 'Номаълум', detailX, cellY, {
              width: colWidths[2] - 20
            });
@@ -321,7 +335,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
         // Description
         if (item.description) {
           doc.fontSize(10)
-             .font('Helvetica')
+             .font('DejaVuSans')
              .text(item.description, detailX, cellY, {
                width: colWidths[2] - 20
              });
@@ -330,7 +344,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
         
         // Type-specific details
         doc.fontSize(9)
-           .font('Helvetica');
+           .font('DejaVuSans');
         
         if (item.type === 'reception') {
           if (item.position) {
@@ -373,7 +387,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
     
     doc.fillColor(colors.text)
        .fontSize(11)
-       .font('Helvetica')
+       .font('DejaVuSans')
        .text('Тасдиқлади: ________________________________', margin, currentY)
        .text('(Раҳбар имзоси ва санаси)', margin, currentY + 15);
     
