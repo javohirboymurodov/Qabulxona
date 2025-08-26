@@ -1,9 +1,8 @@
-import PDFDocument from 'pdfkit';
-import blobStream from 'blob-stream';
+import React from 'react';
+import { pdf, Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
 import 'dayjs/locale/uz';
-import { Buffer } from 'buffer';
 
 // Import font files as URLs for Vite
 import DejaVuSansFont from '../assets/fonts/DejaVuSans.ttf?url';
@@ -11,60 +10,269 @@ import DejaVuSansBoldFont from '../assets/fonts/DejaVuSans-Bold.ttf?url';
 
 dayjs.locale('uz');
 
-// Corporate color scheme
-const colors = {
-  primary: '#1e3a8a',    // Тўқ кўк (corporate)
-  secondary: '#1e40af',  // Ўрта кўк  
-  accent: '#3b82f6',     // Очиқ кўк
-  text: '#1f2937',       // Тўқ кулранг
-  border: '#d1d5db',     // Очиқ кулранг
-  light: '#f8fafc'       // Оч кулранг background
-};
+// Register fonts for Cyrillic support
+Font.register({
+  family: 'DejaVuSans',
+  fonts: [
+    { src: DejaVuSansFont },
+    { src: DejaVuSansBoldFont, fontWeight: 'bold' }
+  ]
+});
 
-// Convert hex to RGB for PDFKit
-const hexToRgb = (hex) => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? [
-    parseInt(result[1], 16) / 255,
-    parseInt(result[2], 16) / 255, 
-    parseInt(result[3], 16) / 255
-  ] : [0, 0, 0];
-};
-
-// Generate QR code data URL
-const generateQRCode = async (data) => {
-  try {
-    return await QRCode.toDataURL(data, {
-      width: 150,
-      margin: 1,
-      color: {
-        dark: colors.primary,
-        light: '#FFFFFF'
-      }
-    });
-  } catch (error) {
-    console.error('QR Code generation error:', error);
-    return null;
+// Styles
+const styles = StyleSheet.create({
+  page: {
+    fontFamily: 'DejaVuSans',
+    padding: 50,
+    fontSize: 10,
+    lineHeight: 1.4,
+    color: '#1f2937'
+  },
+  
+  // Header styles
+  header: {
+    flexDirection: 'row',
+    marginBottom: 30,
+    alignItems: 'center'
+  },
+  
+  logo: {
+    width: 30,
+    height: 30,
+    backgroundColor: '#1e3a8a',
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20
+  },
+  
+  logoText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  
+  headerText: {
+    flex: 1
+  },
+  
+  companyName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1e3a8a',
+    marginBottom: 5
+  },
+  
+  title: {
+    fontSize: 18,
+    color: '#1e3a8a'
+  },
+  
+  // Date section
+  dateLine: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#d1d5db',
+    marginBottom: 15,
+    paddingBottom: 15
+  },
+  
+  dateText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 5
+  },
+  
+  generatedText: {
+    fontSize: 10,
+    color: '#6b7280'
+  },
+  
+  // Summary section
+  summaryLine: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#d1d5db',
+    marginBottom: 15,
+    paddingBottom: 15
+  },
+  
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1e3a8a',
+    marginBottom: 10
+  },
+  
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 30
+  },
+  
+  summaryItem: {
+    fontSize: 11
+  },
+  
+  // Table styles
+  table: {
+    marginBottom: 30
+  },
+  
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#1e3a8a',
+    padding: 8,
+    marginBottom: 2
+  },
+  
+  tableHeaderText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+  
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#d1d5db',
+    minHeight: 30,
+    alignItems: 'flex-start'
+  },
+  
+  tableRowEven: {
+    backgroundColor: '#f8fafc'
+  },
+  
+  timeCol: {
+    width: '15%',
+    padding: 8,
+    borderRightWidth: 0.5,
+    borderRightColor: '#d1d5db'
+  },
+  
+  typeCol: {
+    width: '20%',
+    padding: 8,
+    borderRightWidth: 0.5,
+    borderRightColor: '#d1d5db'
+  },
+  
+  detailCol: {
+    width: '65%',
+    padding: 8
+  },
+  
+  cellTime: {
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+  
+  cellType: {
+    fontSize: 11,
+    fontWeight: 'bold'
+  },
+  
+  cellTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 3
+  },
+  
+  cellDescription: {
+    fontSize: 10,
+    marginBottom: 3,
+    color: '#4b5563'
+  },
+  
+  cellDetail: {
+    fontSize: 9,
+    color: '#6b7280'
+  },
+  
+  // Footer styles
+  footer: {
+    position: 'absolute',
+    bottom: 50,
+    left: 50,
+    right: 50,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    borderTopWidth: 1,
+    borderTopColor: '#d1d5db',
+    paddingTop: 15
+  },
+  
+  signature: {
+    flex: 1
+  },
+  
+  signatureText: {
+    fontSize: 11,
+    marginBottom: 5
+  },
+  
+  signatureSubtext: {
+    fontSize: 9,
+    color: '#6b7280'
+  },
+  
+  qrSection: {
+    alignItems: 'center'
+  },
+  
+  qrCode: {
+    width: 50,
+    height: 50,
+    marginBottom: 5
+  },
+  
+  qrText: {
+    fontSize: 8,
+    color: '#6b7280'
+  },
+  
+  pageNumber: {
+    position: 'absolute',
+    bottom: 20,
+    right: 50,
+    fontSize: 8,
+    color: '#6b7280'
+  },
+  
+  // Empty state
+  emptyState: {
+    textAlign: 'center',
+    marginTop: 50,
+    fontSize: 16,
+    color: '#6b7280'
   }
-};
+});
 
-// Format time display
-const formatTime = (time) => {
-  if (!time) return '00:00';
-  return time.length === 5 ? time : `${time}:00`;
+// Color mapping for item types
+const getItemTypeColor = (type) => {
+  switch (type) {
+    case 'task':
+      return '#1e3a8a';
+    case 'reception':
+      return '#1e40af';
+    case 'meeting':
+      return '#3b82f6';
+    default:
+      return '#1f2937';
+  }
 };
 
 // Get item type info in Cyrillic
 const getItemTypeInfo = (type) => {
   switch (type) {
     case 'task':
-      return { emoji: '📋', label: 'Вазифа', color: colors.primary };
+      return { emoji: '📋', label: 'Вазифа' };
     case 'reception':
-      return { emoji: '👤', label: 'Қабул', color: colors.secondary };
+      return { emoji: '👤', label: 'Қабул' };
     case 'meeting':
-      return { emoji: '🤝', label: 'Мажлис', color: colors.accent };
+      return { emoji: '🤝', label: 'Мажлис' };
     default:
-      return { emoji: '📄', label: 'Иш', color: colors.text };
+      return { emoji: '📄', label: 'Иш' };
   }
 };
 
@@ -92,365 +300,244 @@ const formatDateUz = (date) => {
   };
 };
 
+// Format time display
+const formatTime = (time) => {
+  if (!time) return '00:00';
+  return time.length === 5 ? time : `${time}:00`;
+};
+
+// PDF Document Component
+const SchedulePDFDocument = ({ scheduleData, selectedDate, qrCodeUrl }) => {
+  const dateInfo = formatDateUz(selectedDate);
+  const summary = scheduleData?.summary || {};
+  const items = scheduleData?.items || [];
+  const totalItems = summary.totalItems || 0;
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.logo}>
+            <Text style={styles.logoText}>Қ</Text>
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.companyName}>ҚАБУЛХОНА ТИЗИМИ</Text>
+            <Text style={styles.title}>РАҲБАР ИШ ГРАФИГИ</Text>
+          </View>
+        </View>
+        
+        {/* Date Section */}
+        <View style={styles.dateLine}>
+          <Text style={styles.dateText}>
+            Сана: {dateInfo.dateStr} ({dateInfo.dayName})
+          </Text>
+          <Text style={styles.generatedText}>
+            Тайёрланди: {dayjs().format('DD.MM.YYYY HH:mm')}
+          </Text>
+        </View>
+        
+        {/* Summary Section */}
+        {totalItems > 0 && (
+          <View style={styles.summaryLine}>
+            <Text style={styles.summaryTitle}>ХУЛОСАЛАР:</Text>
+            <View style={styles.summaryGrid}>
+              <Text style={styles.summaryItem}>
+                📋 Жами: {totalItems} та иш режаси
+              </Text>
+              <Text style={styles.summaryItem}>
+                📋 Вазифалар: {summary.totalTasks || 0}
+              </Text>
+              <Text style={styles.summaryItem}>
+                👤 Қабуллар: {summary.totalReceptions || 0}
+              </Text>
+              <Text style={styles.summaryItem}>
+                🤝 Мажлислар: {summary.totalMeetings || 0}
+              </Text>
+            </View>
+          </View>
+        )}
+        
+        {/* Table or Empty State */}
+        {items.length === 0 ? (
+          <Text style={styles.emptyState}>
+            Бу кун учун иш режаси мавжуд эмас
+          </Text>
+        ) : (
+          <View style={styles.table}>
+            {/* Table Header */}
+            <View style={styles.tableHeader}>
+              <View style={styles.timeCol}>
+                <Text style={styles.tableHeaderText}>ВАҚТ</Text>
+              </View>
+              <View style={styles.typeCol}>
+                <Text style={styles.tableHeaderText}>ТУР</Text>
+              </View>
+              <View style={styles.detailCol}>
+                <Text style={styles.tableHeaderText}>ТАФСИЛ</Text>
+              </View>
+            </View>
+            
+            {/* Table Rows */}
+            {items.map((item, index) => {
+              const typeInfo = getItemTypeInfo(item.type);
+              const isEven = index % 2 === 0;
+              
+              return (
+                <View 
+                  key={index} 
+                  style={[styles.tableRow, isEven && styles.tableRowEven]}
+                >
+                  {/* Time Column */}
+                  <View style={styles.timeCol}>
+                    <Text style={styles.cellTime}>
+                      {formatTime(item.time)}
+                    </Text>
+                  </View>
+                  
+                  {/* Type Column */}
+                  <View style={styles.typeCol}>
+                    <Text 
+                      style={[
+                        styles.cellType,
+                        { color: getItemTypeColor(item.type) }
+                      ]}
+                    >
+                      {typeInfo.emoji} {typeInfo.label}
+                    </Text>
+                  </View>
+                  
+                  {/* Detail Column */}
+                  <View style={styles.detailCol}>
+                    <Text style={styles.cellTitle}>
+                      {item.title || 'Номаълум'}
+                    </Text>
+                    
+                    {item.description && (
+                      <Text style={styles.cellDescription}>
+                        {item.description}
+                      </Text>
+                    )}
+                    
+                    {/* Type-specific details */}
+                    {item.type === 'reception' && (
+                      <View>
+                        {item.position && (
+                          <Text style={styles.cellDetail}>
+                            💼 {item.position}
+                          </Text>
+                        )}
+                        {item.department && (
+                          <Text style={styles.cellDetail}>
+                            🏢 {item.department}
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                    
+                    {item.type === 'meeting' && (
+                      <View>
+                        {item.location && (
+                          <Text style={styles.cellDetail}>
+                            📍 {item.location}
+                          </Text>
+                        )}
+                        {item.participants?.length && (
+                          <Text style={styles.cellDetail}>
+                            👥 {item.participants.length} иштирокчи
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={styles.signature}>
+            <Text style={styles.signatureText}>
+              Тасдиқлади: ________________________________
+            </Text>
+            <Text style={styles.signatureSubtext}>
+              (Раҳбар имзоси ва санаси)
+            </Text>
+          </View>
+          
+          {qrCodeUrl && (
+            <View style={styles.qrSection}>
+              <Image style={styles.qrCode} src={qrCodeUrl} />
+              <Text style={styles.qrText}>Рақамли тасдиқлаш</Text>
+            </View>
+          )}
+        </View>
+        
+        {/* Page Number */}
+        <Text style={styles.pageNumber}>Саҳифа: 1/1</Text>
+      </Page>
+    </Document>
+  );
+};
+
 // Main PDF generator function
 export const generateSchedulePDF = async (scheduleData, selectedDate) => {
   try {
-    console.log('📄 PDFKit: Generating PDF for date:', selectedDate.format('YYYY-MM-DD'));
+    console.log('📄 React-PDF: Generating PDF for date:', selectedDate.format('YYYY-MM-DD'));
     console.log('📊 Schedule data:', scheduleData);
 
-    // Create new PDF document
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: {
-        top: 50,
-        bottom: 50,
-        left: 50, 
-        right: 50
-      },
-      info: {
-        Title: `Раҳбар Иш Графиги - ${selectedDate.format('DD.MM.YYYY')}`,
-        Author: 'Қабулхона Тизими',
-        Subject: 'Кунлик иш режаси',
-        Creator: 'Қабулхона Тизими PDF Generator'
-      }
-    });
-
-    // Load and register custom fonts for Cyrillic support
-    const fontBuffers = await Promise.all([
-      fetch(DejaVuSansFont).then(res => res.arrayBuffer()),
-      fetch(DejaVuSansBoldFont).then(res => res.arrayBuffer())
-    ]);
-    
-    doc.registerFont('DejaVuSans', Buffer.from(fontBuffers[0]));
-    doc.registerFont('DejaVuSans-Bold', Buffer.from(fontBuffers[1]));
-
-    // Create blob stream
-    const stream = doc.pipe(blobStream());
-
-    // Page dimensions
-    const pageWidth = doc.page.width;
-    const pageHeight = doc.page.height;
-    const margin = 50;
-    const contentWidth = pageWidth - (margin * 2);
-
-    let currentY = margin;
-
-    // ===================
-    // HEADER SECTION
-    // ===================
-    
-    // Company logo (circle with Q)
-    doc.circle(margin + 20, currentY + 20, 15)
-       .fillColor(colors.primary)
-       .fill();
-    
-    doc.fillColor('white')
-       .fontSize(16)
-       .font('DejaVuSans-Bold')
-       .text('Қ', margin + 15, currentY + 13);
-
-    // Company name and title
-    doc.fillColor(colors.primary)
-       .fontSize(24)
-       .font('DejaVuSans-Bold')
-       .text('ҚАБУЛХОНА ТИЗИМИ', margin + 50, currentY + 5);
-    
-    doc.fontSize(18)
-       .font('DejaVuSans')
-       .text('РАҲБАР ИШ ГРАФИГИ', margin + 50, currentY + 35);
-
-    currentY += 70;
-
-    // Horizontal line
-    doc.strokeColor(colors.border)
-       .lineWidth(1)
-       .moveTo(margin, currentY)
-       .lineTo(pageWidth - margin, currentY)
-       .stroke();
-
-    currentY += 15;
-
-    // Date information
-    const dateInfo = formatDateUz(selectedDate);
-    
-    doc.fillColor(colors.text)
-       .fontSize(14)
-       .font('DejaVuSans-Bold')
-       .text(`Сана: ${dateInfo.dateStr} (${dateInfo.dayName})`, margin, currentY);
-    
-    const generatedTime = dayjs().format('DD.MM.YYYY HH:mm');
-    doc.fontSize(10)
-       .font('DejaVuSans')
-       .text(`Тайёрланди: ${generatedTime}`, margin, currentY + 20);
-
-    currentY += 50;
-
-    // ===================
-    // SUMMARY SECTION
-    // ===================
-    
-    const summary = scheduleData?.summary || {};
-    const totalItems = summary.totalItems || 0;
-    
-    if (totalItems > 0) {
-      // Summary line
-      doc.strokeColor(colors.border)
-         .moveTo(margin, currentY)
-         .lineTo(pageWidth - margin, currentY)
-         .stroke();
-      
-      currentY += 15;
-      
-      doc.fillColor(colors.primary)
-         .fontSize(14)
-         .font('DejaVuSans-Bold')
-         .text('ХУЛОСАЛАР:', margin, currentY);
-      
-      currentY += 20;
-      
-      doc.fillColor(colors.text)
-         .fontSize(11)
-         .font('DejaVuSans');
-      
-      const summaryTexts = [
-        `📋 Жами: ${totalItems} та иш режаси`,
-        `📋 Вазифалар: ${summary.totalTasks || 0}`,
-        `👤 Қабуллар: ${summary.totalReceptions || 0}`,
-        `🤝 Мажлислар: ${summary.totalMeetings || 0}`
-      ];
-      
-      // Display summary in 2 columns
-      summaryTexts.forEach((text, index) => {
-        const x = margin + (index % 2) * 250;
-        const y = currentY + Math.floor(index / 2) * 15;
-        doc.text(text, x, y);
-      });
-      
-      currentY += Math.ceil(summaryTexts.length / 2) * 15 + 20;
-    }
-
-    // ===================
-    // SCHEDULE TABLE
-    // ===================
-    
-    const items = scheduleData?.items || [];
-    
-    if (items.length === 0) {
-      // Empty state
-      doc.fillColor(colors.text)
-         .fontSize(16)
-         .font('DejaVuSans')
-         .text('Бу кун учун иш режаси мавжуд эмас', margin, currentY + 30);
-    } else {
-      // Table header
-      const tableTop = currentY;
-      const tableLeft = margin;
-      const colWidths = [80, 80, contentWidth - 160]; // ВАҚТ, ТУР, ТАФСИЛ
-      
-      // Header background
-      doc.rect(tableLeft, tableTop, contentWidth, 25)
-         .fillColor(colors.primary)
-         .fill();
-      
-      // Header text
-      doc.fillColor('white')
-         .fontSize(12)
-         .font('DejaVuSans-Bold')
-         .text('ВАҚТ', tableLeft + 10, tableTop + 8)
-         .text('ТУР', tableLeft + colWidths[0] + 10, tableTop + 8)
-         .text('ТАФСИЛ', tableLeft + colWidths[0] + colWidths[1] + 10, tableTop + 8);
-      
-      currentY = tableTop + 30;
-      
-      // Table rows
-      items.forEach((item, index) => {
-        const typeInfo = getItemTypeInfo(item.type);
-        
-        // Calculate row height based on content
-        const descriptionLines = item.description ? 
-          Math.ceil(item.description.length / 60) : 1;
-        const detailLines = 1 + descriptionLines + 
-          (item.position ? 1 : 0) + 
-          (item.department ? 1 : 0) + 
-          (item.location ? 1 : 0);
-        const rowHeight = Math.max(30, detailLines * 12 + 10);
-        
-        // Check if we need a new page
-        if (currentY + rowHeight > pageHeight - 100) {
-          doc.addPage();
-          currentY = margin;
-        }
-        
-        // Zebra striping
-        if (index % 2 === 0) {
-          doc.rect(tableLeft, currentY, contentWidth, rowHeight)
-             .fillColor(colors.light)
-             .fill();
-        }
-        
-        // Row borders
-        doc.strokeColor(colors.border)
-           .lineWidth(0.5)
-           .rect(tableLeft, currentY, contentWidth, rowHeight)
-           .stroke();
-        
-        // Vertical separators
-        doc.moveTo(tableLeft + colWidths[0], currentY)
-           .lineTo(tableLeft + colWidths[0], currentY + rowHeight)
-           .stroke();
-        
-        doc.moveTo(tableLeft + colWidths[0] + colWidths[1], currentY)
-           .lineTo(tableLeft + colWidths[0] + colWidths[1], currentY + rowHeight)
-           .stroke();
-        
-        // Cell content
-        let cellY = currentY + 10;
-        
-        // Time column
-        doc.fillColor(colors.text)
-           .fontSize(12)
-           .font('DejaVuSans-Bold')
-           .text(formatTime(item.time), tableLeft + 10, cellY);
-        
-        // Type column
-        doc.fillColor(typeInfo.color)
-           .fontSize(11)
-           .font('DejaVuSans-Bold')
-           .text(`${typeInfo.emoji} ${typeInfo.label}`, 
-                 tableLeft + colWidths[0] + 10, cellY);
-        
-        // Details column
-        const detailX = tableLeft + colWidths[0] + colWidths[1] + 10;
-        
-        // Title
-        doc.fillColor(colors.text)
-           .fontSize(12)
-           .font('DejaVuSans-Bold')
-           .text(item.title || 'Номаълум', detailX, cellY, {
-             width: colWidths[2] - 20
-           });
-        
-        cellY += 15;
-        
-        // Description
-        if (item.description) {
-          doc.fontSize(10)
-             .font('DejaVuSans')
-             .text(item.description, detailX, cellY, {
-               width: colWidths[2] - 20
-             });
-          cellY += descriptionLines * 12;
-        }
-        
-        // Type-specific details
-        doc.fontSize(9)
-           .font('DejaVuSans');
-        
-        if (item.type === 'reception') {
-          if (item.position) {
-            doc.text(`💼 ${item.position}`, detailX, cellY);
-            cellY += 12;
-          }
-          if (item.department) {
-            doc.text(`🏢 ${item.department}`, detailX, cellY);
-            cellY += 12;
-          }
-        } else if (item.type === 'meeting') {
-          if (item.location) {
-            doc.text(`📍 ${item.location}`, detailX, cellY);
-            cellY += 12;
-          }
-          if (item.participants?.length) {
-            doc.text(`👥 ${item.participants.length} иштирокчи`, detailX, cellY);
-            cellY += 12;
-          }
-        }
-        
-        currentY += rowHeight + 1;
-      });
-    }
-
-    // ===================
-    // FOOTER SECTION
-    // ===================
-    
-    // Move to footer area
-    currentY = pageHeight - 80;
-    
-    // Signature line
-    doc.strokeColor(colors.border)
-       .moveTo(margin, currentY)
-       .lineTo(pageWidth - margin, currentY)
-       .stroke();
-    
-    currentY += 15;
-    
-    doc.fillColor(colors.text)
-       .fontSize(11)
-       .font('DejaVuSans')
-       .text('Тасдиқлади: ________________________________', margin, currentY)
-       .text('(Раҳбар имзоси ва санаси)', margin, currentY + 15);
-    
-    // QR Code
+    // Generate QR Code
     const qrData = `${window.location.origin}/schedule/${selectedDate.format('YYYY-MM-DD')}`;
-    const qrCodeDataUrl = await generateQRCode(qrData);
+    let qrCodeUrl = null;
     
-    if (qrCodeDataUrl) {
-      // Convert data URL to buffer for PDFKit
-      const qrBuffer = Buffer.from(qrCodeDataUrl.split(',')[1], 'base64');
-      doc.image(qrBuffer, pageWidth - margin - 60, currentY - 10, {
-        width: 50,
-        height: 50
-      });
-      
-      doc.fontSize(8)
-         .text('Рақамли тасдиқлаш', pageWidth - margin - 65, currentY + 45);
-    }
-    
-    // Page number
-    doc.fontSize(8)
-       .text('Саҳифа: 1/1', pageWidth - margin - 40, pageHeight - 20);
-
-    // ===================
-    // FINALIZE PDF
-    // ===================
-    
-    doc.end();
-    
-    // Return promise that resolves when PDF is ready
-    return new Promise((resolve, reject) => {
-      stream.on('finish', function() {
-        try {
-          const blob = stream.toBlob('application/pdf');
-          const fileName = `Rahbar_Ish_Grafigi_${selectedDate.format('YYYY-MM-DD')}.pdf`;
-          
-          // Create download link
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          
-          console.log('✅ PDFKit: PDF generated successfully:', fileName);
-          
-          resolve({
-            success: true,
-            fileName: fileName,
-            message: 'PDF муваффақиятли яратилди ва юклаб олинди'
-          });
-        } catch (error) {
-          reject(error);
+    try {
+      qrCodeUrl = await QRCode.toDataURL(qrData, {
+        width: 150,
+        margin: 1,
+        color: {
+          dark: '#1e3a8a',
+          light: '#FFFFFF'
         }
       });
-      
-      stream.on('error', reject);
-    });
+    } catch (qrError) {
+      console.warn('QR Code generation failed:', qrError);
+    }
+
+    // Create PDF document
+    const doc = (
+      <SchedulePDFDocument 
+        scheduleData={scheduleData}
+        selectedDate={selectedDate}
+        qrCodeUrl={qrCodeUrl}
+      />
+    );
+
+    // Generate PDF blob
+    const blob = await pdf(doc).toBlob();
+    
+    // Download file
+    const fileName = `Rahbar_Ish_Grafigi_${selectedDate.format('YYYY-MM-DD')}.pdf`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    console.log('✅ React-PDF: PDF generated successfully:', fileName);
+    
+    return {
+      success: true,
+      fileName: fileName,
+      message: 'PDF муваффақиятли яратилди ва юклаб олинди'
+    };
     
   } catch (error) {
-    console.error('❌ PDFKit: PDF generation error:', error);
+    console.error('❌ React-PDF: PDF generation error:', error);
     return {
       success: false,
       error: error.message,

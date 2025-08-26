@@ -9,11 +9,16 @@ export default defineConfig({
   },
   assetsInclude: ['**/*.ttf', '**/*.woff', '**/*.woff2'],
   optimizeDeps: {
-    include: ['pdfkit', 'buffer']
+    include: ['pdfkit', 'buffer', 'events', 'stream-browserify', 'util']
   },
   resolve: {
     alias: {
-      buffer: 'buffer'
+      buffer: 'buffer',
+      events: 'events',
+      stream: 'stream-browserify',
+      util: 'util',
+      path: 'path-browserify',
+      crypto: 'crypto-browserify'
     }
   }
 });
