@@ -24,8 +24,7 @@ import DailyPlanModal from './DailyPlanModal';
 // API services
 import { getDailyPlan } from '../../services/api';
 
-// PDF Generator
-import { generateSchedulePDF } from '../../utils/pdfGenerator';
+// PDF Generator will be dynamically imported
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
@@ -118,11 +117,14 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(selectedDate);
   };
 
-  // PDF generation handler
+  // PDF generation handler with dynamic import
   const handleGeneratePDF = async () => {
     try {
       setPdfGenerating(true);
-      console.log('🔄 PDFKit: Starting PDF generation...');
+      console.log('🔄 PDF: Starting PDF generation...');
+      
+      // Dynamic import of PDF generator
+      const { generateSchedulePDF } = await import('../../utils/pdfGenerator');
       
       const result = await generateSchedulePDF(dailyPlanData, selectedDate);
       
