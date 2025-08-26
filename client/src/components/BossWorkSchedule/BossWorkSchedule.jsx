@@ -16,13 +16,16 @@ import {
   Spin,
   Badge
 } from "antd";
-import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, TeamOutlined, FilePdfOutlined, DownloadOutlined } from "@ant-design/icons";
 
 // Modal import
 import DailyPlanModal from './DailyPlanModal';
 
 // API services
 import axios from "axios";
+
+// PDF Generator
+import { generateSchedulePDF } from '../../utils/pdfGenerator';
 
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
@@ -32,7 +35,8 @@ const BossWorkSchedule = ({ showMessage }) => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [dailyPlanData, setDailyPlanData] = useState({});
   const [loading, setLoading] = useState(false);
-  const [showDailyPlan, setShowDailyPlan] = useState(false); // 
+  const [showDailyPlan, setShowDailyPlan] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
 
   useEffect(() => {
@@ -114,6 +118,28 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(selectedDate);
   };
 
+  // PDF generation handler
+  const handleGeneratePDF = async () => {
+    try {
+      setPdfGenerating(true);
+      console.log('🔄 Starting PDF generation...');
+      
+      const result = await generateSchedulePDF(dailyPlanData, selectedDate);
+      
+      if (result.success) {
+        showMessage?.success?.(result.message);
+        console.log('✅ PDF generated:', result.fileName);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error('❌ PDF generation failed:', error);
+      showMessage?.error?.('PDF yaratishda xatolik: ' + error.message);
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
   // Rejalar mavjudligini tekshirish
   const hasPlans = dailyPlanData?.items?.length > 0;
   const totalItems = dailyPlanData?.summary?.totalItems || 0;
@@ -144,15 +170,30 @@ const BossWorkSchedule = ({ showMessage }) => {
               </div>
             }
             extra={
-              isDateEditable(selectedDate) && (
-                <Button
-                  type="primary"
-                  icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
-                  onClick={handleModalOpen} // Bu to'g'ri
-                >
-                  {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
-                </Button>
-              )
+              <div style={{ display: 'flex', gap: 8 }}>
+                {/* PDF Download Button */}
+                {hasPlans && (
+                  <Button
+                    icon={<FilePdfOutlined />}
+                    onClick={handleGeneratePDF}
+                    loading={pdfGenerating}
+                    title="PDF yuklash"
+                  >
+                    PDF
+                  </Button>
+                )}
+                
+                {/* Edit/Add Button */}
+                {isDateEditable(selectedDate) && (
+                  <Button
+                    type="primary"
+                    icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
+                    onClick={handleModalOpen}
+                  >
+                    {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
+                  </Button>
+                )}
+              </div>
             }
             loading={loading}
           >
