@@ -46,6 +46,30 @@ exports.createMeeting = async (req, res, next) => {
         const populatedMeeting = await Meeting.findById(newMeeting._id)
             .populate('participants', 'name position department');
 
+        // Add meeting to each participant's personal history
+        if (participants && participants.length > 0) {
+            try {
+                for (const participantId of participants) {
+                    const participant = await Employee.findById(participantId);
+                    if (participant) {
+                        await participant.addMeeting({
+                            meetingId: populatedMeeting._id,
+                            name: populatedMeeting.name,
+                            date: populatedMeeting.date,
+                            time: populatedMeeting.time,
+                            location: populatedMeeting.location,
+                            description: populatedMeeting.description,
+                            status: 'invited'
+                        });
+                        console.log(`Added meeting to ${participant.name}'s personal history`);
+                    }
+                }
+            } catch (historyError) {
+                console.error('Failed to add meeting to participant histories:', historyError);
+                // Don't fail main operation
+            }
+        }
+
         // Send Telegram notifications to all participants
         const notificationService = getNotificationService();
         if (notificationService && participants && participants.length > 0) {

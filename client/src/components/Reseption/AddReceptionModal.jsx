@@ -84,7 +84,9 @@ const AddReceptionModal = ({
           position: selectedEmployee.position,
           department: selectedEmployee.department,
           phone: selectedEmployee.phone || '',
-          status: 'waiting'
+          status: 'waiting',
+          time: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'),
+          date: dayjs().format('YYYY-MM-DD')
         };
 
         console.log('API call with data:', receptionApiData);

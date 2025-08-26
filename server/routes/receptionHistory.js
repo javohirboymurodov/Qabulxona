@@ -111,6 +111,7 @@ router.post('/add-employee', async (req, res) => {
       department: employeeData.department || '',
       phone: employeeData.phone || '',
       status: employeeData.status || 'waiting',
+      scheduledTime: employeeData.time || dayjs().format('HH:mm'), // Qabul vaqti
       timeUpdated: new Date(),
       createdAt: new Date()
     };
@@ -120,6 +121,24 @@ router.post('/add-employee', async (req, res) => {
     receptionHistory.employees.push(newEmployee);
     const savedHistory = await receptionHistory.save();
 
+    // Add to employee's personal reception history
+    const Employee = require('../models/Employee');
+    try {
+      const employee = await Employee.findById(employeeData.employeeId);
+      if (employee) {
+        await employee.addReception({
+          date: dayjs(targetDate).toDate(),
+          time: employeeData.time || dayjs().format('HH:mm'),
+          status: 'waiting',
+          notes: employeeData.notes || null
+        });
+        console.log(`Added reception to employee ${employee.name}'s personal history`);
+      }
+    } catch (historyError) {
+      console.error('Failed to add reception to employee history:', historyError);
+      // Don't fail main operation
+    }
+
     // Send Telegram notification to employee
     const getNotificationService = () => global.telegramNotificationService || null;
     const notificationService = getNotificationService();
@@ -127,7 +146,7 @@ router.post('/add-employee', async (req, res) => {
       try {
         await notificationService.sendReceptionNotification(employeeData.employeeId, {
           date: targetDate,
-          time: 'Белгиланган вақтда', // Default time text
+          time: employeeData.time || dayjs().format('HH:mm'),
           notes: employeeData.task ? `Топшириқ: ${employeeData.task.description}` : null
         });
         console.log(`Reception notification sent to employee ${employeeData.employeeId}`);

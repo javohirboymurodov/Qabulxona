@@ -53,12 +53,25 @@ bot.onText(/\/start/, async (msg) => {
 
 Siz allaqachon ro'yxatdan o'tgansiz.
 
-📱 Quyidagi buyruqlardan foydalanishingiz mumkin:
-/profile - Shaxsiy ma'lumotlar
-/tasks - Joriy topshiriqlar  
-/history - Topshiriqlar tarixi
-/help - Yordam
-      `);
+📱 Quyidagi tugmalardan foydalaning:
+      `, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '👤 Profil', callback_data: 'profile' },
+              { text: '📋 Topshiriqlar', callback_data: 'tasks' }
+            ],
+            [
+              { text: '📚 Tarix', callback_data: 'history' },
+              { text: '⚙️ Sozlamalar', callback_data: 'settings' }
+            ],
+            [
+              { text: '❓ Yordam', callback_data: 'help' }
+            ]
+          ]
+        },
+        parse_mode: 'Markdown'
+      });
       return;
     }
     
@@ -404,6 +417,15 @@ Quyidagi tugmalardan birini tanlang:
       case 'help':
         await handleHelpCommand(chatId);
         break;
+      case 'receptions':
+        await handleReceptionsCommand(chatId, employee);
+        break;
+      case 'meetings':
+        await handleMeetingsCommand(chatId, employee);
+        break;
+      case 'task_history':
+        await handleTaskHistoryCommand(chatId, employee);
+        break;
       default:
         bot.sendMessage(chatId, '❓ Noma\'lum buyruq');
     }
@@ -494,43 +516,20 @@ async function handleTasksCommand(chatId, employee) {
 }
 
 async function handleHistoryCommand(chatId, employee) {
-  if (!employee.taskHistory || employee.taskHistory.length === 0) {
-    bot.sendMessage(chatId, '📋 Topshiriqlar tarixi bo\'sh.', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🔙 Orqaga', callback_data: 'main_menu' }]
-        ]
-      }
-    });
-    return;
-  }
-  
-  const recentTasks = employee.taskHistory
-    .sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt))
-    .slice(0, 10);
-  
-  let message = `📚 **So'nggi topshiriqlar (${recentTasks.length}/${employee.taskHistory.length}):**\n\n`;
-  
-  recentTasks.forEach((task, index) => {
-    const statusEmoji = task.status === 'completed' ? '✅' : task.status === 'overdue' ? '❌' : '⏳';
-    const assignedDate = new Date(task.assignedAt);
-    
-    message += `${index + 1}. ${statusEmoji} **${task.description}**\n`;
-    message += `   📅 Berilgan: ${assignedDate.toLocaleDateString('uz-UZ')}\n`;
-    message += `   📊 Holat: ${task.status === 'completed' ? 'Bajarilgan' : task.status === 'overdue' ? 'Muddati o\'tgan' : 'Jarayonda'}\n`;
-    if (task.completedAt) {
-      message += `   ✅ Bajarilgan: ${new Date(task.completedAt).toLocaleDateString('uz-UZ')}\n`;
-    }
-    message += '\n';
-  });
-  
-  bot.sendMessage(chatId, message, {
+  bot.sendMessage(chatId, `
+📚 **Tarix bo'limi**
+
+Qaysi tarixni ko'rmoqchisiz?
+  `, {
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '👤 Profil', callback_data: 'profile' },
-          { text: '📋 Topshiriqlar', callback_data: 'tasks' }
+          { text: '📋 Topshiriqlar', callback_data: 'task_history' },
+          { text: '🏢 Qabullar', callback_data: 'receptions' }
+        ],
+        [
+          { text: '🤝 Majlislar', callback_data: 'meetings' }
         ],
         [
           { text: '🔙 Orqaga', callback_data: 'main_menu' }
@@ -613,6 +612,135 @@ bot.on('message', (msg) => {
     });
   }
 });
+
+// New history functions
+async function handleTaskHistoryCommand(chatId, employee) {
+  if (!employee.taskHistory || employee.taskHistory.length === 0) {
+    bot.sendMessage(chatId, '📋 Topshiriqlar tarixi bo\'sh.', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+        ]
+      }
+    });
+    return;
+  }
+  
+  const recentTasks = employee.taskHistory
+    .sort((a, b) => new Date(b.assignedAt) - new Date(a.assignedAt))
+    .slice(0, 10);
+  
+  let message = `📋 **Topshiriqlar tarixi (${recentTasks.length}/${employee.taskHistory.length}):**\n\n`;
+  
+  recentTasks.forEach((task, index) => {
+    const statusEmoji = task.status === 'completed' ? '✅' : task.status === 'overdue' ? '❌' : '⏳';
+    const assignedDate = new Date(task.assignedAt);
+    
+    message += `${index + 1}. ${statusEmoji} **${task.description}**\n`;
+    message += `   📅 Berilgan: ${assignedDate.toLocaleDateString('uz-UZ')}\n`;
+    message += `   📊 Holat: ${task.status === 'completed' ? 'Bajarilgan' : task.status === 'overdue' ? 'Muddati o\'tgan' : 'Jarayonda'}\n`;
+    if (task.completedAt) {
+      message += `   ✅ Bajarilgan: ${new Date(task.completedAt).toLocaleDateString('uz-UZ')}\n`;
+    }
+    message += '\n';
+  });
+  
+  bot.sendMessage(chatId, message, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+      ]
+    }
+  });
+}
+
+async function handleReceptionsCommand(chatId, employee) {
+  if (!employee.receptionHistory || employee.receptionHistory.length === 0) {
+    bot.sendMessage(chatId, '🏢 Qabullar tarixi bo\'sh.', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+        ]
+      }
+    });
+    return;
+  }
+  
+  const recentReceptions = employee.receptionHistory
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10);
+  
+  let message = `🏢 **Qabullar tarixi (${recentReceptions.length}/${employee.receptionHistory.length}):**\n\n`;
+  
+  recentReceptions.forEach((reception, index) => {
+    const statusEmoji = reception.status === 'present' ? '✅' : reception.status === 'absent' ? '❌' : '⏳';
+    const receptionDate = new Date(reception.date);
+    
+    message += `${index + 1}. ${statusEmoji} **Rahbar qabuli**\n`;
+    message += `   📅 Sana: ${receptionDate.toLocaleDateString('uz-UZ')}\n`;
+    message += `   ⏰ Vaqt: ${reception.time}\n`;
+    message += `   📊 Holat: ${reception.status === 'present' ? 'Qatnashgan' : reception.status === 'absent' ? 'Qatnashmagan' : 'Kutilgan'}\n`;
+    if (reception.notes) {
+      message += `   📝 Izoh: ${reception.notes}\n`;
+    }
+    message += '\n';
+  });
+  
+  bot.sendMessage(chatId, message, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+      ]
+    }
+  });
+}
+
+async function handleMeetingsCommand(chatId, employee) {
+  if (!employee.meetingHistory || employee.meetingHistory.length === 0) {
+    bot.sendMessage(chatId, '🤝 Majlislar tarixi bo\'sh.', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+        ]
+      }
+    });
+    return;
+  }
+  
+  const recentMeetings = employee.meetingHistory
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10);
+  
+  let message = `🤝 **Majlislar tarixi (${recentMeetings.length}/${employee.meetingHistory.length}):**\n\n`;
+  
+  recentMeetings.forEach((meeting, index) => {
+    const statusEmoji = meeting.status === 'attended' ? '✅' : meeting.status === 'missed' ? '❌' : '📧';
+    const meetingDate = new Date(meeting.date);
+    
+    message += `${index + 1}. ${statusEmoji} **${meeting.name}**\n`;
+    message += `   📅 Sana: ${meetingDate.toLocaleDateString('uz-UZ')}\n`;
+    message += `   ⏰ Vaqt: ${meeting.time}\n`;
+    if (meeting.location) {
+      message += `   📍 Joy: ${meeting.location}\n`;
+    }
+    message += `   📊 Holat: ${meeting.status === 'attended' ? 'Qatnashgan' : meeting.status === 'missed' ? 'Qatnashmagan' : 'Taklif etilgan'}\n`;
+    if (meeting.description) {
+      message += `   📄 Tavsif: ${meeting.description}\n`;
+    }
+    message += '\n';
+  });
+  
+  bot.sendMessage(chatId, message, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🔙 Tarixga qaytish', callback_data: 'history' }]
+      ]
+    }
+  });
+}
 
 // Make notification service globally available
 global.telegramNotificationService = notificationService;

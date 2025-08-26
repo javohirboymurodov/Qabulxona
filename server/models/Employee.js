@@ -54,6 +54,35 @@ const employeeSchema = new mongoose.Schema(
     // Task history
     taskHistory: [taskHistorySchema],
     
+    // Reception history for this employee
+    receptionHistory: [{
+      date: { type: Date, required: true },
+      time: { type: String, required: true },
+      status: {
+        type: String,
+        enum: ['waiting', 'present', 'absent'],
+        default: 'waiting'
+      },
+      notes: String,
+      createdAt: { type: Date, default: Date.now }
+    }],
+    
+    // Meeting history for this employee
+    meetingHistory: [{
+      meetingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Meeting' },
+      name: { type: String, required: true },
+      date: { type: Date, required: true },
+      time: { type: String, required: true },
+      location: String,
+      description: String,
+      status: {
+        type: String,
+        enum: ['invited', 'attended', 'missed'],
+        default: 'invited'
+      },
+      createdAt: { type: Date, default: Date.now }
+    }],
+    
     // Notification settings
     notificationSettings: {
       receptionNotification: { type: Boolean, default: true },
@@ -105,6 +134,24 @@ employeeSchema.methods.updateTaskStatus = function(taskId, status, completedAt =
     return this.save();
   }
   return null;
+};
+
+// Method to add reception to history
+employeeSchema.methods.addReception = function(receptionData) {
+  if (!this.receptionHistory) {
+    this.receptionHistory = [];
+  }
+  this.receptionHistory.push(receptionData);
+  return this.save();
+};
+
+// Method to add meeting to history
+employeeSchema.methods.addMeeting = function(meetingData) {
+  if (!this.meetingHistory) {
+    this.meetingHistory = [];
+  }
+  this.meetingHistory.push(meetingData);
+  return this.save();
 };
 
 // Static method to find by telegram phone
