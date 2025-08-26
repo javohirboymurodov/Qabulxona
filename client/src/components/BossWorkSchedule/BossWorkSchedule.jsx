@@ -22,7 +22,7 @@ import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, TeamOutline
 import DailyPlanModal from './DailyPlanModal';
 
 // API services
-import axios from "axios";
+import { getDailyPlan } from '../../services/api';
 
 // PDF Generator
 import { generateSchedulePDF } from '../../utils/pdfGenerator';
@@ -57,15 +57,15 @@ const BossWorkSchedule = ({ showMessage }) => {
       
       console.log('Fetching daily plan for:', dateStr);
       
-      // Haqiqiy API call
-      const response = await axios.get(`http://localhost:5000/api/schedule/daily-plan/${dateStr}`);
+      // Haqiqiy API call with JWT token (automatic via service)
+      const response = await getDailyPlan(dateStr);
       
-      console.log('Daily plan response:', response.data);
+      console.log('Daily plan response:', response);
       
-      if (response.data.success) {
+      if (response.success) {
         setDailyPlanData({
-          items: response.data.data.items || [],
-          summary: response.data.data.summary || {
+          items: response.data.items || [],
+          summary: response.data.summary || {
             totalItems: 0,
             totalTasks: 0,
             totalReceptions: 0,
