@@ -369,22 +369,18 @@ const saveDailyPlan = async (req, res) => {
             const populatedMeeting = await Meeting.findById(savedMeeting._id)
               .populate('participants', 'name position department');
 
-            // Add meeting to each participant's personal history
+            // Add meeting to each participant's personal history (OPTIMIZED)
             if (item.participants && item.participants.length > 0) {
               try {
                 for (const participantId of item.participants) {
                   const participant = await Employee.findById(participantId);
                   if (participant) {
-                    await participant.addMeeting({
-                      meetingId: populatedMeeting._id,
-                      name: populatedMeeting.name,
-                      date: populatedMeeting.date,
-                      time: populatedMeeting.time,
-                      location: populatedMeeting.location,
-                      description: populatedMeeting.description,
-                      status: 'invited'
-                    });
-                    console.log(`Added meeting to ${participant.name}'s personal history`);
+                    await participant.addMeeting(
+                      populatedMeeting._id,
+                      'invited',
+                      `Rahbar ish grafigi orqali qo'shildi`
+                    );
+                    console.log(`Added meeting ${populatedMeeting._id} to ${participant.name}'s history (OPTIMIZED)`);
                   }
                 }
               } catch (historyError) {
@@ -488,17 +484,18 @@ const saveDailyPlan = async (req, res) => {
               });
               await receptionHistory.save();
 
-              // Add to employee's personal reception history
+              // Add to employee's personal reception history (OPTIMIZED)
               try {
                 const employee = await Employee.findById(item.employeeId);
                 if (employee) {
-                  await employee.addReception({
-                    date: targetDate.toDate(),
-                    time: item.time || dayjs().format('HH:mm'),
-                    status: 'waiting',
-                    notes: null
-                  });
-                  console.log(`Added reception to employee ${employee.name}'s personal history`);
+                  await employee.addReception(
+                    receptionHistory._id,
+                    targetDate.toDate(),
+                    item.time || dayjs().format('HH:mm'),
+                    'waiting',
+                    'Rahbar ish grafigi orqali qo\'shildi'
+                  );
+                  console.log(`Added reception ${receptionHistory._id} to employee ${employee.name}'s history (OPTIMIZED)`);
                 }
               } catch (historyError) {
                 console.error('Failed to add reception to employee history:', historyError);

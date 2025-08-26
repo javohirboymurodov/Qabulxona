@@ -54,8 +54,9 @@ const employeeSchema = new mongoose.Schema(
     // Task history
     taskHistory: [taskHistorySchema],
     
-    // Reception history for this employee
+    // Reception history for this employee (OPTIMIZED)
     receptionHistory: [{
+      receptionId: { type: mongoose.Schema.Types.ObjectId, ref: 'ReceptionHistory' },
       date: { type: Date, required: true },
       time: { type: String, required: true },
       status: {
@@ -64,22 +65,21 @@ const employeeSchema = new mongoose.Schema(
         default: 'waiting'
       },
       notes: String,
+      attendedAt: Date, // Employee-specific: qachon kelgan
       createdAt: { type: Date, default: Date.now }
     }],
     
-    // Meeting history for this employee
+    // Meeting history for this employee (OPTIMIZED)  
     meetingHistory: [{
-      meetingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Meeting' },
-      name: { type: String, required: true },
-      date: { type: Date, required: true },
-      time: { type: String, required: true },
-      location: String,
-      description: String,
+      meetingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Meeting', required: true },
       status: {
         type: String,
         enum: ['invited', 'attended', 'missed'],
         default: 'invited'
       },
+      joinedAt: Date,    // Employee-specific: qachon qo'shilgan
+      attendedAt: Date,  // Employee-specific: qachon qatnashgan
+      notes: String,     // Employee-specific: eslatma
       createdAt: { type: Date, default: Date.now }
     }],
     
@@ -136,21 +136,50 @@ employeeSchema.methods.updateTaskStatus = function(taskId, status, completedAt =
   return null;
 };
 
-// Method to add reception to history
-employeeSchema.methods.addReception = function(receptionData) {
+// Method to add reception to history (OPTIMIZED)
+employeeSchema.methods.addReception = function(receptionId, date, time, status = 'waiting', notes = null) {
   if (!this.receptionHistory) {
     this.receptionHistory = [];
   }
-  this.receptionHistory.push(receptionData);
+  
+  // Check if already exists for this date
+  const existingReception = this.receptionHistory.find(r => 
+    r.receptionId && r.receptionId.toString() === receptionId.toString()
+  );
+  if (existingReception) {
+    console.log(`Reception ${receptionId} already exists for employee ${this.name}`);
+    return this.save();
+  }
+  
+  this.receptionHistory.push({
+    receptionId: receptionId,
+    date: date,
+    time: time,
+    status: status,
+    notes: notes
+  });
   return this.save();
 };
 
-// Method to add meeting to history
-employeeSchema.methods.addMeeting = function(meetingData) {
+// Method to add meeting to history (OPTIMIZED)
+employeeSchema.methods.addMeeting = function(meetingId, status = 'invited', notes = null) {
   if (!this.meetingHistory) {
     this.meetingHistory = [];
   }
-  this.meetingHistory.push(meetingData);
+  
+  // Check if already exists
+  const existingMeeting = this.meetingHistory.find(m => m.meetingId.toString() === meetingId.toString());
+  if (existingMeeting) {
+    console.log(`Meeting ${meetingId} already exists for employee ${this.name}`);
+    return this.save();
+  }
+  
+  this.meetingHistory.push({
+    meetingId: meetingId,
+    status: status,
+    joinedAt: new Date(),
+    notes: notes
+  });
   return this.save();
 };
 
