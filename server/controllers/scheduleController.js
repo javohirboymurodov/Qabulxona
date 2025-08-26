@@ -6,6 +6,7 @@ const Schedule = require('../models/Schedule');
 const ReceptionHistory = require('../models/ReceptionHistory');
 const Meeting = require('../models/Meeting');
 const Employee = require('../models/Employee');
+const { generateSchedulePDF } = require('../services/pdfService');
 
 // dayjs plugin'larni yoqish
 dayjs.extend(utc);
@@ -557,11 +558,155 @@ const saveDailyPlan = async (req, res) => {
 // Telegram notification service helper
 const getNotificationService = () => global.telegramNotificationService || null;
 
+/**
+ * Generate PDF for daily schedule
+ */
+const generateDailyPlanPDF = async (req, res) => {
+  try {
+    const { date } = req.params;
+    const targetDate = dayjs(date);
+    
+    console.log(`📄 Generating PDF for daily plan: ${targetDate.format('YYYY-MM-DD')}`);
+    
+    if (!targetDate.isValid()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Нотўғри сана формати'
+      });
+    }
+
+    // Get daily plan data (reusing existing logic)
+    const [schedule, meetings, reception] = await Promise.all([
+      Schedule.findOne({
+        date: {
+          $gte: targetDate.startOf('day').toDate(),
+          $lte: targetDate.endOf('day').toDate()
+        }
+      }),
+      
+      Meeting.find({
+        date: {
+          $gte: targetDate.startOf('day').toDate(),
+          $lte: targetDate.endOf('day').toDate()
+        }
+      }).populate('participants', 'name position department'),
+      
+      ReceptionHistory.findOne({
+        date: {
+          $gte: targetDate.startOf('day').toDate(),
+          $lte: targetDate.endOf('day').toDate()
+        }
+      }).populate('employees.employeeId', 'name position department')
+    ]);
+
+    // Build items array (same logic as getDailyPlan)
+    const allItems = [];
+    
+    // Add tasks
+    if (schedule?.tasks && schedule.tasks.length > 0) {
+      schedule.tasks.forEach(task => {
+        allItems.push({
+          id: task._id.toString(),
+          type: 'task',
+          time: task.startTime,
+          endTime: task.endTime,
+          title: task.title,
+          description: task.description,
+          priority: task.priority || 'normal',
+          status: task.status || 'pending',
+          createdAt: task.createdAt,
+          data: task
+        });
+      });
+    }
+    
+    // Add meetings
+    if (meetings && meetings.length > 0) {
+      meetings.forEach(meeting => {
+        allItems.push({
+          id: meeting._id.toString(),
+          type: 'meeting',
+          time: meeting.time,
+          title: meeting.name,
+          description: meeting.description,
+          location: meeting.location,
+          participants: meeting.participants,
+          createdAt: meeting.createdAt,
+          data: meeting
+        });
+      });
+    }
+    
+    // Add receptions
+    if (reception?.employees && reception.employees.length > 0) {
+      reception.employees.forEach(emp => {
+        allItems.push({
+          id: emp._id.toString(),
+          type: 'reception',
+          time: emp.time || (emp.timeUpdated ? dayjs(emp.timeUpdated).format('HH:mm') : '09:00'),
+          title: emp.name,
+          description: emp.task?.description || emp.purpose || 'Рахбар қабули',
+          department: emp.department,
+          position: emp.position,
+          status: emp.status,
+          phone: emp.phone,
+          createdAt: emp.createdAt,
+          data: emp
+        });
+      });
+    }
+    
+    // Sort by time
+    allItems.sort((a, b) => {
+      const timeA = (a.time || '00:00').replace(':', '');
+      const timeB = (b.time || '00:00').replace(':', '');
+      return timeA - timeB;
+    });
+
+    // Build summary
+    const summary = {
+      totalItems: allItems.length,
+      totalTasks: allItems.filter(item => item.type === 'task').length,
+      totalReceptions: allItems.filter(item => item.type === 'reception').length,
+      totalMeetings: allItems.filter(item => item.type === 'meeting').length
+    };
+
+    const scheduleData = {
+      items: allItems,
+      summary: summary
+    };
+
+    // Generate PDF
+    const pdfBuffer = await generateSchedulePDF(scheduleData, targetDate);
+    
+    // Set response headers for PDF download
+    const fileName = `Rahbar_Ish_Grafigi_${targetDate.format('YYYY-MM-DD')}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
+    // Send PDF buffer
+    res.send(pdfBuffer);
+    
+    console.log(`✅ PDF generated successfully: ${fileName}`);
+
+  } catch (error) {
+    console.error('❌ PDF generation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'PDF яратишда хатолик юз берди',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   checkFutureDate,
   getScheduleByDate,
   createSchedule,
   updateSchedule,
   getDailyPlan,
-  saveDailyPlan
+  saveDailyPlan,
+  generateDailyPlanPDF
 };
