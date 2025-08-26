@@ -3,13 +3,7 @@ const dayjs = require('dayjs');
 const Employee = require('../../models/Employee');
 
 // Telegram notification service
-let notificationService = null;
-try {
-  const { notificationService: telegramNotificationService } = require('../bot');
-  notificationService = telegramNotificationService;
-} catch (error) {
-  console.log('Telegram bot not available for reminder scheduler');
-}
+const getNotificationService = () => global.telegramNotificationService || null;
 
 /**
  * Check for tasks that are due tomorrow and send reminders
@@ -20,6 +14,7 @@ const scheduleTaskReminders = () => {
   cron.schedule('0 9 * * *', async () => {
     console.log('🔔 Running daily task reminder check...');
     
+    const notificationService = getNotificationService();
     if (!notificationService) {
       console.log('❌ Notification service not available, skipping reminders');
       return;
@@ -145,6 +140,7 @@ const scheduleOverdueCheck = () => {
 const checkRemindersNow = async () => {
   console.log('🧪 Manual reminder check started...');
   
+  const notificationService = getNotificationService();
   if (!notificationService) {
     console.log('❌ Notification service not available');
     return;

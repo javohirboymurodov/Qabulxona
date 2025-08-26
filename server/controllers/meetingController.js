@@ -3,13 +3,7 @@ const Employee = require('../models/Employee');
 const mongoose = require('mongoose');
 
 // Telegram notification service
-let notificationService = null;
-try {
-  const { notificationService: telegramNotificationService } = require('../telegram/bot');
-  notificationService = telegramNotificationService;
-} catch (error) {
-  console.log('Telegram bot not available for notifications');
-}
+const getNotificationService = () => global.telegramNotificationService || null;
 
 // Get all meetings
 exports.getAllMeetings = async (req, res, next) => {
@@ -53,6 +47,7 @@ exports.createMeeting = async (req, res, next) => {
             .populate('participants', 'name position department');
 
         // Send Telegram notifications to all participants
+        const notificationService = getNotificationService();
         if (notificationService && participants && participants.length > 0) {
             try {
                 for (const participantId of participants) {

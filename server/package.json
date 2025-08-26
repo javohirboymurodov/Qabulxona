@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "bot": "node telegram/bot.js",
+    "bot:standalone": "node telegram/bot.js",
     "dev:bot": "nodemon telegram/bot.js"
   },
   "dependencies": {

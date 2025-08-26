@@ -42,6 +42,19 @@ app.use(errorHandler);
 // MongoDB ga ulanish
 connectDB();
 
+// Telegram bot'ni ishga tushirish
+if (process.env.TELEGRAM_BOT_TOKEN) {
+  try {
+    require('./telegram/bot');
+    console.log('🤖 Telegram bot imported successfully');
+  } catch (error) {
+    console.error('❌ Failed to import Telegram bot:', error.message);
+    console.log('⚠️ Server will continue without Telegram bot');
+  }
+} else {
+  console.log('⚠️ TELEGRAM_BOT_TOKEN not found. Telegram bot disabled.');
+}
+
 const PORT = process.env.PORT || 5000;
 
 // Health check route

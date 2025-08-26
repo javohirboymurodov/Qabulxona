@@ -350,5 +350,8 @@ bot.on('message', (msg) => {
   }
 });
 
+// Make notification service globally available
+global.telegramNotificationService = notificationService;
+
 // Export bot for use in other modules
 module.exports = { bot, notificationService };

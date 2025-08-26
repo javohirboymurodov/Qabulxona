@@ -4,13 +4,7 @@ const Employee = require('../models/Employee');
 const dayjs = require('dayjs');
 
 // Telegram notification service
-let notificationService = null;
-try {
-  const { notificationService: telegramNotificationService } = require('../telegram/bot');
-  notificationService = telegramNotificationService;
-} catch (error) {
-  console.log('Telegram bot not available for notifications');
-}
+const getNotificationService = () => global.telegramNotificationService || null;
 
 // Get all employees
 exports.getAllEmployees = async (req, res, next) => {
@@ -149,6 +143,7 @@ exports.assignTask = async (req, res) => {
     await employee.addTask(taskData);
 
     // Send Telegram notification
+    const notificationService = getNotificationService();
     if (notificationService) {
       try {
         await notificationService.sendTaskNotification(id, taskData, assignedBy);
