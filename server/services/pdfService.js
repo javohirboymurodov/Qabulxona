@@ -280,23 +280,20 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
         
         currentY = tableTop + 35;
         
-        // Table rows
+        // Table rows - Simplified for consistency with frontend
         items.forEach((item, index) => {
           const typeInfo = getItemTypeInfo(item.type);
           
-          // Calculate row height based on content with better spacing
-          const descriptionLength = (item.description || '').length;
-          const descriptionLines = Math.ceil(descriptionLength / 45); // Reduced for better fitting
-          const detailLines = 1 + descriptionLines + 
-            (item.position ? 1 : 0) + 
-            (item.department ? 1 : 0) + 
-            (item.location ? 1 : 0);
-          const rowHeight = Math.max(40, detailLines * 15 + 12); // Increased minimum height
+          // Simplified row height calculation
+          const titleLines = Math.ceil((item.title || '').length / 40);
+          const descLines = Math.ceil((item.description || '').length / 50);
+          const metaLines = (item.position || item.department || item.location) ? 1 : 0;
+          const totalLines = titleLines + descLines + metaLines;
+          const rowHeight = Math.max(45, totalLines * 16 + 20);
           
-          // Check if we need a new page - leave space for content, not footer
+          // Page break check
           if (currentY + rowHeight > pageHeight - 120) {
-            // Add page number to current page before new page
-            addPageNumber(1, 1); // Will be calculated properly later
+            addPageNumber(1, 1);
             doc.addPage();
             currentY = margin + 20;
           }
@@ -325,10 +322,10 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
              .lineTo(tableLeft + colWidths[0] + colWidths[1], currentY + rowHeight)
              .stroke();
           
-          // Cell content with better spacing and alignment
+          // Simplified cell content
           let cellY = currentY + 15;
           
-          // Time column - centered
+          // Time column
           doc.fillColor(colors.text)
              .fontSize(12)
              .font(getBoldFont())
@@ -337,73 +334,76 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
                align: 'center'
              });
           
-          // Type column - with proper spacing
+          // Add end time if exists
+          if (item.endTime) {
+            doc.fontSize(10)
+               .fillColor('#666666')
+               .text(formatTime(item.endTime), tableLeft + 8, cellY + 12, {
+                 width: colWidths[0] - 16,
+                 align: 'center'
+               });
+          }
+          
+          // Type column
           doc.fillColor(typeInfo.color)
              .fontSize(10)
              .font(getBoldFont())
-             .text(`${typeInfo.emoji} ${typeInfo.label}`, 
-                   tableLeft + colWidths[0] + 8, cellY, {
-                     width: colWidths[1] - 16,
-                     align: 'center'
-                   });
+             .text(`${typeInfo.emoji}`, tableLeft + colWidths[0] + 8, cellY);
           
-          // Details column with better spacing and text wrapping
+          doc.fontSize(9)
+             .text(typeInfo.label, tableLeft + colWidths[0] + 8, cellY + 12, {
+               width: colWidths[1] - 16,
+               align: 'center'
+             });
+          
+          // Simplified details column
           const detailX = tableLeft + colWidths[0] + colWidths[1] + 8;
           const maxWidth = colWidths[2] - 16;
           
-          // Title with proper text wrapping and spacing
+          // Title
           doc.fillColor(colors.text)
              .fontSize(11)
              .font(getBoldFont())
              .text(item.title || 'Номаълум', detailX, cellY, {
-               width: maxWidth,
-               lineGap: 3,
-               ellipsis: false,
-               continued: false
+               width: maxWidth
              });
           
-          cellY += 20;
+          cellY += 16;
           
-          // Description with better formatting and wrapping
+          // Description
           if (item.description) {
             doc.fontSize(9)
                .font(getRegularFont())
                .fillColor('#555555')
                .text(item.description, detailX, cellY, {
-                 width: maxWidth,
-                 lineGap: 2,
-                 ellipsis: false,
-                 continued: false
+                 width: maxWidth
                });
-            cellY += Math.max(descriptionLines * 14, 14) + 5;
+            cellY += descLines * 12 + 4;
           }
           
-          // Type-specific details with better spacing
-          doc.fontSize(9)
-             .font(getRegularFont())
-             .fillColor('#666666');
-          
+          // Meta info in one line
+          const metaParts = [];
           if (item.type === 'reception') {
-            if (item.position) {
-              doc.text(`💼 ${item.position}`, detailX, cellY);
-              cellY += 13;
-            }
-            if (item.department) {
-              doc.text(`🏢 ${item.department}`, detailX, cellY);
-              cellY += 13;
-            }
+            if (item.position) metaParts.push(`💼 ${item.position}`);
+            if (item.department) metaParts.push(`🏢 ${item.department}`);
+            if (item.phone) metaParts.push(`📞 ${item.phone}`);
           } else if (item.type === 'meeting') {
-            if (item.location) {
-              doc.text(`📍 ${item.location}`, detailX, cellY);
-              cellY += 13;
-            }
-            if (item.participants?.length) {
-              doc.text(`👥 ${item.participants.length} иштирокчи`, detailX, cellY);
-              cellY += 13;
+            if (item.location) metaParts.push(`📍 ${item.location}`);
+            if (item.participants?.length) metaParts.push(`👥 ${item.participants.length} иштирокчи`);
+          } else if (item.type === 'task') {
+            if (item.priority && item.priority !== 'normal') {
+              const priorityTexts = { low: 'Паст', high: 'Юқори', urgent: 'Шошилинч' };
+              metaParts.push(`⚡ ${priorityTexts[item.priority]}`);
             }
           }
           
-          currentY += rowHeight + 2;
+          if (metaParts.length > 0) {
+            doc.fontSize(8)
+               .fillColor('#666666')
+               .text(metaParts.join('  •  '), detailX, cellY);
+          }
+          
+          currentY += rowHeight + 1;
         });
         
         // ===================
