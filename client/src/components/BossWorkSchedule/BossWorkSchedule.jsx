@@ -11,15 +11,17 @@ import {
   Empty,
   Row,
   Col,
-  List,
   Tag,
   Spin,
   Badge
 } from "antd";
-import { PlusOutlined, EditOutlined, CalendarOutlined, UserOutlined, TeamOutlined, FilePdfOutlined, DownloadOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, FilePdfOutlined } from "@ant-design/icons";
 
 // Modal import
 import DailyPlanModal from './DailyPlanModal';
+
+// Components
+import ScheduleTable from '../Common/ScheduleTable';
 
 // API services
 import { getDailyPlan } from '../../services/api';
@@ -218,90 +220,35 @@ const BossWorkSchedule = ({ showMessage }) => {
                 }}>
                   {dailyPlanData.summary.totalTasks > 0 && (
                     <span>
-                      <CalendarOutlined style={{ color: '#1890ff', marginRight: 4 }} />
-                      {dailyPlanData.summary.totalTasks} вазифа
+                      📋 {dailyPlanData.summary.totalTasks} вазифа
                     </span>
                   )}
                   {dailyPlanData.summary.totalReceptions > 0 && (
                     <span>
-                      <UserOutlined style={{ color: '#52c41a', marginRight: 4 }} />
-                      {dailyPlanData.summary.totalReceptions} қабул
+                      👤 {dailyPlanData.summary.totalReceptions} қабул
                     </span>
                   )}
                   {dailyPlanData.summary.totalMeetings > 0 && (
                     <span>
-                      <TeamOutlined style={{ color: '#faad14', marginRight: 4 }} />
-                      {dailyPlanData.summary.totalMeetings} мажлис
+                      🤝 {dailyPlanData.summary.totalMeetings} мажлис
                     </span>
                   )}
                 </div>
 
-                {/* Plan items list */}
-                <List
+                {/* Schedule Table - Yangi jadval format */}
+                <ScheduleTable
                   dataSource={dailyPlanData.items}
-                  renderItem={(item) => (
-                    <List.Item style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 12,
-                        width: '100%'
-                      }}>
-                        <div style={{ marginTop: 4 }}>
-                          {getItemIcon(item.type)}
-                        </div>
-
-                        <div style={{ flex: 1 }}>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            marginBottom: 4
-                          }}>
-                            <strong style={{ fontSize: '14px' }}>
-                              {item.time}
-                              {item.endTime && ` - ${item.endTime}`}
-                            </strong>
-                            {getItemTag(item.type)}
-                          </div>
-
-                          <div style={{
-                            fontSize: '15px',
-                            fontWeight: 500,
-                            color: '#262626',
-                            marginBottom: 2
-                          }}>
-                            {item.title}
-                          </div>
-
-                          {item.description && (
-                            <div style={{
-                              fontSize: '13px',
-                              color: '#666',
-                              marginBottom: 2
-                            }}>
-                              {item.description}
-                            </div>
-                          )}
-
-                          {/* Type-specific details */}
-                          {item.type === 'reception' && (item.department || item.position) && (
-                            <div style={{ fontSize: '12px', color: '#999' }}>
-                              {item.position && `${item.position}`}
-                              {item.department && ` • ${item.department}`}
-                            </div>
-                          )}
-
-                          {item.type === 'meeting' && item.location && (
-                            <div style={{ fontSize: '12px', color: '#999' }}>
-                              📍 {item.location}
-                              {item.participants && ` • Иштирокчилар: ${item.participants.length}`}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </List.Item>
-                  )}
+                  loading={loading}
+                  showActions={isDateEditable(selectedDate)}
+                  emptyText={
+                    isDateEditable(selectedDate)
+                      ? "Бу кун учун режа тузилмаган"
+                      : "Бу кун учун иш режа мавжуд эмас"
+                  }
+                  onEdit={(record) => {
+                    // Edit functionality - modal ochish
+                    setShowDailyPlan(true);
+                  }}
                 />
               </div>
             ) : (
@@ -350,31 +297,6 @@ const BossWorkSchedule = ({ showMessage }) => {
   );
 };
 
-// Helper funksiyalar (component ichida yoki tashqarida)
-const getItemIcon = (type) => {
-  switch (type) {
-    case 'task':
-      return <CalendarOutlined style={{ color: '#1890ff' }} />;
-    case 'reception':
-      return <UserOutlined style={{ color: '#52c41a' }} />;
-    case 'meeting':
-      return <TeamOutlined style={{ color: '#faad14' }} />;
-    default:
-      return <CalendarOutlined />;
-  }
-};
-
-const getItemTag = (type) => {
-  switch (type) {
-    case 'task':
-      return <Tag color="blue">Вазифа</Tag>;
-    case 'reception':
-      return <Tag color="green">Қабул</Tag>;
-    case 'meeting':
-      return <Tag color="orange">Мажлис</Tag>;
-    default:
-      return <Tag>Номаълум</Tag>;
-  }
-};
+// Helper funksiyalar endi ScheduleTable komponentida
 
 export default BossWorkSchedule;

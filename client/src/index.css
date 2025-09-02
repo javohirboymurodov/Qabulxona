@@ -183,3 +183,30 @@ body {
   right: 4px;
   z-index: 2;
 }
+
+
+/* Schedule Table Styles */
+.table-row-light {
+  background-color: #fafafa;
+}
+
+.table-row-dark {
+  background-color: #ffffff;
+}
+
+.table-row-light:hover,
+.table-row-dark:hover {
+  background-color: #e6f7ff !important;
+}
+
+/* Schedule Table responsive */
+@media (max-width: 768px) {
+  .ant-table-thead > tr > th {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  
+  .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+  }
+}

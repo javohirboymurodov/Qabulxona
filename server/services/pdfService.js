@@ -28,28 +28,17 @@ const colors = {
   light: [248, 250, 252]       // #f8fafc - Оч кулранг background
 };
 
-// Get item type info - TURLI SHAKLLAR
+// Get item type info in Cyrillic
 const getItemTypeInfo = (type) => {
   switch (type) {
     case 'task':
-      return { symbol: '■', label: 'Вазифа', color: colors.primary };
+      return { emoji: '📋', label: 'Вазифа', color: colors.primary };
     case 'reception':
-      return { symbol: '●', label: 'Қабул', color: colors.secondary };
+      return { emoji: '👤', label: 'Қабул', color: colors.secondary };
     case 'meeting':
-      return { symbol: '▲', label: 'Мажлис', color: colors.accent };
+      return { emoji: '🤝', label: 'Мажлис', color: colors.accent };
     default:
-      return { symbol: '♦', label: 'Иш', color: colors.text };
-  }
-};
-
-// Detail symbols - KICHIK BELGILAR
-const getDetailSymbol = (detailType) => {
-  switch (detailType) {
-    case 'position': return '►';     
-    case 'department': return '§';   
-    case 'location': return '※';     
-    case 'participants': return '∞'; 
-    default: return '•';
+      return { emoji: '📄', label: 'Иш', color: colors.text };
   }
 };
 
@@ -90,9 +79,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       console.log('📄 Server PDFKit: Generating PDF for date:', selectedDate.format('YYYY-MM-DD'));
       console.log(`🎨 Using fonts: ${hasCustomFonts ? 'DejaVu Sans (Custom)' : 'Helvetica (Default)'}`);
       
-      const items = scheduleData?.items || [];
-      
-      // Create new PDF document
+      // Create new PDF document with proper margins
       const doc = new PDFDocument({
         size: 'A4',
         margins: {
@@ -129,370 +116,297 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       const pageHeight = doc.page.height;
       const margin = 40;
       const contentWidth = pageWidth - (margin * 2);
+      const headerHeight = 80;
+      const footerHeight = 60;
+      const contentHeight = pageHeight - headerHeight - footerHeight;
 
       let currentY = margin;
-
-      // DRAW TABLE HEADER FUNCTION
-      const drawTableHeader = (startY) => {
-        const colWidths = [80, 90, contentWidth - 170];
-        
-        doc.rect(margin, startY, contentWidth, 35)
-           .fillColor(colors.primary)
-           .fill();
-        
-        doc.fillColor('white')
-           .fontSize(14)
-           .font(getBoldFont())
-           .text('ВАҚТ', margin + 10, startY + 12)
-           .text('ТУР', margin + colWidths[0] + 10, startY + 12)
-           .text('ТАФСИЛОТЛАР', margin + colWidths[0] + colWidths[1] + 10, startY + 12);
-           
-        return startY + 40;
-      };
 
       // ===================
       // HEADER SECTION
       // ===================
       
-      // Company logo design
+      // Company logo - use actual logo if available, otherwise fallback
       if (hasCompanyLogo) {
         try {
+          // Try PNG first, then JPG
           const logoPath = fs.existsSync(path.join(LOGO_PATH, 'logo.png')) 
             ? path.join(LOGO_PATH, 'logo.png')
             : path.join(LOGO_PATH, 'logo.jpg');
           
           doc.image(logoPath, margin + 5, currentY + 5, {
-            width: 45,
-            height: 45
+            width: 40,
+            height: 40
           });
         } catch (error) {
-          doc.rect(margin + 5, currentY + 5, 45, 45)
+          console.warn('Logo loading failed, using fallback:', error.message);
+          // Fallback to circular design
+          doc.circle(margin + 25, currentY + 25, 20)
              .fillColor(colors.primary)
              .fill();
           
-          doc.fillColor('white')
-             .fontSize(24)
+          doc.circle(margin + 25, currentY + 25, 18)
+             .fillColor('white')
+             .fill();
+             
+          doc.fillColor(colors.primary)
+             .fontSize(18)
              .font(getBoldFont())
-             .text('Қ', margin + 22, currentY + 20);
+             .text('Қ', margin + 18, currentY + 16);
         }
       } else {
-        doc.rect(margin + 5, currentY + 5, 45, 45)
+        // Fallback circular logo design
+        doc.circle(margin + 25, currentY + 25, 20)
            .fillColor(colors.primary)
            .fill();
         
-        doc.fillColor('white')
-           .fontSize(24)
+        doc.circle(margin + 25, currentY + 25, 18)
+           .fillColor('white')
+           .fill();
+           
+        doc.fillColor(colors.primary)
+           .fontSize(18)
            .font(getBoldFont())
-           .text('Қ', margin + 22, currentY + 20);
+           .text('Қ', margin + 18, currentY + 16);
       }
 
-      // Company name and title
+      // Company name and title with better spacing
       doc.fillColor(colors.primary)
-         .fontSize(24)
+         .fontSize(22)
          .font(getBoldFont())
-         .text('ҚАБУЛХОНА ТИЗИМИ', margin + 65, currentY + 5);
+         .text('ҚАБУЛХОНА ТИЗИМИ', margin + 60, currentY + 8);
       
-      doc.fontSize(18)
+      doc.fontSize(16)
          .font(getRegularFont())
          .fillColor(colors.text)
-         .text('РАҲБАР ИШ ГРАФИГИ', margin + 65, currentY + 32);
+         .text('РАҲБАР ИШ ГРАФИГИ', margin + 60, currentY + 32);
 
-      currentY += 70;
+      currentY += 65;
 
-      // Divider line
+      // Horizontal line
       doc.strokeColor(colors.border)
-         .lineWidth(2)
+         .lineWidth(1)
          .moveTo(margin, currentY)
          .lineTo(pageWidth - margin, currentY)
          .stroke();
 
-      currentY += 20;
+      currentY += 15;
 
-      // Date and generation info
+      // Date information in a compact format
       const dateInfo = formatDateUz(selectedDate);
       
+      // Date and generated time on same line
       doc.fillColor(colors.text)
-         .fontSize(16)
+         .fontSize(14)
          .font(getBoldFont())
          .text(`Сана: ${dateInfo.dateStr} (${dateInfo.dayName})`, margin, currentY);
       
       const generatedTime = dayjs().format('DD.MM.YYYY HH:mm');
-      doc.fontSize(11)
+      doc.fontSize(10)
          .font(getRegularFont())
-         .fillColor('#666666')
-         .text(`Тайёрланди: ${generatedTime}`, pageWidth - margin - 140, currentY + 3);
+         .text(`Тайёрланди: ${generatedTime}`, pageWidth - margin - 120, currentY + 2);
 
-      currentY += 35;
+              currentY += 30;
 
       // ===================
-      // SUMMARY SECTION - SYMBOL O'RNIGA MATN
+      // SUMMARY SECTION (Compact)
       // ===================
       
       const summary = scheduleData?.summary || {};
       const totalItems = summary.totalItems || 0;
       
       if (totalItems > 0) {
+        // Compact summary with better layout
         doc.fillColor(colors.primary)
-           .fontSize(14)
-           .font(getBoldFont())
-           .text('УМУМИЙ МАЪЛУМОТЛАР:', margin, currentY);
-        
-        currentY += 22;
-        
-        // JAMI - SYMBOL O'RNIGA MATN
-        doc.fillColor(colors.text)
            .fontSize(12)
-           .font(getRegularFont())
-           .text(`Жами: ${totalItems} та иш режаси`, margin + 25, currentY);
+           .font(getBoldFont())
+           .text('ХУЛОСАЛАР:', margin, currentY);
         
         currentY += 18;
         
-        // Detailed breakdown - HAR XO'L UCHUN ALOHIDA SHAKL
+        // Summary stats with proper line breaks to avoid overlap
+        doc.fillColor(colors.text)
+           .fontSize(10)
+           .font(getRegularFont())
+           .text(`📋 Жами: ${totalItems} та иш режаси`, margin + 20, currentY);
+        
+        // Second line with other stats if they exist
         if (summary.totalTasks > 0 || summary.totalReceptions > 0 || summary.totalMeetings > 0) {
-          const details = [];
+          currentY += 14;
+          const detailParts = [];
+          if (summary.totalTasks > 0) detailParts.push(`📋 Вазифалар: ${summary.totalTasks}`);
+          if (summary.totalReceptions > 0) detailParts.push(`👤 Қабуллар: ${summary.totalReceptions}`);
+          if (summary.totalMeetings > 0) detailParts.push(`🤝 Мажлислар: ${summary.totalMeetings}`);
           
-          if (summary.totalTasks > 0) {
-            details.push(`■ Вазифалар: ${summary.totalTasks}`);
-          }
-          if (summary.totalReceptions > 0) {
-            details.push(`● Қабуллар: ${summary.totalReceptions}`);
-          }
-          if (summary.totalMeetings > 0) {
-            details.push(`▲ Мажлислар: ${summary.totalMeetings}`);
-          }
-          
-          doc.text(details.join('   '), margin + 25, currentY);
-          currentY += 18;
+          doc.text(detailParts.join('  •  '), margin + 20, currentY);
         }
         
-        currentY += 15;
+        currentY += 25;
       }
 
       // ===================
       // SCHEDULE TABLE
       // ===================
       
+      const items = scheduleData?.items || [];
+      
       if (items.length === 0) {
-        // Empty state
-        doc.rect(margin, currentY, contentWidth, 80)
-           .fillColor(colors.light)
-           .fill();
-           
+        // Empty state with better positioning
         doc.fillColor(colors.text)
-           .fontSize(16)
+           .fontSize(14)
            .font(getRegularFont())
-           .text('Бу кун учун иш режаси белгиланмаган', margin, currentY + 30, {
+           .text('Бу кун учун иш режаси мавжуд эмас', margin, currentY + 50, {
              align: 'center',
              width: contentWidth
            });
-           
-        currentY += 100;
       } else {
-        // Draw initial table header
-        currentY = drawTableHeader(currentY);
+        // Table header with improved spacing
+        const tableTop = currentY;
+        const tableLeft = margin;
+        const colWidths = [80, 90, contentWidth - 170]; // ВАҚТ, ТУР, ТАФСИЛ
         
-        const colWidths = [80, 90, contentWidth - 170];
+        // Header background with better height
+        doc.rect(tableLeft, tableTop, contentWidth, 30)
+           .fillColor(colors.primary)
+           .fill();
         
-        // Table rows
+        // Header text with better positioning
+        doc.fillColor('white')
+           .fontSize(12)
+           .font(getBoldFont())
+           .text('ВАҚТ', tableLeft + 8, tableTop + 10)
+           .text('ТУР', tableLeft + colWidths[0] + 8, tableTop + 10)
+           .text('ТАФСИЛ', tableLeft + colWidths[0] + colWidths[1] + 8, tableTop + 10);
+        
+        currentY = tableTop + 35;
+        
+        // Table rows - Simplified for consistency with frontend
         items.forEach((item, index) => {
           const typeInfo = getItemTypeInfo(item.type);
           
-          // Calculate required row height
-          const titleLength = (item.title || '').length;
-          const descLength = (item.description || '').length;
-          const extraDetails = [item.position, item.department, item.location].filter(Boolean).length;
-          const participantCount = item.participants?.length ? 1 : 0;
+          // Simplified row height calculation
+          const titleLines = Math.ceil((item.title || '').length / 40);
+          const descLines = Math.ceil((item.description || '').length / 50);
+          const metaLines = (item.position || item.department || item.location) ? 1 : 0;
+          const totalLines = titleLines + descLines + metaLines;
+          const rowHeight = Math.max(45, totalLines * 16 + 20);
           
-          const contentLines = Math.ceil(titleLength / 40) + 
-                              Math.ceil(descLength / 45) + 
-                              extraDetails + participantCount;
-          const rowHeight = Math.max(70, contentLines * 20 + 30);
-          
-          // Check if new page needed - KAMROQ JOY QOLDIRISH
-          if (currentY + rowHeight > pageHeight - 120) {
+          // Page break check
+          if (currentY + rowHeight > pageHeight - 80) {
             doc.addPage();
             currentY = margin + 20;
-            
-            // Continuation header
-            doc.fillColor(colors.primary)
-               .fontSize(14)
-               .font(getBoldFont())
-               .text('РАҲБАР ИШ ГРАФИГИ (давоми)', margin, currentY, {
-                 align: 'center',
-                 width: contentWidth
-               });
-            
-            currentY += 25;
-            
-            // Date on continuation
-            doc.fillColor(colors.text)
-               .fontSize(12)
-               .font(getRegularFont())
-               .text(`${dateInfo.dateStr} (${dateInfo.dayName})`, margin, currentY, {
-                 align: 'center',
-                 width: contentWidth
-               });
-            
-            currentY += 35;
-            
-            // Redraw table header
-            currentY = drawTableHeader(currentY);
           }
           
-          // Row background (zebra striping)
+          // Zebra striping
           if (index % 2 === 0) {
-            doc.rect(margin, currentY, contentWidth, rowHeight)
+            doc.rect(tableLeft, currentY, contentWidth, rowHeight)
                .fillColor(colors.light)
                .fill();
           }
           
-          // Row border
+          // Row borders
           doc.strokeColor(colors.border)
-             .lineWidth(1)
-             .rect(margin, currentY, contentWidth, rowHeight)
-             .stroke();
-          
-          // Column separators
-          doc.strokeColor('#e0e0e0')
              .lineWidth(0.5)
-             .moveTo(margin + colWidths[0], currentY)
-             .lineTo(margin + colWidths[0], currentY + rowHeight)
-             .stroke()
-             .moveTo(margin + colWidths[0] + colWidths[1], currentY)
-             .lineTo(margin + colWidths[0] + colWidths[1], currentY + rowHeight)
+             .rect(tableLeft, currentY, contentWidth, rowHeight)
              .stroke();
           
-          let cellY = currentY + 20;
+          // Vertical separators with lighter color
+          doc.strokeColor('#e5e7eb')
+             .lineWidth(0.5)
+             .moveTo(tableLeft + colWidths[0], currentY)
+             .lineTo(tableLeft + colWidths[0], currentY + rowHeight)
+             .stroke();
           
-          // TIME COLUMN - MARKAZLASH
+          doc.moveTo(tableLeft + colWidths[0] + colWidths[1], currentY)
+             .lineTo(tableLeft + colWidths[0] + colWidths[1], currentY + rowHeight)
+             .stroke();
+          
+          // Simplified cell content
+          let cellY = currentY + 15;
+          
+          // Time column
           doc.fillColor(colors.text)
-             .fontSize(14)
+             .fontSize(12)
              .font(getBoldFont())
-             .text(formatTime(item.time), margin + 10, cellY, {
-               width: colWidths[0] - 20,
+             .text(formatTime(item.time), tableLeft + 8, cellY, {
+               width: colWidths[0] - 16,
                align: 'center'
              });
           
-          // TYPE COLUMN - SHAKL VA MATNNI MARKAZLASH
-          const typeColumnX = margin + colWidths[0];
-          const typeColumnWidth = colWidths[1];
-          const typeCenterX = typeColumnX + (typeColumnWidth / 2);
+          // Add end time if exists
+          if (item.endTime) {
+            doc.fontSize(10)
+               .fillColor('#666666')
+               .text(formatTime(item.endTime), tableLeft + 8, cellY + 12, {
+                 width: colWidths[0] - 16,
+                 align: 'center'
+               });
+          }
           
-          // Shakl (symbol) - markazda
+          // Type column
           doc.fillColor(typeInfo.color)
-             .fontSize(20)
+             .fontSize(10)
              .font(getBoldFont())
-             .text(typeInfo.symbol, typeCenterX - 6, cellY - 5);
-             
-          // Matn (label) - markazda
-          doc.fillColor(typeInfo.color)
-             .fontSize(11)
-             .font(getBoldFont())
-             .text(typeInfo.label, typeColumnX + 10, cellY + 20, {
-               width: typeColumnWidth - 20,
+             .text(`${typeInfo.emoji}`, tableLeft + colWidths[0] + 8, cellY);
+          
+          doc.fontSize(9)
+             .text(typeInfo.label, tableLeft + colWidths[0] + 8, cellY + 12, {
+               width: colWidths[1] - 16,
                align: 'center'
              });
           
-          // DETAILS COLUMN
-          const detailX = margin + colWidths[0] + colWidths[1] + 15;
-          const maxDetailWidth = colWidths[2] - 25;
+          // Simplified details column
+          const detailX = tableLeft + colWidths[0] + colWidths[1] + 8;
+          const maxWidth = colWidths[2] - 16;
           
           // Title
           doc.fillColor(colors.text)
-             .fontSize(13)
+             .fontSize(11)
              .font(getBoldFont())
              .text(item.title || 'Номаълум', detailX, cellY, {
-               width: maxDetailWidth,
-               lineGap: 4
+               width: maxWidth
              });
           
-          cellY += 25;
+          cellY += 16;
           
           // Description
           if (item.description) {
-            doc.fontSize(11)
+            doc.fontSize(9)
                .font(getRegularFont())
                .fillColor('#555555')
                .text(item.description, detailX, cellY, {
-                 width: maxDetailWidth,
-                 lineGap: 3
+                 width: maxWidth
                });
-            cellY += Math.ceil((item.description.length / 45)) * 18 + 10;
+            cellY += descLines * 12 + 4;
           }
           
-          // Type-specific details
-          doc.fontSize(10)
-             .font(getRegularFont())
-             .fillColor('#666666');
-          
+          // Meta info in one line
+          const metaParts = [];
           if (item.type === 'reception') {
-            if (item.position) {
-              doc.text(`${getDetailSymbol('position')} ${item.position}`, detailX, cellY);
-              cellY += 16;
-            }
-            if (item.department) {
-              doc.text(`${getDetailSymbol('department')} ${item.department}`, detailX, cellY);
-              cellY += 16;
-            }
+            if (item.position) metaParts.push(`💼 ${item.position}`);
+            if (item.department) metaParts.push(`🏢 ${item.department}`);
+            if (item.phone) metaParts.push(`📞 ${item.phone}`);
           } else if (item.type === 'meeting') {
-            if (item.location) {
-              doc.text(`${getDetailSymbol('location')} ${item.location}`, detailX, cellY);
-              cellY += 16;
+            if (item.location) metaParts.push(`📍 ${item.location}`);
+            if (item.participants?.length) metaParts.push(`👥 ${item.participants.length} иштирокчи`);
+          } else if (item.type === 'task') {
+            if (item.priority && item.priority !== 'normal') {
+              const priorityTexts = { low: 'Паст', high: 'Юқори', urgent: 'Шошилинч' };
+              metaParts.push(`⚡ ${priorityTexts[item.priority]}`);
             }
-            if (item.participants?.length) {
-              doc.text(`${getDetailSymbol('participants')} ${item.participants.length} иштирокчи`, detailX, cellY);
-              cellY += 16;
-            }
+          }
+          
+          if (metaParts.length > 0) {
+            doc.fontSize(8)
+               .fillColor('#666666')
+               .text(metaParts.join('  •  '), detailX, cellY);
           }
           
           currentY += rowHeight + 1;
         });
       }
-      
-      // ===================
-      // SIGNATURE SECTION - HAR DOIM OXIRGI ITEMDAN KEYIN
-      // ===================
-      
-      // Minimal space after last item - faqat 30px
-      currentY += 30;
-      
-      // Check if signature fits - FAQAT 60px kerak imzo uchun
-      if (currentY + 60 > pageHeight - 50) {
-        doc.addPage();
-        currentY = margin + 30; // Kam joy bilan boshlash
-        
-        // Very minimal header for signature page
-        doc.fillColor(colors.text)
-           .fontSize(12)
-           .font(getBoldFont())
-           .text(`${dateInfo.dateStr} (${dateInfo.dayName}) - давоми`, margin, currentY, {
-             align: 'center',
-             width: contentWidth
-           });
-        
-        currentY += 40;
-      }
-      
-      // Signature line
-      doc.strokeColor(colors.border)
-         .lineWidth(1)
-         .moveTo(margin, currentY)
-         .lineTo(margin + 300, currentY)
-         .stroke();
-      
-      currentY += 20;
-      
-      // Signature text
-      doc.fillColor(colors.text)
-         .fontSize(12)
-         .font(getRegularFont())
-         .text('Тасдиқлайман: ___________________________', margin, currentY);
-      
-      doc.fontSize(10)
-         .fillColor('#666666')
-         .text('(Раҳбар имзоси, Ф.И.Ш. ва санаси)', margin, currentY + 20);
 
-      // Finalize PDF - SAHIFA RAQAMI YO'Q
+      // Finalize PDF
       doc.end();
       
     } catch (error) {
