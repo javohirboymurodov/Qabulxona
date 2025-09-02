@@ -3,13 +3,16 @@ const fs = require('fs');
 const path = require('path');
 const dayjs = require('dayjs');
 
-// Font paths
+// Font and logo paths
 const FONT_PATH = path.join(__dirname, '../assets/fonts');
+const LOGO_PATH = path.join(__dirname, '../assets/images');
 const DEJAVU_SANS = path.join(FONT_PATH, 'DejaVuSans.ttf');
 const DEJAVU_SANS_BOLD = path.join(FONT_PATH, 'DejaVuSans-Bold.ttf');
+const COMPANY_LOGO = path.join(LOGO_PATH, 'logo.png'); // or logo.jpg
 
-// Check if custom fonts exist
+// Check if custom fonts and logo exist
 const hasCustomFonts = fs.existsSync(DEJAVU_SANS) && fs.existsSync(DEJAVU_SANS_BOLD);
+const hasCompanyLogo = fs.existsSync(COMPANY_LOGO) || fs.existsSync(path.join(LOGO_PATH, 'logo.jpg'));
 
 // Font helper functions
 const getRegularFont = () => hasCustomFonts ? 'CustomRegular' : 'Helvetica';
@@ -76,14 +79,14 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       console.log('📄 Server PDFKit: Generating PDF for date:', selectedDate.format('YYYY-MM-DD'));
       console.log(`🎨 Using fonts: ${hasCustomFonts ? 'DejaVu Sans (Custom)' : 'Helvetica (Default)'}`);
       
-      // Create new PDF document
+      // Create new PDF document with proper margins
       const doc = new PDFDocument({
         size: 'A4',
         margins: {
-          top: 50,
-          bottom: 50,
-          left: 50, 
-          right: 50
+          top: 60,
+          bottom: 80,
+          left: 40, 
+          right: 40
         },
         info: {
           Title: `Раҳбар Иш Графиги - ${selectedDate.format('DD.MM.YYYY')}`,
@@ -111,8 +114,11 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       // Page dimensions
       const pageWidth = doc.page.width;
       const pageHeight = doc.page.height;
-      const margin = 50;
+      const margin = 40;
       const contentWidth = pageWidth - (margin * 2);
+      const headerHeight = 80;
+      const footerHeight = 60;
+      const contentHeight = pageHeight - headerHeight - footerHeight;
 
       let currentY = margin;
 
@@ -120,27 +126,62 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       // HEADER SECTION
       // ===================
       
-      // Company logo (circle with Q)
-      doc.circle(margin + 20, currentY + 20, 15)
-         .fillColor(colors.primary)
-         .fill();
-      
-      doc.fillColor('white')
-         .fontSize(16)
-         .font(getBoldFont())
-         .text('Қ', margin + 15, currentY + 13);
+      // Company logo - use actual logo if available, otherwise fallback
+      if (hasCompanyLogo) {
+        try {
+          // Try PNG first, then JPG
+          const logoPath = fs.existsSync(path.join(LOGO_PATH, 'logo.png')) 
+            ? path.join(LOGO_PATH, 'logo.png')
+            : path.join(LOGO_PATH, 'logo.jpg');
+          
+          doc.image(logoPath, margin + 5, currentY + 5, {
+            width: 40,
+            height: 40
+          });
+        } catch (error) {
+          console.warn('Logo loading failed, using fallback:', error.message);
+          // Fallback to circular design
+          doc.circle(margin + 25, currentY + 25, 20)
+             .fillColor(colors.primary)
+             .fill();
+          
+          doc.circle(margin + 25, currentY + 25, 18)
+             .fillColor('white')
+             .fill();
+             
+          doc.fillColor(colors.primary)
+             .fontSize(18)
+             .font(getBoldFont())
+             .text('Қ', margin + 18, currentY + 16);
+        }
+      } else {
+        // Fallback circular logo design
+        doc.circle(margin + 25, currentY + 25, 20)
+           .fillColor(colors.primary)
+           .fill();
+        
+        doc.circle(margin + 25, currentY + 25, 18)
+           .fillColor('white')
+           .fill();
+           
+        doc.fillColor(colors.primary)
+           .fontSize(18)
+           .font(getBoldFont())
+           .text('Қ', margin + 18, currentY + 16);
+      }
 
-      // Company name and title
+      // Company name and title with better spacing
       doc.fillColor(colors.primary)
-         .fontSize(24)
+         .fontSize(22)
          .font(getBoldFont())
-         .text('ҚАБУЛХОНА ТИЗИМИ', margin + 50, currentY + 5);
+         .text('ҚАБУЛХОНА ТИЗИМИ', margin + 60, currentY + 8);
       
-      doc.fontSize(18)
+      doc.fontSize(16)
          .font(getRegularFont())
-         .text('РАҲБАР ИШ ГРАФИГИ', margin + 50, currentY + 35);
+         .fillColor(colors.text)
+         .text('РАҲБАР ИШ ГРАФИГИ', margin + 60, currentY + 32);
 
-      currentY += 70;
+      currentY += 65;
 
       // Horizontal line
       doc.strokeColor(colors.border)
@@ -151,9 +192,10 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
 
       currentY += 15;
 
-      // Date information
+      // Date information in a compact format
       const dateInfo = formatDateUz(selectedDate);
       
+      // Date and generated time on same line
       doc.fillColor(colors.text)
          .fontSize(14)
          .font(getBoldFont())
@@ -162,52 +204,44 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       const generatedTime = dayjs().format('DD.MM.YYYY HH:mm');
       doc.fontSize(10)
          .font(getRegularFont())
-         .text(`Тайёрланди: ${generatedTime}`, margin, currentY + 20);
+         .text(`Тайёрланди: ${generatedTime}`, pageWidth - margin - 120, currentY + 2);
 
-      currentY += 50;
+              currentY += 30;
 
       // ===================
-      // SUMMARY SECTION
+      // SUMMARY SECTION (Compact)
       // ===================
       
       const summary = scheduleData?.summary || {};
       const totalItems = summary.totalItems || 0;
       
       if (totalItems > 0) {
-        // Summary line
-        doc.strokeColor(colors.border)
-           .moveTo(margin, currentY)
-           .lineTo(pageWidth - margin, currentY)
-           .stroke();
-        
-        currentY += 15;
-        
+        // Compact summary with better layout
         doc.fillColor(colors.primary)
-           .fontSize(14)
+           .fontSize(12)
            .font(getBoldFont())
            .text('ХУЛОСАЛАР:', margin, currentY);
         
-        currentY += 20;
+        currentY += 18;
         
+        // Summary stats with proper line breaks to avoid overlap
         doc.fillColor(colors.text)
-           .fontSize(11)
-           .font(getRegularFont());
+           .fontSize(10)
+           .font(getRegularFont())
+           .text(`📋 Жами: ${totalItems} та иш режаси`, margin + 20, currentY);
         
-        const summaryTexts = [
-          `📋 Жами: ${totalItems} та иш режаси`,
-          `📋 Вазифалар: ${summary.totalTasks || 0}`,
-          `👤 Қабуллар: ${summary.totalReceptions || 0}`,
-          `🤝 Мажлислар: ${summary.totalMeetings || 0}`
-        ];
+        // Second line with other stats if they exist
+        if (summary.totalTasks > 0 || summary.totalReceptions > 0 || summary.totalMeetings > 0) {
+          currentY += 14;
+          const detailParts = [];
+          if (summary.totalTasks > 0) detailParts.push(`📋 Вазифалар: ${summary.totalTasks}`);
+          if (summary.totalReceptions > 0) detailParts.push(`👤 Қабуллар: ${summary.totalReceptions}`);
+          if (summary.totalMeetings > 0) detailParts.push(`🤝 Мажлислар: ${summary.totalMeetings}`);
+          
+          doc.text(detailParts.join('  •  '), margin + 20, currentY);
+        }
         
-        // Display summary in 2 columns
-        summaryTexts.forEach((text, index) => {
-          const x = margin + (index % 2) * 250;
-          const y = currentY + Math.floor(index / 2) * 15;
-          doc.text(text, x, y);
-        });
-        
-        currentY += Math.ceil(summaryTexts.length / 2) * 15 + 20;
+        currentY += 25;
       }
 
       // ===================
@@ -217,49 +251,54 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       const items = scheduleData?.items || [];
       
       if (items.length === 0) {
-        // Empty state
+        // Empty state with better positioning
         doc.fillColor(colors.text)
-           .fontSize(16)
+           .fontSize(14)
            .font(getRegularFont())
-           .text('Бу кун учун иш режаси мавжуд эмас', margin, currentY + 30);
+           .text('Бу кун учун иш режаси мавжуд эмас', margin, currentY + 50, {
+             align: 'center',
+             width: contentWidth
+           });
       } else {
-        // Table header
+        // Table header with improved spacing
         const tableTop = currentY;
         const tableLeft = margin;
-        const colWidths = [80, 80, contentWidth - 160]; // ВАҚТ, ТУР, ТАФСИЛ
+        const colWidths = [80, 90, contentWidth - 170]; // ВАҚТ, ТУР, ТАФСИЛ
         
-        // Header background
-        doc.rect(tableLeft, tableTop, contentWidth, 25)
+        // Header background with better height
+        doc.rect(tableLeft, tableTop, contentWidth, 30)
            .fillColor(colors.primary)
            .fill();
         
-        // Header text
+        // Header text with better positioning
         doc.fillColor('white')
            .fontSize(12)
            .font(getBoldFont())
-           .text('ВАҚТ', tableLeft + 10, tableTop + 8)
-           .text('ТУР', tableLeft + colWidths[0] + 10, tableTop + 8)
-           .text('ТАФСИЛ', tableLeft + colWidths[0] + colWidths[1] + 10, tableTop + 8);
+           .text('ВАҚТ', tableLeft + 8, tableTop + 10)
+           .text('ТУР', tableLeft + colWidths[0] + 8, tableTop + 10)
+           .text('ТАФСИЛ', tableLeft + colWidths[0] + colWidths[1] + 8, tableTop + 10);
         
-        currentY = tableTop + 30;
+        currentY = tableTop + 35;
         
         // Table rows
         items.forEach((item, index) => {
           const typeInfo = getItemTypeInfo(item.type);
           
-          // Calculate row height based on content
+          // Calculate row height based on content with better spacing
           const descriptionLength = (item.description || '').length;
-          const descriptionLines = Math.ceil(descriptionLength / 60);
+          const descriptionLines = Math.ceil(descriptionLength / 45); // Reduced for better fitting
           const detailLines = 1 + descriptionLines + 
             (item.position ? 1 : 0) + 
             (item.department ? 1 : 0) + 
             (item.location ? 1 : 0);
-          const rowHeight = Math.max(30, detailLines * 12 + 10);
+          const rowHeight = Math.max(40, detailLines * 15 + 12); // Increased minimum height
           
-          // Check if we need a new page
-          if (currentY + rowHeight > pageHeight - 100) {
+          // Check if we need a new page - leave space for content, not footer
+          if (currentY + rowHeight > pageHeight - 120) {
+            // Add page number to current page before new page
+            addPageNumber(1, 1); // Will be calculated properly later
             doc.addPage();
-            currentY = margin;
+            currentY = margin + 20;
           }
           
           // Zebra striping
@@ -275,8 +314,10 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
              .rect(tableLeft, currentY, contentWidth, rowHeight)
              .stroke();
           
-          // Vertical separators
-          doc.moveTo(tableLeft + colWidths[0], currentY)
+          // Vertical separators with lighter color
+          doc.strokeColor('#e5e7eb')
+             .lineWidth(0.5)
+             .moveTo(tableLeft + colWidths[0], currentY)
              .lineTo(tableLeft + colWidths[0], currentY + rowHeight)
              .stroke();
           
@@ -284,99 +325,128 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
              .lineTo(tableLeft + colWidths[0] + colWidths[1], currentY + rowHeight)
              .stroke();
           
-          // Cell content
-          let cellY = currentY + 10;
+          // Cell content with better spacing and alignment
+          let cellY = currentY + 15;
           
-          // Time column
+          // Time column - centered
           doc.fillColor(colors.text)
              .fontSize(12)
              .font(getBoldFont())
-             .text(formatTime(item.time), tableLeft + 10, cellY);
-          
-          // Type column
-          doc.fillColor(typeInfo.color)
-             .fontSize(11)
-             .font(getBoldFont())
-             .text(`${typeInfo.emoji} ${typeInfo.label}`, 
-                   tableLeft + colWidths[0] + 10, cellY);
-          
-          // Details column
-          const detailX = tableLeft + colWidths[0] + colWidths[1] + 10;
-          const maxWidth = colWidths[2] - 20;
-          
-          // Title
-          doc.fillColor(colors.text)
-             .fontSize(12)
-             .font(getBoldFont())
-             .text(item.title || 'Номаълум', detailX, cellY, {
-               width: maxWidth
+             .text(formatTime(item.time), tableLeft + 8, cellY, {
+               width: colWidths[0] - 16,
+               align: 'center'
              });
           
-          cellY += 15;
+          // Type column - with proper spacing
+          doc.fillColor(typeInfo.color)
+             .fontSize(10)
+             .font(getBoldFont())
+             .text(`${typeInfo.emoji} ${typeInfo.label}`, 
+                   tableLeft + colWidths[0] + 8, cellY, {
+                     width: colWidths[1] - 16,
+                     align: 'center'
+                   });
           
-          // Description
+          // Details column with better spacing and text wrapping
+          const detailX = tableLeft + colWidths[0] + colWidths[1] + 8;
+          const maxWidth = colWidths[2] - 16;
+          
+          // Title with proper text wrapping and spacing
+          doc.fillColor(colors.text)
+             .fontSize(11)
+             .font(getBoldFont())
+             .text(item.title || 'Номаълум', detailX, cellY, {
+               width: maxWidth,
+               lineGap: 3,
+               ellipsis: false,
+               continued: false
+             });
+          
+          cellY += 20;
+          
+          // Description with better formatting and wrapping
           if (item.description) {
-            doc.fontSize(10)
+            doc.fontSize(9)
                .font(getRegularFont())
+               .fillColor('#555555')
                .text(item.description, detailX, cellY, {
-                 width: maxWidth
+                 width: maxWidth,
+                 lineGap: 2,
+                 ellipsis: false,
+                 continued: false
                });
-            cellY += descriptionLines * 12;
+            cellY += Math.max(descriptionLines * 14, 14) + 5;
           }
           
-          // Type-specific details
+          // Type-specific details with better spacing
           doc.fontSize(9)
-             .font(getRegularFont());
+             .font(getRegularFont())
+             .fillColor('#666666');
           
           if (item.type === 'reception') {
             if (item.position) {
               doc.text(`💼 ${item.position}`, detailX, cellY);
-              cellY += 12;
+              cellY += 13;
             }
             if (item.department) {
               doc.text(`🏢 ${item.department}`, detailX, cellY);
-              cellY += 12;
+              cellY += 13;
             }
           } else if (item.type === 'meeting') {
             if (item.location) {
               doc.text(`📍 ${item.location}`, detailX, cellY);
-              cellY += 12;
+              cellY += 13;
             }
             if (item.participants?.length) {
               doc.text(`👥 ${item.participants.length} иштирокчи`, detailX, cellY);
-              cellY += 12;
+              cellY += 13;
             }
           }
           
-          currentY += rowHeight + 1;
+          currentY += rowHeight + 2;
         });
+        
+        // ===================
+        // FOOTER SECTION - Jadval tugagandan keyin
+        // ===================
+        
+        // Add some space after table
+        currentY += 30;
+        
+        // Signature section - jadval tagida
+        doc.strokeColor(colors.border)
+           .lineWidth(0.5)
+           .moveTo(margin, currentY)
+           .lineTo(margin + 250, currentY)
+           .stroke();
+        
+        currentY += 15;
+        
+        // Signature text
+        doc.fillColor(colors.text)
+           .fontSize(11)
+           .font(getRegularFont())
+           .text('Тасдиқлади: ________________________________', margin, currentY);
+        
+        doc.fontSize(9)
+           .fillColor('#666666')
+           .text('(Раҳбар имзоси ва санаси)', margin, currentY + 18);
       }
-
+      
       // ===================
-      // FOOTER SECTION
+      // PAGE FOOTER (har sahifada)
       // ===================
       
-      // Move to footer area
-      currentY = pageHeight - 80;
+      // Page number at bottom of every page
+      const addPageNumber = (pageNum, totalPages) => {
+        doc.fontSize(9)
+           .fillColor(colors.text)
+           .font(getRegularFont())
+           .text(`Саҳифа: ${pageNum}/${totalPages}`, pageWidth - margin - 60, pageHeight - 25);
+      };
       
-      // Signature line
-      doc.strokeColor(colors.border)
-         .moveTo(margin, currentY)
-         .lineTo(pageWidth - margin, currentY)
-         .stroke();
-      
-      currentY += 15;
-      
-      doc.fillColor(colors.text)
-         .fontSize(11)
-         .font(getRegularFont())
-         .text('Тасдиқлади: ________________________________', margin, currentY)
-         .text('(Раҳбар имзоси ва санаси)', margin, currentY + 15);
-      
-      // Page number
-      doc.fontSize(8)
-         .font(getRegularFont())
-         .text('Саҳифа: 1/1', pageWidth - margin - 40, pageHeight - 20);
+      // Add page number to current page
+      addPageNumber(1, 1);
 
       // Finalize PDF
       doc.end();
