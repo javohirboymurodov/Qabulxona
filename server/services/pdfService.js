@@ -292,8 +292,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
           const rowHeight = Math.max(45, totalLines * 16 + 20);
           
           // Page break check
-          if (currentY + rowHeight > pageHeight - 120) {
-            addPageNumber(1, 1);
+          if (currentY + rowHeight > pageHeight - 80) {
             doc.addPage();
             currentY = margin + 20;
           }
@@ -405,48 +404,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
           
           currentY += rowHeight + 1;
         });
-        
-        // ===================
-        // FOOTER SECTION - Jadval tugagandan keyin
-        // ===================
-        
-        // Add some space after table
-        currentY += 30;
-        
-        // Signature section - jadval tagida
-        doc.strokeColor(colors.border)
-           .lineWidth(0.5)
-           .moveTo(margin, currentY)
-           .lineTo(margin + 250, currentY)
-           .stroke();
-        
-        currentY += 15;
-        
-        // Signature text
-        doc.fillColor(colors.text)
-           .fontSize(11)
-           .font(getRegularFont())
-           .text('Тасдиқлади: ________________________________', margin, currentY);
-        
-        doc.fontSize(9)
-           .fillColor('#666666')
-           .text('(Раҳбар имзоси ва санаси)', margin, currentY + 18);
       }
-      
-      // ===================
-      // PAGE FOOTER (har sahifada)
-      // ===================
-      
-      // Page number at bottom of every page
-      const addPageNumber = (pageNum, totalPages) => {
-        doc.fontSize(9)
-           .fillColor(colors.text)
-           .font(getRegularFont())
-           .text(`Саҳифа: ${pageNum}/${totalPages}`, pageWidth - margin - 60, pageHeight - 25);
-      };
-      
-      // Add page number to current page
-      addPageNumber(1, 1);
 
       // Finalize PDF
       doc.end();
