@@ -206,7 +206,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
          .font(getRegularFont())
          .text(`Тайёрланди: ${generatedTime}`, pageWidth - margin - 120, currentY + 2);
 
-      currentY += 35;
+              currentY += 30;
 
       // ===================
       // SUMMARY SECTION (Compact)
@@ -222,13 +222,24 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
            .font(getBoldFont())
            .text('ХУЛОСАЛАР:', margin, currentY);
         
-        // Summary stats in one line with proper spacing
-        const summaryText = `Жами: ${totalItems} та иш режаси  •  Вазифалар: ${summary.totalTasks || 0}  •  Қабуллар: ${summary.totalReceptions || 0}  •  Мажлислар: ${summary.totalMeetings || 0}`;
+        currentY += 18;
         
+        // Summary stats with proper line breaks to avoid overlap
         doc.fillColor(colors.text)
            .fontSize(10)
            .font(getRegularFont())
-           .text(summaryText, margin + 80, currentY + 2);
+           .text(`📋 Жами: ${totalItems} та иш режаси`, margin + 20, currentY);
+        
+        // Second line with other stats if they exist
+        if (summary.totalTasks > 0 || summary.totalReceptions > 0 || summary.totalMeetings > 0) {
+          currentY += 14;
+          const detailParts = [];
+          if (summary.totalTasks > 0) detailParts.push(`📋 Вазифалар: ${summary.totalTasks}`);
+          if (summary.totalReceptions > 0) detailParts.push(`👤 Қабуллар: ${summary.totalReceptions}`);
+          if (summary.totalMeetings > 0) detailParts.push(`🤝 Мажлислар: ${summary.totalMeetings}`);
+          
+          doc.text(detailParts.join('  •  '), margin + 20, currentY);
+        }
         
         currentY += 25;
       }
@@ -252,7 +263,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
         // Table header with improved spacing
         const tableTop = currentY;
         const tableLeft = margin;
-        const colWidths = [75, 85, contentWidth - 160]; // ВАҚТ, ТУР, ТАФСИЛ
+        const colWidths = [80, 90, contentWidth - 170]; // ВАҚТ, ТУР, ТАФСИЛ
         
         // Header background with better height
         doc.rect(tableLeft, tableTop, contentWidth, 30)
@@ -275,17 +286,17 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
           
           // Calculate row height based on content with better spacing
           const descriptionLength = (item.description || '').length;
-          const descriptionLines = Math.ceil(descriptionLength / 50);
+          const descriptionLines = Math.ceil(descriptionLength / 45); // Reduced for better fitting
           const detailLines = 1 + descriptionLines + 
             (item.position ? 1 : 0) + 
             (item.department ? 1 : 0) + 
             (item.location ? 1 : 0);
-          const rowHeight = Math.max(35, detailLines * 14 + 15);
+          const rowHeight = Math.max(40, detailLines * 15 + 12); // Increased minimum height
           
-          // Check if we need a new page with proper footer space
-          if (currentY + rowHeight > pageHeight - footerHeight - 20) {
-            // Add footer to current page before creating new page
-            addFooter(1, 1); // Will be updated for multi-page support
+          // Check if we need a new page - leave space for content, not footer
+          if (currentY + rowHeight > pageHeight - 120) {
+            // Add page number to current page before new page
+            addPageNumber(1, 1); // Will be calculated properly later
             doc.addPage();
             currentY = margin + 20;
           }
@@ -314,47 +325,57 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
              .lineTo(tableLeft + colWidths[0] + colWidths[1], currentY + rowHeight)
              .stroke();
           
-          // Cell content with better spacing
-          let cellY = currentY + 12;
+          // Cell content with better spacing and alignment
+          let cellY = currentY + 15;
           
-          // Time column
+          // Time column - centered
           doc.fillColor(colors.text)
              .fontSize(12)
              .font(getBoldFont())
-             .text(formatTime(item.time), tableLeft + 8, cellY);
+             .text(formatTime(item.time), tableLeft + 8, cellY, {
+               width: colWidths[0] - 16,
+               align: 'center'
+             });
           
-          // Type column
+          // Type column - with proper spacing
           doc.fillColor(typeInfo.color)
-             .fontSize(11)
+             .fontSize(10)
              .font(getBoldFont())
              .text(`${typeInfo.emoji} ${typeInfo.label}`, 
-                   tableLeft + colWidths[0] + 8, cellY);
+                   tableLeft + colWidths[0] + 8, cellY, {
+                     width: colWidths[1] - 16,
+                     align: 'center'
+                   });
           
-          // Details column with better spacing
+          // Details column with better spacing and text wrapping
           const detailX = tableLeft + colWidths[0] + colWidths[1] + 8;
           const maxWidth = colWidths[2] - 16;
           
-          // Title
+          // Title with proper text wrapping and spacing
           doc.fillColor(colors.text)
-             .fontSize(12)
+             .fontSize(11)
              .font(getBoldFont())
              .text(item.title || 'Номаълум', detailX, cellY, {
                width: maxWidth,
-               lineGap: 2
+               lineGap: 3,
+               ellipsis: false,
+               continued: false
              });
           
-          cellY += 16;
+          cellY += 20;
           
-          // Description with better formatting
+          // Description with better formatting and wrapping
           if (item.description) {
-            doc.fontSize(10)
+            doc.fontSize(9)
                .font(getRegularFont())
-               .fillColor(colors.text)
+               .fillColor('#555555')
                .text(item.description, detailX, cellY, {
                  width: maxWidth,
-                 lineGap: 1
+                 lineGap: 2,
+                 ellipsis: false,
+                 continued: false
                });
-            cellY += descriptionLines * 13 + 3;
+            cellY += Math.max(descriptionLines * 14, 14) + 5;
           }
           
           // Type-specific details with better spacing
@@ -384,42 +405,48 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
           
           currentY += rowHeight + 2;
         });
-      }
-
-      // ===================
-      // FOOTER SECTION
-      // ===================
-      
-      // Add footer on every page
-      const addFooter = (pageNum, totalPages) => {
-        // Signature area - positioned properly
-        const footerY = pageHeight - footerHeight + 10;
         
-        // Signature line
+        // ===================
+        // FOOTER SECTION - Jadval tugagandan keyin
+        // ===================
+        
+        // Add some space after table
+        currentY += 30;
+        
+        // Signature section - jadval tagida
         doc.strokeColor(colors.border)
            .lineWidth(0.5)
-           .moveTo(margin, footerY)
-           .lineTo(margin + 200, footerY)
+           .moveTo(margin, currentY)
+           .lineTo(margin + 250, currentY)
            .stroke();
+        
+        currentY += 15;
         
         // Signature text
         doc.fillColor(colors.text)
-           .fontSize(10)
+           .fontSize(11)
            .font(getRegularFont())
-           .text('Тасдиқлади: ________________________________', margin, footerY + 8);
+           .text('Тасдиқлади: ________________________________', margin, currentY);
         
-        doc.fontSize(8)
+        doc.fontSize(9)
            .fillColor('#666666')
-           .text('(Раҳбар имзоси ва санаси)', margin, footerY + 22);
-        
-        // Page number - right aligned
+           .text('(Раҳбар имзоси ва санаси)', margin, currentY + 18);
+      }
+      
+      // ===================
+      // PAGE FOOTER (har sahifada)
+      // ===================
+      
+      // Page number at bottom of every page
+      const addPageNumber = (pageNum, totalPages) => {
         doc.fontSize(9)
            .fillColor(colors.text)
-           .text(`Саҳифа: ${pageNum}/${totalPages}`, pageWidth - margin - 60, footerY + 15);
+           .font(getRegularFont())
+           .text(`Саҳифа: ${pageNum}/${totalPages}`, pageWidth - margin - 60, pageHeight - 25);
       };
       
-      // Add footer to final page
-      addFooter(1, 1);
+      // Add page number to current page
+      addPageNumber(1, 1);
 
       // Finalize PDF
       doc.end();
