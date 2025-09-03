@@ -22,9 +22,23 @@ const AddReceptionModal = ({
     if (visible) {
       if (initialData) {
         // Edit mode - form'ni initial data bilan to'ldirish
+        console.log('Edit mode - initialData:', initialData);
+        
+        // Time field'ni to'g'ri aniqlash
+        let timeValue;
+        if (initialData.scheduledTime) {
+          timeValue = dayjs(initialData.scheduledTime, 'HH:mm');
+        } else if (initialData.time) {
+          timeValue = dayjs(initialData.time, 'HH:mm');
+        } else if (initialData.timeUpdated) {
+          timeValue = dayjs(initialData.timeUpdated);
+        } else {
+          timeValue = dayjs().add(1, 'hour'); // Fallback
+        }
+        
         form.setFieldsValue({
           selectedEmployee: initialData.employeeId,
-          time: initialData.time ? dayjs(initialData.time, 'HH:mm') : dayjs().add(1, 'hour')
+          time: timeValue
         });
       } else {
         // Create mode
