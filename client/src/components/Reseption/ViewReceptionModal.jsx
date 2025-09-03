@@ -191,6 +191,16 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees =
           {getStatusTag(reception.status)}
         </Descriptions.Item>
         
+        <Descriptions.Item label="Қабул вақти">
+          <Space>
+            <ClockCircleOutlined />
+            <Text strong style={{ color: '#1890ff' }}>
+              {reception.scheduledTime || reception.time || 
+               (reception.timeUpdated ? dayjs(reception.timeUpdated).format('HH:mm') : '-')}
+            </Text>
+          </Space>
+        </Descriptions.Item>
+        
         <Descriptions.Item label="Янгиланган вақти">
           <Space>
             <ClockCircleOutlined />
