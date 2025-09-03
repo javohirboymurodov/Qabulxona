@@ -320,13 +320,26 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     setShowMeetingModal(true);
   };
 
-  const handleMeetingEdit = (meeting) => {
-    setEditingMeeting(meeting);
-    setShowMeetingModal(true);
-  };
-
   const handleMeetingRemove = (meetingId) => {
     setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
+    setItems(prev => prev.filter(item => item.id !== meetingId));
+  };
+
+  // Edit handler'lar
+  const handleTaskEdit = (task) => {
+    console.log('Edit task in DailyPlanModal:', task);
+    // TaskModal ochish logic (keyinroq implement qilamiz)
+  };
+
+  const handleReceptionEdit = (reception) => {
+    console.log('Edit reception in DailyPlanModal:', reception);
+    // ReceptionModal ochish logic (keyinroq implement qilamiz)  
+  };
+
+  const handleMeetingEdit = (meeting) => {
+    console.log('Edit meeting in DailyPlanModal:', meeting);
+    setEditingMeeting(meeting);
+    setShowMeetingModal(true);
   };
 
   const totalItems = tasks.length + receptions.length + meetings.length;
@@ -348,8 +361,12 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
           onRemoveTask={handleTaskRemove}
           onRemoveReception={handleReceptionRemove}
           onRemoveMeeting={handleMeetingRemove}
+          onEditTask={handleTaskEdit}
+          onEditReception={handleReceptionEdit}
+          onEditMeeting={handleMeetingEdit}
           onSaveAll={handleSaveAll}
           loading={saving}
+          selectedDate={date}
         />
       )
     },
@@ -521,14 +538,10 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
                       <div>{meeting.time} | {meeting.location}</div>
                     </div>
                     <div>
-                      <Button size="small" onClick={() => handleMeetingEdit(meeting)}>
-                        Таҳрир
-                      </Button>
                       <Button 
                         size="small" 
                         danger 
                         onClick={() => handleMeetingRemove(meeting.id)}
-                        style={{ marginLeft: 8 }}
                       >
                         Ўчириш
                       </Button>

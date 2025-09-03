@@ -1,6 +1,7 @@
 import React from 'react';
-import { List, Card, Tag, Empty, Button } from 'antd';
-import { CalendarOutlined, UserOutlined, TeamOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Empty } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
+import ScheduleTable from '../Common/ScheduleTable';
 
 const DailyPlanView = ({
   tasks = [],
@@ -9,8 +10,12 @@ const DailyPlanView = ({
   onRemoveTask,
   onRemoveReception,
   onRemoveMeeting,
+  onEditTask,
+  onEditReception, 
+  onEditMeeting,
   onSaveAll,
-  loading
+  loading,
+  selectedDate
 }) => {
 
   // Barcha elementlarni vaqt bo'yicha birlashtirish
@@ -24,35 +29,31 @@ const DailyPlanView = ({
     return parseInt(timeA) - parseInt(timeB);
   });
 
-  // Har bir element uchun ikonka va rang
-  const getItemIcon = (type) => {
-    switch (type) {
+  // Action handler'lar
+  const handleView = (item) => {
+    console.log('View item in modal:', item);
+    // View logic (ixtiyoriy)
+  };
+
+  const handleEdit = (item) => {
+    console.log('Edit item in modal:', item);
+    switch (item.type) {
       case 'task':
-        return <CalendarOutlined style={{ color: '#1890ff' }} />;
+        onEditTask?.(item);
+        break;
       case 'reception':
-        return <UserOutlined style={{ color: '#52c41a' }} />;
+        onEditReception?.(item);
+        break;
       case 'meeting':
-        return <TeamOutlined style={{ color: '#faad14' }} />;
+        onEditMeeting?.(item);
+        break;
       default:
-        return <CalendarOutlined />;
+        console.warn('Unknown item type:', item.type);
     }
   };
 
-  const getItemTag = (type) => {
-    switch (type) {
-      case 'task':
-        return <Tag color="blue">Вазифа</Tag>;
-      case 'reception':
-        return <Tag color="green">Қабул</Tag>;
-      case 'meeting':
-        return <Tag color="orange">Мажлис</Tag>;
-      default:
-        return <Tag>Номаълум</Tag>;
-    }
-  };
-
-  // Element o'chirish
-  const handleRemove = (item) => {
+  const handleDelete = (item) => {
+    console.log('Delete item in modal:', item);
     switch (item.type) {
       case 'task':
         onRemoveTask?.(item.id);
@@ -100,97 +101,17 @@ const DailyPlanView = ({
         </Button>
       </div>
 
-      {/* Content */}
+      {/* Schedule Table with Actions */}
       {allItems.length > 0 ? (
-        <List
+        <ScheduleTable
           dataSource={allItems}
-          renderItem={(item) => (
-            <List.Item style={{ padding: '8px 0' }}>
-              <Card
-                size="small"
-                style={{ width: '100%' }}
-                styles={{
-                  body: { padding: '12px 16px' }
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    {/* Vaqt va tur */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      marginBottom: 8
-                    }}>
-                      {getItemIcon(item.type)}
-                      <strong style={{ fontSize: '14px' }}>
-                        {item.startTime || item.time}
-                        {item.endTime && ` - ${item.endTime}`}
-                      </strong>
-                      {getItemTag(item.type)}
-                    </div>
-
-                    {/* Sarlavha */}
-                    <div style={{
-                      fontSize: '16px',
-                      fontWeight: 500,
-                      marginBottom: 4,
-                      color: '#262626'
-                    }}>
-                      {item.title || item.name}
-                    </div>
-
-                    {/* Tavsif */}
-                    {(item.description || item.purpose) && (
-                      <div style={{
-                        fontSize: '13px',
-                        color: '#666',
-                        marginBottom: 4
-                      }}>
-                        {item.description || item.purpose}
-                      </div>
-                    )}
-
-                    {/* Qo'shimcha ma'lumotlar */}
-                    <div style={{ fontSize: '12px', color: '#999' }}>
-                      {item.type === 'reception' && (
-                        <div>
-                          {item.position && `${item.position}`}
-                          {item.department && ` - ${item.department}`}
-                        </div>
-                      )}
-                      {item.type === 'meeting' && (
-                        <div>
-                          {item.location && `Жойи: ${item.location}`}
-                          {item.participants && ` • Иштирокчилар: ${item.participants}`}
-                        </div>
-                      )}
-                      {item.type === 'task' && item.priority && (
-                        <div>Муҳимлик: {item.priority}</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* O'chirish tugmasi */}
-                  <Button
-                    type="text"
-                    danger
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleRemove(item)}
-                    style={{
-                      opacity: 0.6,
-                      transition: 'opacity 0.2s'
-                    }}
-                  />
-                </div>
-              </Card>
-            </List.Item>
-          )}
+          loading={loading}
+          selectedDate={selectedDate}
+          showActions={true}
+          emptyText="Ҳозирча режалар қўшилмаган"
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
         />
       ) : (
         <Empty
