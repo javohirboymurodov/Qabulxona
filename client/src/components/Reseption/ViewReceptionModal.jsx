@@ -156,6 +156,17 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
           </Descriptions.Item>
         )}
         
+        <Descriptions.Item label="Қабул вақти">
+          <Space>
+            <ClockCircleOutlined style={{ color: '#1890ff' }} />
+            <Text strong>
+              {reception.time || 
+               (reception.timeUpdated ? dayjs(reception.timeUpdated).format('HH:mm') : '-')
+              }
+            </Text>
+          </Space>
+        </Descriptions.Item>
+        
         <Descriptions.Item label="Ҳолати">
           {getStatusTag(reception.status)}
         </Descriptions.Item>
@@ -163,7 +174,7 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
         <Descriptions.Item label="Янгиланган вақти">
           <Space>
             <ClockCircleOutlined />
-            <Text>
+            <Text type="secondary">
               {reception.timeUpdated ? 
                 dayjs(reception.timeUpdated).format('DD.MM.YYYY HH:mm') : 
                 '-'

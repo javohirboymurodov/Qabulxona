@@ -226,13 +226,18 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       render: (text) => text || '-'
     },
     {
-      title: 'Вақт',
-      key: 'timeUpdated',
-      width: 80,
+      title: 'Қабул вақти',
+      key: 'receptionTime',
+      width: 90,
+      align: 'center',
       render: (_, record) => (
-        <Text type="secondary">
-          {record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-'}
-        </Text>
+        <div style={{ textAlign: 'center' }}>
+          <Text strong style={{ color: '#1890ff' }}>
+            {record.time || 
+             (record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-')
+            }
+          </Text>
+        </div>
       )
     },
     {
