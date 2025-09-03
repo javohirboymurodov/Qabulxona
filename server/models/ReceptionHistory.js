@@ -16,6 +16,10 @@ const receptionHistorySchema = new mongoose.Schema({
     position: String,
     department: String,
     phone: String,
+    scheduledTime: {
+      type: String, // HH:mm formatda - asosiy qabul vaqti (xodim keladigan vaqt)
+      required: true
+    },
     status: {
       type: String,
       enum: ['waiting', 'present', 'absent'],

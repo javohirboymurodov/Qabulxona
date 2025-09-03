@@ -51,7 +51,7 @@ exports.getTodayReception = async (req, res) => {
  */
 exports.addToReception = async (req, res) => {
   try {
-    const { employeeId, name, position, department, phone, status = 'waiting', task } = req.body;
+    const { employeeId, name, position, department, phone, status = 'waiting', task, scheduledTime } = req.body;
     
     // Validation
     if (!employeeId) {
@@ -97,6 +97,7 @@ exports.addToReception = async (req, res) => {
       reception.employees[employeeIndex] = {
         ...reception.employees[employeeIndex],
         status,
+        scheduledTime: scheduledTime || reception.employees[employeeIndex].scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti
         task: task || reception.employees[employeeIndex].task,
         timeUpdated: new Date()
       };
@@ -109,8 +110,9 @@ exports.addToReception = async (req, res) => {
         department: department || employee.department,
         phone: phone || employee.phone || '',
         status: status,
-        timeUpdated: new Date(),
-        createdAt: new Date()
+        scheduledTime: scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
+        timeUpdated: new Date(), // Yangilangan vaqt
+        createdAt: new Date() // Ma'lumot yaratilgan vaqt
       };
 
       // Add task if provided
@@ -201,19 +203,26 @@ exports.updateReceptionStatus = async (req, res) => {
     }
 
     // Employee ni topish - employeeId bo'yicha yoki employeeId field bo'yicha
+    console.log('🔍 Status update - Searching for employee:', employeeId);
+    console.log('📋 Status update - Available employees:', reception.employees.map(e => ({
+      id: e._id,
+      employeeId: e.employeeId,
+      name: e.name
+    })));
+    
     const employeeIndex = reception.employees.findIndex(
       emp => {
         const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
-        return empId === employeeId.toString();
+        const searchId = employeeId.toString();
+        console.log('🔍 Status update - Comparing:', { empId, searchId, match: empId === searchId });
+        return empId === searchId;
       }
     );
 
+    console.log('📍 Status update - Employee index found:', employeeIndex);
+
     if (employeeIndex === -1) {
-      console.log('Employee not found. Available employees:', reception.employees.map(e => ({
-        id: e._id,
-        employeeId: e.employeeId,
-        name: e.name
-      })));
+      console.log('❌ Status update - Employee not found');
       
       return res.status(404).json({
         success: false,
@@ -284,6 +293,114 @@ exports.updateReceptionStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Статусни янгилашда хатолик',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update reception employee (time, name, etc.)
+ */
+exports.updateReceptionEmployee = async (req, res) => {
+  try {
+    const { date, employeeId } = req.params;
+    const updateData = req.body;
+
+    console.log('🔄 Update reception employee request:', { date, employeeId, updateData });
+    console.log('📋 Available fields in updateData:', Object.keys(updateData));
+
+    // Validation
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee ID talab qilinadi'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sana talab qilinadi'
+      });
+    }
+
+    const reception = await ReceptionHistory.findOne({
+      date: {
+        $gte: dayjs(date).startOf('day').toDate(),
+        $lte: dayjs(date).endOf('day').toDate()
+      }
+    });
+
+    if (!reception) {
+      return res.status(404).json({
+        success: false,
+        message: 'Бу санада қабул топилмади'
+      });
+    }
+
+    // Employee ni topish
+    console.log('🔍 Searching for employee:', employeeId);
+    console.log('📋 Available employees in reception:', reception.employees.map(emp => ({
+      _id: emp._id,
+      employeeId: emp.employeeId,
+      name: emp.name
+    })));
+    
+    const employeeIndex = reception.employees.findIndex(
+      emp => {
+        // employeeId ObjectId yoki string bo'lishi mumkin
+        const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
+        const searchId = employeeId.toString();
+        console.log('🔍 Comparing:', { empId, searchId, match: empId === searchId });
+        return empId === searchId;
+      }
+    );
+
+    console.log('📍 Employee index found:', employeeIndex);
+
+    if (employeeIndex === -1) {
+      console.log('❌ Employee not found in reception');
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим бу сана учун қабулда топилмади'
+      });
+    }
+
+    // Update employee data
+    if (updateData.scheduledTime) {
+      reception.employees[employeeIndex].scheduledTime = updateData.scheduledTime; // Asosiy qabul vaqti
+    }
+    if (updateData.time) {
+      reception.employees[employeeIndex].time = updateData.time; // Legacy field
+    }
+    if (updateData.name) {
+      reception.employees[employeeIndex].name = updateData.name;
+    }
+    if (updateData.position) {
+      reception.employees[employeeIndex].position = updateData.position;
+    }
+    if (updateData.department) {
+      reception.employees[employeeIndex].department = updateData.department;
+    }
+    if (updateData.phone) {
+      reception.employees[employeeIndex].phone = updateData.phone;
+    }
+
+    reception.employees[employeeIndex].timeUpdated = new Date();
+
+    await reception.save();
+
+    res.json({
+      success: true,
+      message: 'Қабул маълумотлари муваффақиятли янгиланди',
+      data: reception.employees[employeeIndex]
+    });
+
+  } catch (error) {
+    console.error('Update reception employee error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Қабул маълумотларини янгилашда хатолик',
       error: error.message
     });
   }

@@ -19,8 +19,8 @@ const DailyPlanView = ({
     ...receptions.map(reception => ({ ...reception, type: 'reception' })),
     ...meetings.map(meeting => ({ ...meeting, type: 'meeting' }))
   ].sort((a, b) => {
-    const timeA = (a.startTime || a.time || '00:00').replace(':', '');
-    const timeB = (b.startTime || b.time || '00:00').replace(':', '');
+    const timeA = (a.startTime || a.scheduledTime || '00:00').replace(':', '');
+    const timeB = (b.startTime || b.scheduledTime || '00:00').replace(':', '');
     return parseInt(timeA) - parseInt(timeB);
   });
 
@@ -128,7 +128,7 @@ const DailyPlanView = ({
                     }}>
                       {getItemIcon(item.type)}
                       <strong style={{ fontSize: '14px' }}>
-                        {item.startTime || item.time}
+                        {item.startTime || item.scheduledTime}
                         {item.endTime && ` - ${item.endTime}`}
                       </strong>
                       {getItemTag(item.type)}

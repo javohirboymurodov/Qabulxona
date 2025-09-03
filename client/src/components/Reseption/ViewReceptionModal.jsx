@@ -88,6 +88,8 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
     }
   };
 
+
+
   const renderTaskActions = (task) => {
     // Agar topshiriq yo'q yoki allaqachon bajarilgan/bajarilmagan bo'lsa tugmalarni ko'rsatmaymiz
     if (!task || task.status === 'completed' || task.status === 'overdue') {
@@ -128,7 +130,11 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
       }
       open={visible}
       onCancel={onClose}
-      footer={null}
+      footer={[
+        <Button key="close" type="primary" onClick={onClose}>
+          Ёпиш
+        </Button>
+      ]}
       width={600}
     >
       <Descriptions column={1} bordered>
@@ -158,6 +164,16 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
         
         <Descriptions.Item label="Ҳолати">
           {getStatusTag(reception.status)}
+        </Descriptions.Item>
+        
+        <Descriptions.Item label="Қабул вақти">
+          <Space>
+            <ClockCircleOutlined />
+            <Text strong style={{ color: '#1890ff' }}>
+              {reception.scheduledTime || reception.time || 
+               (reception.timeUpdated ? dayjs(reception.timeUpdated).format('HH:mm') : '-')}
+            </Text>
+          </Space>
         </Descriptions.Item>
         
         <Descriptions.Item label="Янгиланган вақти">
@@ -201,6 +217,8 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
           </Text>
         </Descriptions.Item>
       </Descriptions>
+
+
     </Modal>
   );
 };
