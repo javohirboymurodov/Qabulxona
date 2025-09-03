@@ -330,21 +330,36 @@ const saveDailyPlan = async (req, res) => {
     };
 
     // Avval o'chirilgan item'larni o'chirish
+    console.log('🗑️ Processing deletions...');
     for (const deletedItem of deletedItems) {
       try {
         console.log(`🗑️ Deleting ${deletedItem.type}:`, deletedItem.id);
         
         switch (deletedItem.type) {
           case 'task':
-            await Schedule.updateOne(
-              { 
-                date: {
-                  $gte: targetDate.startOf('day').toDate(),
-                  $lte: targetDate.endOf('day').toDate()
-                }
-              },
-              { $pull: { tasks: { _id: deletedItem.id } } }
-            );
+            console.log('🗑️ Deleting task from Schedule...');
+            
+            // Schedule'ni topish
+            const schedule = await Schedule.findOne({
+              date: {
+                $gte: targetDate.startOf('day').toDate(),
+                $lte: targetDate.endOf('day').toDate()
+              }
+            });
+            
+            if (schedule) {
+              console.log('📋 Schedule found, current tasks count:', schedule.tasks.length);
+              console.log('🔍 Looking for task ID:', deletedItem.id);
+              
+              // Task'ni o'chirish
+              schedule.tasks = schedule.tasks.filter(task => task._id.toString() !== deletedItem.id);
+              
+              console.log('📋 After deletion, tasks count:', schedule.tasks.length);
+              await schedule.save();
+              console.log('✅ Schedule saved after task deletion');
+            } else {
+              console.log('❌ Schedule not found for date');
+            }
             break;
             
           case 'meeting':
