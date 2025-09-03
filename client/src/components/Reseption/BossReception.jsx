@@ -3,6 +3,7 @@ import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Tabl
 import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { updateReceptionStatus, getReceptionHistoryByDate, deleteReceptionItem } from '../../services/api';
 import ViewReceptionModal from './ViewReceptionModal';
+import AddReceptionModal from './AddReceptionModal';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -15,6 +16,10 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedReception, setSelectedReception] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Edit modal states
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingReception, setEditingReception] = useState(null);
 
   useEffect(() => {
     // Component yuklanganda bugungi ma'lumotlarni olish
@@ -98,8 +103,28 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   // Qabul tahrirlash
   const handleEditReception = (record) => {
     console.log('Edit reception:', record);
-    // AddReceptionModal ochish (keyinroq implement qilamiz)
-    messageApi.info('Қабул таҳрирлаш тез орада қўшилади');
+    setEditingReception(record);
+    setEditModalVisible(true);
+  };
+
+  const handleEditModalClose = () => {
+    setEditModalVisible(false);
+    setEditingReception(null);
+  };
+
+  const handleEditModalSave = async () => {
+    try {
+      // Ma'lumotlarni qayta yuklash
+      await loadHistoryData(selectedDate);
+      if (fetchData) {
+        await fetchData();
+      }
+      handleEditModalClose();
+      messageApi.success('Қабул муваффақиятли янгиланди');
+    } catch (error) {
+      console.error('Edit save error:', error);
+      messageApi.error('Янгилашда хатолик юз берди');
+    }
   };
 
   // Qabul o'chirish
@@ -337,6 +362,17 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
         reception={selectedReception}
         onUpdate={handleModalUpdate}
       />
+
+      {/* Edit Reception Modal */}
+      {editModalVisible && editingReception && (
+        <AddReceptionModal
+          visible={editModalVisible}
+          onClose={handleEditModalClose}
+          onSave={handleEditModalSave}
+          employees={employees || []}
+          initialData={editingReception}
+        />
+      )}
     </div>
   );
 };

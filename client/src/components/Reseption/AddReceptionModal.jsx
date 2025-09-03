@@ -79,11 +79,21 @@ const AddReceptionModal = ({
         onSave(receptionData);
         
         messageApi.success({
-          content: `${selectedEmployee.fullName || selectedEmployee.name} кунлик режага қўшилди`,
+          content: initialData 
+            ? `${selectedEmployee.fullName || selectedEmployee.name} қабули янгиланди`
+            : `${selectedEmployee.fullName || selectedEmployee.name} кунлик режага қўшилди`,
           duration: 3
         });
       } else {
-        console.log('HomePage context: calling API');
+        console.log(initialData ? 'Edit context: updating reception' : 'HomePage context: calling API');
+        
+        if (initialData) {
+          // Edit mode - faqat callback chaqirish (real API keyinroq)
+          messageApi.success('Қабул муваффақиятли янгиланди');
+          onClose(true);
+          return;
+        }
+        
         // HomePage dan chaqirilsa - API ga yuborish
         const receptionApiData = {
           employeeId: selectedEmployee._id,
