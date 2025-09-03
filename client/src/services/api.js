@@ -243,6 +243,30 @@ export const updateReceptionStatus = async (employeeId, data, date = null) => {
   }
 };
 
+// Qabul employee ma'lumotlarini yangilash (vaqt, ism, va boshqalar)
+export const updateReceptionEmployee = async (employeeId, data, date = null) => {
+  try {
+    if (!employeeId || typeof employeeId === 'object') {
+      console.error('Invalid employeeId:', employeeId);
+      throw new Error('Employee ID noto\'g\'ri formatda');
+    }
+
+    const targetDate = date || dayjs().format('YYYY-MM-DD');
+    
+    console.log('Update reception employee:', {
+      employeeId,
+      targetDate,
+      data
+    });
+
+    const response = await api.put(`/reception-history/${targetDate}/employee/${employeeId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Update reception employee error:', error);
+    throw error.response?.data || error;
+  }
+};
+
 // Sana oralig'i bo'yicha qabullarni olish
 export const getReceptionHistoryRange = async (startDate, endDate) => {
   try {

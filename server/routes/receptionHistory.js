@@ -6,6 +6,7 @@ const { protect } = require('../middleware/auth');
 const {
   addToReception,
   updateReceptionStatus,
+  updateReceptionEmployee,
   getByDate,
   getByDateRange,
   getTodayReception,
@@ -33,6 +34,9 @@ router.get('/range/:startDate/:endDate', getByDateRange);
 
 // Update employee status in reception
 router.put('/:date/employee/:employeeId/status', updateReceptionStatus);
+
+// Update reception employee data (time, name, etc.)
+router.put('/:date/employee/:employeeId', updateReceptionEmployee);
 
 // Task status yangilash
 router.put('/task/:receptionId/status', updateTaskStatus);

@@ -290,6 +290,97 @@ exports.updateReceptionStatus = async (req, res) => {
 };
 
 /**
+ * Update reception employee (time, name, etc.)
+ */
+exports.updateReceptionEmployee = async (req, res) => {
+  try {
+    const { date, employeeId } = req.params;
+    const updateData = req.body;
+
+    console.log('Update reception employee request:', { date, employeeId, updateData });
+
+    // Validation
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee ID talab qilinadi'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sana talab qilinadi'
+      });
+    }
+
+    const reception = await ReceptionHistory.findOne({
+      date: {
+        $gte: dayjs(date).startOf('day').toDate(),
+        $lte: dayjs(date).endOf('day').toDate()
+      }
+    });
+
+    if (!reception) {
+      return res.status(404).json({
+        success: false,
+        message: 'Бу санада қабул топилмади'
+      });
+    }
+
+    // Employee ni topish
+    const employeeIndex = reception.employees.findIndex(
+      emp => {
+        const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
+        return empId === employeeId.toString();
+      }
+    );
+
+    if (employeeIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим бу сана учун қабулда топилмади'
+      });
+    }
+
+    // Update employee data
+    if (updateData.time) {
+      reception.employees[employeeIndex].time = updateData.time;
+    }
+    if (updateData.name) {
+      reception.employees[employeeIndex].name = updateData.name;
+    }
+    if (updateData.position) {
+      reception.employees[employeeIndex].position = updateData.position;
+    }
+    if (updateData.department) {
+      reception.employees[employeeIndex].department = updateData.department;
+    }
+    if (updateData.phone) {
+      reception.employees[employeeIndex].phone = updateData.phone;
+    }
+
+    reception.employees[employeeIndex].timeUpdated = new Date();
+
+    await reception.save();
+
+    res.json({
+      success: true,
+      message: 'Қабул маълумотлари муваффақиятли янгиланди',
+      data: reception.employees[employeeIndex]
+    });
+
+  } catch (error) {
+    console.error('Update reception employee error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Қабул маълумотларини янгилашда хатолик',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Get reception by date
  */
 exports.getByDate = async (req, res) => {

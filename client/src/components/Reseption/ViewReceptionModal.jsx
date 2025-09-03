@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Modal, Descriptions, Tag, Typography, Space, Avatar, Button, message } from 'antd';
-import { UserOutlined, PhoneOutlined, BankOutlined, ClockCircleOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { UserOutlined, PhoneOutlined, BankOutlined, ClockCircleOutlined, CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { updateTaskStatus } from '../../services/api';
+import AddReceptionModal from './AddReceptionModal';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
-const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
+const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees = [] }) => {
   const [loading, setLoading] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   if (!reception) return null;
 
@@ -88,6 +90,26 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
     }
   };
 
+  const handleEditReception = () => {
+    console.log('Edit reception:', reception);
+    setEditModalVisible(true);
+  };
+
+  const handleEditModalClose = (updated) => {
+    setEditModalVisible(false);
+    if (updated && onUpdate) {
+      onUpdate();
+    }
+  };
+
+  const handleEditSave = (data) => {
+    console.log('Reception updated:', data);
+    setEditModalVisible(false);
+    if (onUpdate) {
+      onUpdate();
+    }
+  };
+
   const renderTaskActions = (task) => {
     // Agar topshiriq yo'q yoki allaqachon bajarilgan/bajarilmagan bo'lsa tugmalarni ko'rsatmaymiz
     if (!task || task.status === 'completed' || task.status === 'overdue') {
@@ -128,7 +150,14 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
       }
       open={visible}
       onCancel={onClose}
-      footer={null}
+      footer={[
+        <Button key="edit" type="primary" icon={<EditOutlined />} onClick={handleEditReception}>
+          Таҳрирлаш
+        </Button>,
+        <Button key="close" onClick={onClose}>
+          Ёпиш
+        </Button>
+      ]}
       width={600}
     >
       <Descriptions column={1} bordered>
@@ -201,6 +230,15 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
           </Text>
         </Descriptions.Item>
       </Descriptions>
+
+      {/* Edit Modal */}
+      <AddReceptionModal
+        visible={editModalVisible}
+        onClose={handleEditModalClose}
+        onSave={handleEditSave}
+        employees={employees}
+        initialData={reception}
+      />
     </Modal>
   );
 };

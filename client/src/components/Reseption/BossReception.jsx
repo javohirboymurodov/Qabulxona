@@ -257,6 +257,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
         onClose={handleViewModalClose}
         reception={selectedReception}
         onUpdate={handleModalUpdate}
+        employees={employees}
       />
     </div>
   );
