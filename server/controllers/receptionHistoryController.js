@@ -203,19 +203,26 @@ exports.updateReceptionStatus = async (req, res) => {
     }
 
     // Employee ni topish - employeeId bo'yicha yoki employeeId field bo'yicha
+    console.log('🔍 Status update - Searching for employee:', employeeId);
+    console.log('📋 Status update - Available employees:', reception.employees.map(e => ({
+      id: e._id,
+      employeeId: e.employeeId,
+      name: e.name
+    })));
+    
     const employeeIndex = reception.employees.findIndex(
       emp => {
         const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
-        return empId === employeeId.toString();
+        const searchId = employeeId.toString();
+        console.log('🔍 Status update - Comparing:', { empId, searchId, match: empId === searchId });
+        return empId === searchId;
       }
     );
 
+    console.log('📍 Status update - Employee index found:', employeeIndex);
+
     if (employeeIndex === -1) {
-      console.log('Employee not found. Available employees:', reception.employees.map(e => ({
-        id: e._id,
-        employeeId: e.employeeId,
-        name: e.name
-      })));
+      console.log('❌ Status update - Employee not found');
       
       return res.status(404).json({
         success: false,
@@ -341,8 +348,11 @@ exports.updateReceptionEmployee = async (req, res) => {
     
     const employeeIndex = reception.employees.findIndex(
       emp => {
+        // employeeId ObjectId yoki string bo'lishi mumkin
         const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
-        return empId === employeeId.toString();
+        const searchId = employeeId.toString();
+        console.log('🔍 Comparing:', { empId, searchId, match: empId === searchId });
+        return empId === searchId;
       }
     );
 
