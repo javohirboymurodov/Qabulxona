@@ -472,6 +472,12 @@ const saveDailyPlan = async (req, res) => {
             );
 
             if (!existingEmployee) {
+              console.log('🆕 Adding new employee to reception:', {
+                employeeId: item.employeeId,
+                name: item.name,
+                scheduledTime: item.scheduledTime || item.time
+              });
+              
               receptionHistory.employees.push({
                 employeeId: item.employeeId,
                 name: item.name,

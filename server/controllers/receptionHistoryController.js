@@ -299,7 +299,8 @@ exports.updateReceptionEmployee = async (req, res) => {
     const { date, employeeId } = req.params;
     const updateData = req.body;
 
-    console.log('Update reception employee request:', { date, employeeId, updateData });
+    console.log('🔄 Update reception employee request:', { date, employeeId, updateData });
+    console.log('📋 Available fields in updateData:', Object.keys(updateData));
 
     // Validation
     if (!employeeId) {
@@ -331,6 +332,13 @@ exports.updateReceptionEmployee = async (req, res) => {
     }
 
     // Employee ni topish
+    console.log('🔍 Searching for employee:', employeeId);
+    console.log('📋 Available employees in reception:', reception.employees.map(emp => ({
+      _id: emp._id,
+      employeeId: emp.employeeId,
+      name: emp.name
+    })));
+    
     const employeeIndex = reception.employees.findIndex(
       emp => {
         const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
@@ -338,7 +346,10 @@ exports.updateReceptionEmployee = async (req, res) => {
       }
     );
 
+    console.log('📍 Employee index found:', employeeIndex);
+
     if (employeeIndex === -1) {
+      console.log('❌ Employee not found in reception');
       return res.status(404).json({
         success: false,
         message: 'Ходим бу сана учун қабулда топилмади'
