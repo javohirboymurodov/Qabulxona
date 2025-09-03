@@ -221,8 +221,16 @@ exports.updateReceptionStatus = async (req, res) => {
       });
     }
 
-    // Update status
+    // Update status with new time fields
     reception.employees[employeeIndex].status = status;
+    reception.employees[employeeIndex].statusUpdatedAt = new Date();
+    
+    // Agar "present" ga o'zgartirilsa, arrivedAt vaqtni belgilash
+    if (status === 'present') {
+      reception.employees[employeeIndex].arrivedAt = new Date();
+    }
+    
+    // Backward compatibility uchun
     reception.employees[employeeIndex].timeUpdated = new Date();
 
     // Update task if provided

@@ -479,7 +479,11 @@ const saveDailyPlan = async (req, res) => {
                 department: item.department || '',
                 phone: item.phone || '',
                 status: item.status || 'waiting',
-                time: item.time, // Add time field
+                scheduledTime: item.time || dayjs().format('HH:mm'), // Yangi field
+                arrivedAt: null, // Kelgan vaqt (hozircha null)
+                statusUpdatedAt: new Date(),
+                // Backward compatibility
+                time: item.time,
                 timeUpdated: new Date(),
                 createdAt: new Date()
               });

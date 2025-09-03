@@ -156,28 +156,42 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
           </Descriptions.Item>
         )}
         
-        <Descriptions.Item label="Қабул вақти">
+        <Descriptions.Item label="Қабул вақти (режалаштирилган)">
           <Space>
             <ClockCircleOutlined style={{ color: '#1890ff' }} />
             <Text strong>
-              {reception.time || 
+              {reception.scheduledTime || 
+               reception.time || 
                (reception.timeUpdated ? dayjs(reception.timeUpdated).format('HH:mm') : '-')
               }
             </Text>
           </Space>
         </Descriptions.Item>
+
+        {/* Kelgan vaqt - faqat kelgan bo'lsa */}
+        {reception.status === 'present' && reception.arrivedAt && (
+          <Descriptions.Item label="Келган вақт (ҳақиқий)">
+            <Space>
+              <ClockCircleOutlined style={{ color: '#52c41a' }} />
+              <Text strong style={{ color: '#52c41a' }}>
+                {dayjs(reception.arrivedAt).format('HH:mm')}
+              </Text>
+            </Space>
+          </Descriptions.Item>
+        )}
         
         <Descriptions.Item label="Ҳолати">
           {getStatusTag(reception.status)}
         </Descriptions.Item>
         
-        <Descriptions.Item label="Янгиланган вақти">
+        <Descriptions.Item label="Ҳолат янгиланган вақти">
           <Space>
             <ClockCircleOutlined />
             <Text type="secondary">
-              {reception.timeUpdated ? 
-                dayjs(reception.timeUpdated).format('DD.MM.YYYY HH:mm') : 
-                '-'
+              {reception.statusUpdatedAt ? 
+                dayjs(reception.statusUpdatedAt).format('DD.MM.YYYY HH:mm') :
+                (reception.timeUpdated ? 
+                  dayjs(reception.timeUpdated).format('DD.MM.YYYY HH:mm') : '-')
               }
             </Text>
           </Space>

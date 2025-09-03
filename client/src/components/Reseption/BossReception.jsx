@@ -214,16 +214,18 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       render: (text) => text || '-'
     },
     {
-      title: 'Лавозими',
-      dataIndex: 'position',
-      key: 'position',
-      render: (text) => text || '-'
-    },
-    {
-      title: 'Бўлим',
-      dataIndex: 'department',
-      key: 'department',
-      render: (text) => text || '-'
+      title: 'Лавозими ва Бўлим',
+      key: 'positionDepartment',
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>
+            {record.position || '-'}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.department || '-'}
+          </div>
+        </div>
+      )
     },
     {
       title: 'Қабул вақти',
@@ -233,43 +235,36 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       render: (_, record) => (
         <div style={{ textAlign: 'center' }}>
           <Text strong style={{ color: '#1890ff' }}>
-            {record.time || 
+            {record.scheduledTime || 
+             record.time || 
              (record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-')
             }
           </Text>
+          {/* Agar kelgan bo'lsa, kelgan vaqtni ko'rsatish */}
+          {record.status === 'present' && record.arrivedAt && (
+            <div style={{ fontSize: '10px', color: '#52c41a', marginTop: 2 }}>
+              Келди: {dayjs(record.arrivedAt).format('HH:mm')}
+            </div>
+          )}
         </div>
       )
     },
     {
       title: 'Топшириқ',
       key: 'taskStatus',
+      width: 80,
+      align: 'center',
       render: (_, record) => {
-        // Agar xodim kelmagan bo'lsa, task ma'lumotlarini ko'rsatmaymiz
-        if (record.status === 'absent') {
+        // Faqat kun ko'rsatish
+        if (!record.task || !record.task.deadline) {
           return '-';
         }
         
-        // Agar task yo'q bo'lsa yoki description yo'q bo'lsa
-        if (!record.task || !record.task.description) {
-          return '-';
-        }
-        
-        // Agar task completed yoki overdue bo'lsa, faqat statusni ko'rsatamiz
-        if (record.task.status === 'completed' || record.task.status === 'overdue') {
-          return getTaskStatusDisplay(record.task);
-        }
-        
-        // Pending holatda description va statusni ko'rsatamiz
         return (
-          <div>
-            <div style={{ marginBottom: '4px' }}>
-              <Text style={{ fontSize: '12px' }}>
-                {record.task.description && record.task.description.length > 30 
-                  ? `${record.task.description.substring(0, 30)}...` 
-                  : record.task.description || '-'}
-              </Text>
-            </div>
-            {getTaskStatusDisplay(record.task)}
+          <div style={{ textAlign: 'center' }}>
+            <Text strong style={{ color: '#1890ff' }}>
+              {record.task.deadline} кун
+            </Text>
           </div>
         );
       }
@@ -281,10 +276,14 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       render: (_, record) => {
         const isToday = selectedDate.isSame(dayjs(), 'day');
         const isFuture = selectedDate.isAfter(dayjs(), 'day');
-        const canEdit = isToday || isFuture;
+        const isDateEditable = isToday || isFuture;
+        
+        // Status o'zgartirilgandan keyin edit/delete disable
+        const isStatusChanged = record.status === 'present' || record.status === 'absent';
+        const canEdit = isDateEditable && !isStatusChanged;
         
         return (
-          <Space size="small">
+          <Space size="middle">
             {/* View button - har doim */}
             <Button
               type="text"
@@ -294,7 +293,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
               title="Кўриш"
             />
             
-            {/* Edit button - faqat bugun/kelajak */}
+            {/* Edit button - cheklangan */}
             {canEdit && (
               <Button
                 type="text"
@@ -305,7 +304,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
               />
             )}
             
-            {/* Delete button - faqat bugun/kelajak */}
+            {/* Delete button - cheklangan */}
             {canEdit && (
               <Button
                 type="text"
