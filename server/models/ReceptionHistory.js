@@ -16,6 +16,10 @@ const receptionHistorySchema = new mongoose.Schema({
     position: String,
     department: String,
     phone: String,
+    time: {
+      type: String, // HH:mm formatda
+      default: null
+    },
     status: {
       type: String,
       enum: ['waiting', 'present', 'absent'],

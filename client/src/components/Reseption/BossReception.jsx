@@ -48,17 +48,32 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     try {
       setLoading(true);
       const dateStr = date.format('YYYY-MM-DD');
+      console.log('📡 Loading history data for:', dateStr);
+      
       const response = await getReceptionHistoryByDate(dateStr);
+      console.log('📥 API response:', response);
       
       // Backend'dan kelgan ma'lumotlarni to'g'ri formatda olish
       const data = response?.data || [];
-      const formattedData = data.map((item, index) => ({
-        ...item,
-        key: item._id || item.id || `history-${index}-${Date.now()}`,
-        id: item._id || item.id || `temp-${index}`
-      }));
+      console.log('📋 Raw data count:', data.length);
+      
+      const formattedData = data.map((item, index) => {
+        console.log(`📝 Employee ${index + 1}:`, {
+          name: item.name,
+          time: item.time,
+          scheduledTime: item.scheduledTime,
+          timeUpdated: item.timeUpdated
+        });
+        
+        return {
+          ...item,
+          key: item._id || item.id || `history-${index}-${Date.now()}`,
+          id: item._id || item.id || `temp-${index}`
+        };
+      });
       
       setHistoryData(formattedData);
+      console.log('✅ History data updated, count:', formattedData.length);
     } catch (error) {
       console.error('History data loading error:', error);
       messageApi.error('Маълумотларни юклашда хатолик юз берди');
@@ -85,13 +100,17 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
 
   const handleModalUpdate = async () => {
     // Ma'lumotlarni yangilash
-    console.log('Refreshing data for date:', selectedDate.format('YYYY-MM-DD'));
+    console.log('🔄 Refreshing data for date:', selectedDate.format('YYYY-MM-DD'));
+    console.log('📊 Current historyData count:', historyData.length);
+    
     await loadHistoryData(selectedDate);
     
     // Agar fetchData mavjud bo'lsa, uni ham chaqiramiz
     if (fetchData) {
       await fetchData();
     }
+    
+    console.log('✅ Data refresh completed');
   };
 
   const getTaskStatusDisplay = (task) => {
@@ -157,13 +176,26 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     },
     {
       title: 'Вақт',
-      key: 'timeUpdated',
+      key: 'time',
       width: 80,
-      render: (_, record) => (
-        <Text type="secondary">
-          {record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-'}
-        </Text>
-      )
+      render: (_, record) => {
+        // Prioritet: time field -> timeUpdated'dan extract -> scheduledTime
+        let displayTime = '-';
+        
+        if (record.time) {
+          displayTime = record.time;
+        } else if (record.scheduledTime) {
+          displayTime = record.scheduledTime;
+        } else if (record.timeUpdated) {
+          displayTime = dayjs(record.timeUpdated).format('HH:mm');
+        }
+        
+        return (
+          <Text type="secondary">
+            {displayTime}
+          </Text>
+        );
+      }
     },
     {
       title: 'Топшириқ',

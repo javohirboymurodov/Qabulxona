@@ -128,6 +128,9 @@ const AddReceptionModal = ({
             updated: true
           });
         }
+        
+        // Edit mode'da modal'ni yopish va ma'lumotlarni yangilash
+        onClose(true); // true - yangilanish bo'ldi
       } else if (isDailyPlanContext) {
         console.log('DailyPlan context: calling onSave callback');
         // DailyPlan dan chaqirilsa - faqat callback (API chaqirmaslik)

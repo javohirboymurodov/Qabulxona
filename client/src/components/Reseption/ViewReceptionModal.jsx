@@ -98,15 +98,17 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees =
   const handleEditModalClose = (updated) => {
     setEditModalVisible(false);
     if (updated && onUpdate) {
+      console.log('Edit modal closed with update, refreshing data...');
       onUpdate();
     }
   };
 
-  const handleEditSave = (data) => {
+  const handleEditSave = async (data) => {
     console.log('Reception updated:', data);
     setEditModalVisible(false);
     if (onUpdate) {
-      onUpdate();
+      console.log('Calling onUpdate after edit save...');
+      await onUpdate();
     }
   };
 
@@ -234,7 +236,14 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees =
       {/* Edit Modal */}
       <AddReceptionModal
         visible={editModalVisible}
-        onClose={handleEditModalClose}
+        onClose={(updated) => {
+          console.log('Edit modal closing, updated:', updated);
+          setEditModalVisible(false);
+          if (updated && onUpdate) {
+            console.log('Triggering data refresh after edit...');
+            onUpdate();
+          }
+        }}
         onSave={handleEditSave}
         employees={employees}
         initialData={reception}
