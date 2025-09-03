@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Modal, Descriptions, Tag, Typography, Space, Avatar, Button, message } from 'antd';
-import { UserOutlined, PhoneOutlined, BankOutlined, ClockCircleOutlined, CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
+import { UserOutlined, PhoneOutlined, BankOutlined, ClockCircleOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { updateTaskStatus } from '../../services/api';
-import AddReceptionModal from './AddReceptionModal';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
-const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees = [] }) => {
+const ViewReceptionModal = ({ visible, onClose, reception, onUpdate }) => {
   const [loading, setLoading] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
 
   if (!reception) return null;
 
@@ -90,27 +88,7 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees =
     }
   };
 
-  const handleEditReception = () => {
-    console.log('Edit reception:', reception);
-    setEditModalVisible(true);
-  };
 
-  const handleEditModalClose = (updated) => {
-    setEditModalVisible(false);
-    if (updated && onUpdate) {
-      console.log('Edit modal closed with update, refreshing data...');
-      onUpdate();
-    }
-  };
-
-  const handleEditSave = async (data) => {
-    console.log('Reception updated:', data);
-    setEditModalVisible(false);
-    if (onUpdate) {
-      console.log('Calling onUpdate after edit save...');
-      await onUpdate();
-    }
-  };
 
   const renderTaskActions = (task) => {
     // Agar topshiriq yo'q yoki allaqachon bajarilgan/bajarilmagan bo'lsa tugmalarni ko'rsatmaymiz
@@ -153,10 +131,7 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees =
       open={visible}
       onCancel={onClose}
       footer={[
-        <Button key="edit" type="primary" icon={<EditOutlined />} onClick={handleEditReception}>
-          Таҳрирлаш
-        </Button>,
-        <Button key="close" onClick={onClose}>
+        <Button key="close" type="primary" onClick={onClose}>
           Ёпиш
         </Button>
       ]}
@@ -243,21 +218,7 @@ const ViewReceptionModal = ({ visible, onClose, reception, onUpdate, employees =
         </Descriptions.Item>
       </Descriptions>
 
-      {/* Edit Modal */}
-      <AddReceptionModal
-        visible={editModalVisible}
-        onClose={(updated) => {
-          console.log('Edit modal closing, updated:', updated);
-          setEditModalVisible(false);
-          if (updated && onUpdate) {
-            console.log('Triggering data refresh after edit...');
-            onUpdate();
-          }
-        }}
-        onSave={handleEditSave}
-        employees={employees}
-        initialData={reception}
-      />
+
     </Modal>
   );
 };

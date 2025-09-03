@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Table } from 'antd';
-import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
 import ViewReceptionModal from './ViewReceptionModal';
+import AddReceptionModal from './AddReceptionModal';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -14,6 +15,8 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   const [loading, setLoading] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedReception, setSelectedReception] = useState(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingReception, setEditingReception] = useState(null);
 
   useEffect(() => {
     // Component yuklanganda bugungi ma'lumotlarni olish
@@ -96,6 +99,21 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   const handleViewModalClose = () => {
     setViewModalVisible(false);
     setSelectedReception(null);
+  };
+
+  const handleEditReception = (record) => {
+    console.log('Edit reception:', record);
+    setEditingReception(record);
+    setEditModalVisible(true);
+  };
+
+  const handleEditModalClose = (updated) => {
+    setEditModalVisible(false);
+    setEditingReception(null);
+    if (updated) {
+      console.log('Reception updated, refreshing data...');
+      handleModalUpdate();
+    }
   };
 
   const handleModalUpdate = async () => {
@@ -232,14 +250,24 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     {
       title: 'Амаллар',
       key: 'actions',
-      width: 80,
+      width: 120,
       render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewReception(record)}
-          size="small"
-        />
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewReception(record)}
+            size="small"
+            title="Кўриш"
+          />
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditReception(record)}
+            size="small"
+            title="Таҳрирлаш"
+          />
+        </Space>
       )
     }
   ];
@@ -287,7 +315,13 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
         onClose={handleViewModalClose}
         reception={selectedReception}
         onUpdate={handleModalUpdate}
+      />
+
+      <AddReceptionModal
+        visible={editModalVisible}
+        onClose={handleEditModalClose}
         employees={employees}
+        initialData={editingReception}
       />
     </div>
   );
