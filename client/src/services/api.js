@@ -258,6 +258,7 @@ export const updateReceptionEmployee = async (employeeId, data, date = null) => 
       targetDate,
       data
     });
+    console.log('Update data details:', JSON.stringify(data, null, 2));
 
     const response = await api.put(`/reception-history/${targetDate}/employee/${employeeId}`, data);
     return response.data;
