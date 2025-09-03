@@ -11,7 +11,8 @@ const AddReceptionModal = ({
   onSave, 
   employees = [], 
   preSelectedEmployees = [],
-  defaultDate
+  defaultDate,
+  initialData // Edit mode uchun
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
@@ -19,16 +20,22 @@ const AddReceptionModal = ({
 
   useEffect(() => {
     if (visible) {
-      form.resetFields();
-      
-      // Default vaqt - hozirgi vaqtdan 1 soat keyin
-      form.setFieldsValue({
-        time: dayjs().add(1, 'hour'),
-        // Agar preSelected employee bor bo'lsa, birinchisini tanlash
-        selectedEmployee: preSelectedEmployees.length > 0 ? preSelectedEmployees[0]._id : undefined
-      });
+      if (initialData) {
+        // Edit mode - form'ni initial data bilan to'ldirish
+        form.setFieldsValue({
+          selectedEmployee: initialData.employeeId,
+          time: initialData.time ? dayjs(initialData.time, 'HH:mm') : dayjs().add(1, 'hour')
+        });
+      } else {
+        // Create mode
+        form.resetFields();
+        form.setFieldsValue({
+          time: dayjs().add(1, 'hour'),
+          selectedEmployee: preSelectedEmployees.length > 0 ? preSelectedEmployees[0]._id : undefined
+        });
+      }
     }
-  }, [visible, form, preSelectedEmployees]);
+  }, [visible, form, preSelectedEmployees, initialData]);
 
   const handleSubmit = async () => {
     try {
@@ -123,11 +130,11 @@ const AddReceptionModal = ({
 
   return (
     <Modal
-      title="Рахбар қабулига қўшиш"
+      title={initialData ? "Қабулни таҳрирлаш" : "Рахбар қабулига қўшиш"}
       open={visible}
       onOk={handleSubmit}
       onCancel={() => onClose(false)}
-      okText="Қўшиш"
+      okText={initialData ? "Сақлаш" : "Қўшиш"}
       cancelText="Орқага"
       width={600}
       confirmLoading={loading}

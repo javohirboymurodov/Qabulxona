@@ -22,9 +22,12 @@ import DailyPlanModal from './DailyPlanModal';
 
 // Components
 import ScheduleTable from '../Common/ScheduleTable';
+import AddMeetingModal from '../Meetings/AddMeetingModal';
+import AddReceptionModal from '../Reseption/AddReceptionModal';
+import TaskModal from './TaskModal';
 
 // API services
-import { getDailyPlan } from '../../services/api';
+import { getDailyPlan, getEmployees } from '../../services/api';
 
 // PDF Generator will be dynamically imported
 
@@ -38,11 +41,31 @@ const BossWorkSchedule = ({ showMessage }) => {
   const [loading, setLoading] = useState(false);
   const [showDailyPlan, setShowDailyPlan] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  
+  // Individual edit modal states
+  const [employees, setEmployees] = useState([]);
+  const [showEditModal, setShowEditModal] = useState(false);
 
 
   useEffect(() => {
     fetchDailyPlan(selectedDate);
+    loadEmployees(); // Employees'ni yuklash
   }, [selectedDate]);
+
+  // Load employees for modals
+  const loadEmployees = async () => {
+    try {
+      const response = await getEmployees();
+      if (response?.data && Array.isArray(response.data)) {
+        setEmployees(response.data);
+      } else if (response && Array.isArray(response)) {
+        setEmployees(response);
+      }
+    } catch (error) {
+      console.error('Employees loading error:', error);
+      setEmployees([]);
+    }
+  };
 
   const isDateEditable = (date) => {
     const selectedDay = dayjs(date).startOf('day');
@@ -108,6 +131,10 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(date);
   };
 
+  // Modal states for individual editing
+  const [editingItem, setEditingItem] = useState(null);
+  const [editModalType, setEditModalType] = useState(null); // 'task', 'meeting', 'reception'
+
   // Modal ochish/yopish funksiyalarini tuzatish
   const handleModalOpen = () => {
     setShowDailyPlan(true); // to'g'ri state ishlatish
@@ -117,6 +144,37 @@ const BossWorkSchedule = ({ showMessage }) => {
     setShowDailyPlan(false);
     // Ma'lumotlarni yangilash
     fetchDailyPlan(selectedDate);
+  };
+
+  // Individual item actions
+  const handleViewItem = (item) => {
+    console.log('View item:', item);
+    // View modal ochish (ixtiyoriy)
+  };
+
+  const handleEditItem = (item) => {
+    console.log('Edit item:', item);
+    setEditingItem(item);
+    setEditModalType(item.type);
+    setShowEditModal(true);
+  };
+
+  const handleEditModalClose = () => {
+    setShowEditModal(false);
+    setEditingItem(null);
+    setEditModalType(null);
+  };
+
+  const handleEditModalSave = async () => {
+    // Edit saqlangandan keyin ma'lumotlarni yangilash
+    await fetchDailyPlan(selectedDate);
+    handleEditModalClose();
+    showMessage?.success('Маълумот муваффақиятли янгиланди');
+  };
+
+  const handleDeleteItem = (item) => {
+    console.log('Delete item:', item);
+    // Delete confirmation
   };
 
   // PDF generation handler with dynamic import
@@ -239,16 +297,16 @@ const BossWorkSchedule = ({ showMessage }) => {
                 <ScheduleTable
                   dataSource={dailyPlanData.items}
                   loading={loading}
-                  showActions={isDateEditable(selectedDate)}
+                  selectedDate={selectedDate}
+                  showActions={true}
                   emptyText={
                     isDateEditable(selectedDate)
                       ? "Бу кун учун режа тузилмаган"
                       : "Бу кун учун иш режа мавжуд эмас"
                   }
-                  onEdit={(record) => {
-                    // Edit functionality - modal ochish
-                    setShowDailyPlan(true);
-                  }}
+                  onView={handleViewItem}
+                  onEdit={handleEditItem}
+                  onDelete={handleDeleteItem}
                 />
               </div>
             ) : (
@@ -293,6 +351,41 @@ const BossWorkSchedule = ({ showMessage }) => {
           }, 500);
         }}
       />
+
+      {/* Individual Edit Modal'lar */}
+      
+      {/* Meeting Edit Modal */}
+      {showEditModal && editModalType === 'meeting' && editingItem && (
+        <AddMeetingModal
+          visible={showEditModal}
+          onClose={handleEditModalClose}
+          onSuccess={handleEditModalSave}
+          employees={employees}
+          initialData={editingItem}
+        />
+      )}
+
+      {/* Task Edit Modal */}
+      {showEditModal && editModalType === 'task' && editingItem && (
+        <TaskModal
+          visible={showEditModal}
+          onClose={handleEditModalClose}
+          onSave={handleEditModalSave}
+          defaultDate={selectedDate}
+          initialData={editingItem}
+        />
+      )}
+
+      {/* Reception Edit Modal */}
+      {showEditModal && editModalType === 'reception' && editingItem && (
+        <AddReceptionModal
+          visible={showEditModal}
+          onClose={handleEditModalClose}
+          onSave={handleEditModalSave}
+          employees={employees}
+          initialData={editingItem}
+        />
+      )}
     </div>
   );
 };
