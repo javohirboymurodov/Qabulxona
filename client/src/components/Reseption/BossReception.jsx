@@ -179,13 +179,13 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       key: 'time',
       width: 80,
       render: (_, record) => {
-        // Prioritet: time field -> timeUpdated'dan extract -> scheduledTime
+        // Prioritet: scheduledTime -> time field -> timeUpdated'dan extract
         let displayTime = '-';
         
-        if (record.time) {
-          displayTime = record.time;
-        } else if (record.scheduledTime) {
+        if (record.scheduledTime) {
           displayTime = record.scheduledTime;
+        } else if (record.time) {
+          displayTime = record.time;
         } else if (record.timeUpdated) {
           displayTime = dayjs(record.timeUpdated).format('HH:mm');
         }

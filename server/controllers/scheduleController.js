@@ -479,7 +479,8 @@ const saveDailyPlan = async (req, res) => {
                 department: item.department || '',
                 phone: item.phone || '',
                 status: item.status || 'waiting',
-                time: item.time, // Add time field
+                time: item.time, // Legacy field
+                scheduledTime: item.scheduledTime || item.time, // Asosiy qabul vaqti
                 timeUpdated: new Date(),
                 createdAt: new Date()
               });

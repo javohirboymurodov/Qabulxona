@@ -165,6 +165,7 @@ const AddReceptionModal = ({
           phone: selectedEmployee.phone || '',
           status: 'waiting',
           time: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'),
+          scheduledTime: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'), // Asosiy qabul vaqti
           date: dayjs().format('YYYY-MM-DD')
         };
 

@@ -51,7 +51,7 @@ exports.getTodayReception = async (req, res) => {
  */
 exports.addToReception = async (req, res) => {
   try {
-    const { employeeId, name, position, department, phone, status = 'waiting', task, time } = req.body;
+    const { employeeId, name, position, department, phone, status = 'waiting', task, time, scheduledTime } = req.body;
     
     // Validation
     if (!employeeId) {
@@ -98,6 +98,7 @@ exports.addToReception = async (req, res) => {
         ...reception.employees[employeeIndex],
         status,
         time: time || reception.employees[employeeIndex].time || dayjs().format('HH:mm'),
+        scheduledTime: scheduledTime || time || reception.employees[employeeIndex].scheduledTime || dayjs().format('HH:mm'),
         task: task || reception.employees[employeeIndex].task,
         timeUpdated: new Date()
       };
@@ -110,7 +111,8 @@ exports.addToReception = async (req, res) => {
         department: department || employee.department,
         phone: phone || employee.phone || '',
         status: status,
-        time: time || dayjs().format('HH:mm'), // Qabul vaqtini saqlash
+        time: time || dayjs().format('HH:mm'), // Legacy field
+        scheduledTime: scheduledTime || time || dayjs().format('HH:mm'), // Asosiy qabul vaqti
         timeUpdated: new Date(),
         createdAt: new Date()
       };
@@ -348,6 +350,7 @@ exports.updateReceptionEmployee = async (req, res) => {
     // Update employee data
     if (updateData.time) {
       reception.employees[employeeIndex].time = updateData.time;
+      reception.employees[employeeIndex].scheduledTime = updateData.time; // Asosiy qabul vaqti ham yangilanadi
     }
     if (updateData.name) {
       reception.employees[employeeIndex].name = updateData.name;

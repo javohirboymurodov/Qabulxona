@@ -17,7 +17,11 @@ const receptionHistorySchema = new mongoose.Schema({
     department: String,
     phone: String,
     time: {
-      type: String, // HH:mm formatda
+      type: String, // HH:mm formatda (legacy)
+      default: null
+    },
+    scheduledTime: {
+      type: String, // HH:mm formatda - asosiy qabul vaqti
       default: null
     },
     status: {
