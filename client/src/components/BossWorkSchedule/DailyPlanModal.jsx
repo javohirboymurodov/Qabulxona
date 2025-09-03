@@ -159,23 +159,49 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     console.log('=== Meeting Modal Save Callback ===');
     console.log('Meeting modal data received:', meetingData);
     
-    const newMeeting = {
-      id: Date.now(),
-      type: 'meeting', // TYPE MUHIM!
-      time: meetingData.time,
-      name: meetingData.data.name, // NAME
-      title: meetingData.data.name, // TITLE ham qo'shish
-      description: meetingData.data.description || '',
-      location: meetingData.data.location || '',
-      participants: meetingData.data.participants || [],
-      date: date,
-      isNew: true
-    };
+    // Edit mode tekshiruvi
+    if (editingMeeting) {
+      // Edit mode - mavjud meeting'ni yangilash
+      const updatedMeeting = {
+        ...editingMeeting,
+        time: meetingData.time,
+        name: meetingData.data.name,
+        title: meetingData.data.name,
+        description: meetingData.data.description || '',
+        location: meetingData.data.location || '',
+        participants: meetingData.data.participants || [],
+        isNew: false // Edit mode
+      };
+      
+      console.log('Updating existing meeting:', updatedMeeting);
+      setItems(prev => prev.map(item => 
+        item.id === editingMeeting.id ? updatedMeeting : item
+      ));
+      setMeetings(prev => prev.map(meeting => 
+        meeting.id === editingMeeting.id ? updatedMeeting : meeting
+      ));
+    } else {
+      // Create mode - yangi meeting qo'shish
+      const newMeeting = {
+        id: Date.now(),
+        type: 'meeting',
+        time: meetingData.time,
+        name: meetingData.data.name,
+        title: meetingData.data.name,
+        description: meetingData.data.description || '',
+        location: meetingData.data.location || '',
+        participants: meetingData.data.participants || [],
+        date: date,
+        isNew: true
+      };
+      
+      console.log('Adding new meeting:', newMeeting);
+      setItems(prev => [...prev, newMeeting]);
+      setMeetings(prev => [...prev, newMeeting]);
+    }
     
-    console.log('Adding meeting to local state with all fields:', newMeeting);
-    setItems(prev => [...prev, newMeeting]);
-    setMeetings(prev => [...prev, newMeeting]);
     setShowMeetingModal(false);
+    setEditingMeeting(null); // Reset editing state
   };
 
   // DailyPlanModal.jsx da handleTaskModalSave callback qo'shish

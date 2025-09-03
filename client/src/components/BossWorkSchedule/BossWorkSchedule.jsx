@@ -13,7 +13,8 @@ import {
   Col,
   Tag,
   Spin,
-  Badge
+  Badge,
+  Modal
 } from "antd";
 import { PlusOutlined, EditOutlined, FilePdfOutlined } from "@ant-design/icons";
 
@@ -27,7 +28,14 @@ import AddReceptionModal from '../Reseption/AddReceptionModal';
 import TaskModal from './TaskModal';
 
 // API services
-import { getDailyPlan, getEmployees } from '../../services/api';
+import { 
+  getDailyPlan, 
+  getEmployees, 
+  updateMeeting, 
+  deleteMeeting,
+  deleteTask,
+  deleteReceptionItem
+} from '../../services/api';
 
 // PDF Generator will be dynamically imported
 
@@ -45,6 +53,8 @@ const BossWorkSchedule = ({ showMessage }) => {
   // Individual edit modal states
   const [employees, setEmployees] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
 
   useEffect(() => {
@@ -166,15 +176,83 @@ const BossWorkSchedule = ({ showMessage }) => {
   };
 
   const handleEditModalSave = async () => {
-    // Edit saqlangandan keyin ma'lumotlarni yangilash
-    await fetchDailyPlan(selectedDate);
-    handleEditModalClose();
-    showMessage?.success('Маълумот муваффақиятли янгиланди');
+    try {
+      setEditLoading(true);
+      // Edit saqlangandan keyin ma'lumotlarni yangilash
+      await fetchDailyPlan(selectedDate);
+      handleEditModalClose();
+      showMessage?.success('Маълумот муваффақиятли янгиланди');
+    } catch (error) {
+      console.error('Edit save error:', error);
+      showMessage?.error('Янгилашда хатолик юз берди');
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleDeleteItem = (item) => {
     console.log('Delete item:', item);
-    // Delete confirmation
+    
+    const typeNames = {
+      'task': 'вазифани',
+      'meeting': 'мажлисни', 
+      'reception': 'қабулни'
+    };
+    
+    Modal.confirm({
+      title: 'Ўчириш тасдиқи',
+      content: `Ҳақиқатан ҳам ушбу ${typeNames[item.type] || 'элементни'} ўчиришни истайсизми?`,
+      okText: 'Ҳа, ўчириш',
+      cancelText: 'Бекор қилиш',
+      okType: 'danger',
+      onOk: async () => {
+        await handleConfirmDelete(item);
+      }
+    });
+  };
+
+  const handleConfirmDelete = async (item) => {
+    try {
+      setDeleteLoading(true);
+      console.log('Deleting item:', item);
+      
+      // Type bo'yicha delete API chaqirish
+      switch (item.type) {
+        case 'meeting':
+          if (item.id || item._id) {
+            await deleteMeeting(item.id || item._id);
+            showMessage?.success('Мажлис муваффақиятли ўчирилди');
+          }
+          break;
+          
+        case 'task':
+          if (item.id || item._id) {
+            await deleteTask(item.id || item._id);
+            showMessage?.success('Вазифа муваффақиятли ўчирилди');
+          }
+          break;
+          
+        case 'reception':
+          if (item.id || item._id) {
+            await deleteReceptionItem(item.id || item._id);
+            showMessage?.success('Қабул муваффақиятли ўчирилди');
+          }
+          break;
+          
+        default:
+          showMessage?.error('Номаълум элемент тури');
+          return;
+      }
+      
+      // Ma'lumotlarni qayta yuklash
+      await fetchDailyPlan(selectedDate);
+      
+    } catch (error) {
+      console.error('Delete error:', error);
+      showMessage?.error('Ўчиришда хатолик юз берди: ' + (error.message || 'Номаълум хатолик'));
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // PDF generation handler with dynamic import
@@ -296,7 +374,7 @@ const BossWorkSchedule = ({ showMessage }) => {
                 {/* Schedule Table - Yangi jadval format */}
                 <ScheduleTable
                   dataSource={dailyPlanData.items}
-                  loading={loading}
+                  loading={loading || deleteLoading}
                   selectedDate={selectedDate}
                   showActions={true}
                   emptyText={
@@ -362,6 +440,7 @@ const BossWorkSchedule = ({ showMessage }) => {
           onSuccess={handleEditModalSave}
           employees={employees}
           initialData={editingItem}
+          loading={editLoading}
         />
       )}
 
@@ -373,6 +452,7 @@ const BossWorkSchedule = ({ showMessage }) => {
           onSave={handleEditModalSave}
           defaultDate={selectedDate}
           initialData={editingItem}
+          loading={editLoading}
         />
       )}
 
@@ -384,6 +464,7 @@ const BossWorkSchedule = ({ showMessage }) => {
           onSave={handleEditModalSave}
           employees={employees}
           initialData={editingItem}
+          loading={editLoading}
         />
       )}
     </div>

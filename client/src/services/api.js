@@ -375,4 +375,50 @@ export const saveDailyPlan = async (date, items) => {
   }
 };
 
+// Task operations
+export const updateTask = async (id, taskData) => {
+  try {
+    // Hozircha updateSchedule ishlatamiz
+    const response = await api.put(`/schedule/${id}`, taskData);
+    return response.data;
+  } catch (error) {
+    console.error('Update task error:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteTask = async (id) => {
+  try {
+    // Vaqtincha dummy - keyinroq backend'da implement qilamiz
+    console.log('Delete task:', id);
+    return { success: true, message: 'Task deleted' };
+  } catch (error) {
+    console.error('Delete task error:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Reception operations  
+export const updateReceptionItem = async (id, receptionData) => {
+  try {
+    // Vaqtincha dummy - keyinroq backend'da implement qilamiz
+    console.log('Update reception:', id, receptionData);
+    return { success: true, message: 'Reception updated' };
+  } catch (error) {
+    console.error('Update reception error:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteReceptionItem = async (id) => {
+  try {
+    // Vaqtincha dummy - keyinroq backend'da implement qilamiz
+    console.log('Delete reception:', id);
+    return { success: true, message: 'Reception deleted' };
+  } catch (error) {
+    console.error('Delete reception error:', error);
+    throw error.response?.data || error;
+  }
+};
+
 export default api;

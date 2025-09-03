@@ -152,6 +152,26 @@ exports.updateMeeting = async (req, res, next) => {
             return res.status(404).json({ message: 'Мажлис топилмади' });
         }
 
+        // Telegram notification for meeting update
+        const notificationService = global.telegramNotificationService;
+        if (notificationService && participants && participants.length > 0) {
+          try {
+            for (const participantId of participants) {
+              await notificationService.sendMeetingUpdateNotification(participantId, {
+                name: meeting.name,
+                description: meeting.description,
+                date: meeting.date,
+                time: meeting.time,
+                location: meeting.location,
+                action: 'updated'
+              });
+            }
+            console.log(`📲 Meeting update notifications sent to ${participants.length} participants`);
+          } catch (notificationError) {
+            console.error('Failed to send meeting update notifications:', notificationError);
+          }
+        }
+
         res.json(meeting);
     } catch (error) {
         next(error);
@@ -171,11 +191,35 @@ exports.deleteMeeting = async (req, res, next) => {
             return res.status(400).json({ message: 'Яроқсиз мажлис ID си' });
         }
 
-        const meeting = await Meeting.findByIdAndDelete(id);
-
+        // Get meeting data before deleting for notifications
+        const meeting = await Meeting.findById(id).populate('participants', 'name position department');
+        
         if (!meeting) {
             return res.status(404).json({ message: 'Мажлис топилмади' });
         }
+
+        // Send telegram notifications before deleting
+        const notificationService = global.telegramNotificationService;
+        if (notificationService && meeting.participants && meeting.participants.length > 0) {
+          try {
+            for (const participant of meeting.participants) {
+              await notificationService.sendMeetingCancelNotification(participant._id, {
+                name: meeting.name,
+                description: meeting.description,
+                date: meeting.date,
+                time: meeting.time,
+                location: meeting.location,
+                action: 'cancelled'
+              });
+            }
+            console.log(`📲 Meeting cancellation notifications sent to ${meeting.participants.length} participants`);
+          } catch (notificationError) {
+            console.error('Failed to send meeting cancellation notifications:', notificationError);
+          }
+        }
+
+        // Delete meeting
+        await Meeting.findByIdAndDelete(id);
 
         res.json({ 
             success: true, 
