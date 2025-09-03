@@ -51,7 +51,7 @@ exports.getTodayReception = async (req, res) => {
  */
 exports.addToReception = async (req, res) => {
   try {
-    const { employeeId, name, position, department, phone, status = 'waiting', task, time, scheduledTime } = req.body;
+    const { employeeId, name, position, department, phone, status = 'waiting', task, scheduledTime } = req.body;
     
     // Validation
     if (!employeeId) {
@@ -97,8 +97,7 @@ exports.addToReception = async (req, res) => {
       reception.employees[employeeIndex] = {
         ...reception.employees[employeeIndex],
         status,
-        time: time || reception.employees[employeeIndex].time || dayjs().format('HH:mm'),
-        scheduledTime: scheduledTime || time || reception.employees[employeeIndex].scheduledTime || dayjs().format('HH:mm'),
+        scheduledTime: scheduledTime || reception.employees[employeeIndex].scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti
         task: task || reception.employees[employeeIndex].task,
         timeUpdated: new Date()
       };
@@ -111,10 +110,9 @@ exports.addToReception = async (req, res) => {
         department: department || employee.department,
         phone: phone || employee.phone || '',
         status: status,
-        time: time || dayjs().format('HH:mm'), // Legacy field
-        scheduledTime: scheduledTime || time || dayjs().format('HH:mm'), // Asosiy qabul vaqti
-        timeUpdated: new Date(),
-        createdAt: new Date()
+        scheduledTime: scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
+        timeUpdated: new Date(), // Yangilangan vaqt
+        createdAt: new Date() // Ma'lumot yaratilgan vaqt
       };
 
       // Add task if provided
@@ -348,9 +346,11 @@ exports.updateReceptionEmployee = async (req, res) => {
     }
 
     // Update employee data
+    if (updateData.scheduledTime) {
+      reception.employees[employeeIndex].scheduledTime = updateData.scheduledTime; // Asosiy qabul vaqti
+    }
     if (updateData.time) {
-      reception.employees[employeeIndex].time = updateData.time;
-      reception.employees[employeeIndex].scheduledTime = updateData.time; // Asosiy qabul vaqti ham yangilanadi
+      reception.employees[employeeIndex].time = updateData.time; // Legacy field
     }
     if (updateData.name) {
       reception.employees[employeeIndex].name = updateData.name;

@@ -142,8 +142,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       department: receptionData.data.department,
       phone: receptionData.data.phone,
       status: receptionData.data.status,
-      time: receptionData.time,
-      scheduledTime: receptionData.time, // Asosiy qabul vaqti
+      scheduledTime: receptionData.time, // Asosiy qabul vaqti (xodim keladigan vaqt)
       date: date, // selectedDate -> date
       isNew: true // Yangi item flag
     };

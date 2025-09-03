@@ -60,9 +60,9 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       const formattedData = data.map((item, index) => {
         console.log(`📝 Employee ${index + 1}:`, {
           name: item.name,
-          time: item.time,
-          scheduledTime: item.scheduledTime,
-          timeUpdated: item.timeUpdated
+          scheduledTime: item.scheduledTime, // Xodim keladigan vaqt
+          timeUpdated: item.timeUpdated, // Yangilangan vaqt
+          createdAt: item.createdAt // Ma'lumot yaratilgan vaqt
         });
         
         return {
@@ -179,15 +179,13 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
       key: 'time',
       width: 80,
       render: (_, record) => {
-        // Prioritet: scheduledTime -> time field -> timeUpdated'dan extract
+        // Prioritet: scheduledTime (asosiy qabul vaqti) -> timeUpdated'dan extract (fallback)
         let displayTime = '-';
         
         if (record.scheduledTime) {
-          displayTime = record.scheduledTime;
-        } else if (record.time) {
-          displayTime = record.time;
+          displayTime = record.scheduledTime; // Xodim keladigan vaqt
         } else if (record.timeUpdated) {
-          displayTime = dayjs(record.timeUpdated).format('HH:mm');
+          displayTime = dayjs(record.timeUpdated).format('HH:mm'); // Fallback
         }
         
         return (

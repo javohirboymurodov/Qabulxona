@@ -99,7 +99,7 @@ const AddReceptionModal = ({
         console.log('Edit context: updating reception');
         // Edit mode - mavjud reception'ni yangilash
         const updateData = {
-          time: values.time.format('HH:mm')
+          scheduledTime: values.time.format('HH:mm') // Asosiy qabul vaqti
         };
         
         // Agar yangi employee tanlangan bo'lsa, uni ham yangilaymiz
@@ -164,8 +164,7 @@ const AddReceptionModal = ({
           department: selectedEmployee.department,
           phone: selectedEmployee.phone || '',
           status: 'waiting',
-          time: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'),
-          scheduledTime: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'), // Asosiy qabul vaqti
+          scheduledTime: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
           date: dayjs().format('YYYY-MM-DD')
         };
 

@@ -479,10 +479,9 @@ const saveDailyPlan = async (req, res) => {
                 department: item.department || '',
                 phone: item.phone || '',
                 status: item.status || 'waiting',
-                time: item.time, // Legacy field
-                scheduledTime: item.scheduledTime || item.time, // Asosiy qabul vaqti
-                timeUpdated: new Date(),
-                createdAt: new Date()
+                scheduledTime: item.scheduledTime || item.time, // Asosiy qabul vaqti (xodim keladigan vaqt)
+                timeUpdated: new Date(), // Yangilangan vaqt
+                createdAt: new Date() // Ma'lumot yaratilgan vaqt
               });
               await receptionHistory.save();
 
@@ -493,7 +492,7 @@ const saveDailyPlan = async (req, res) => {
                   await employee.addReception(
                     receptionHistory._id,
                     targetDate.toDate(),
-                    item.time || dayjs().format('HH:mm'),
+                    item.scheduledTime || item.time || dayjs().format('HH:mm'),
                     'waiting',
                     'Rahbar ish grafigi orqali qo\'shildi'
                   );
@@ -509,7 +508,7 @@ const saveDailyPlan = async (req, res) => {
                 try {
                   await notificationService.sendReceptionNotification(item.employeeId, {
                     date: targetDate.format('YYYY-MM-DD'),
-                    time: item.time || dayjs().format('HH:mm'),
+                    time: item.scheduledTime || item.time || dayjs().format('HH:mm'),
                     notes: null
                   });
                   console.log(`📲 Reception notification sent to employee ${item.name}`);
