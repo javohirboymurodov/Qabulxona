@@ -282,10 +282,11 @@ const getDailyPlan = async (req, res) => {
  */
 const saveDailyPlan = async (req, res) => {
   try {
-    const { date, items } = req.body;
+    const { date, items, deletedItems = [] } = req.body;
     
-    console.log('Saving daily plan request:', { date, itemsCount: items?.length });
+    console.log('Saving daily plan request:', { date, itemsCount: items?.length, deletedItemsCount: deletedItems?.length });
     console.log('Items to save:', items);
+    console.log('Items to delete:', deletedItems);
     
     if (!date || !Array.isArray(items)) {
       return res.status(400).json({
@@ -324,10 +325,60 @@ const saveDailyPlan = async (req, res) => {
       tasks: 0,
       meetings: 0,
       receptions: 0,
+      deleted: 0,
       errors: []
     };
 
-    // Ma'lumotlarni turga qarab ajratish va saqlash
+    // Avval o'chirilgan item'larni o'chirish
+    for (const deletedItem of deletedItems) {
+      try {
+        console.log(`🗑️ Deleting ${deletedItem.type}:`, deletedItem.id);
+        
+        switch (deletedItem.type) {
+          case 'task':
+            await Schedule.updateOne(
+              { 
+                date: {
+                  $gte: targetDate.startOf('day').toDate(),
+                  $lte: targetDate.endOf('day').toDate()
+                }
+              },
+              { $pull: { tasks: { _id: deletedItem.id } } }
+            );
+            break;
+            
+          case 'meeting':
+            await Meeting.findByIdAndDelete(deletedItem.id);
+            break;
+            
+          case 'reception':
+            // Reception o'chirish murakkab - employee'ni o'chirish kerak
+            const receptionHistory = await ReceptionHistory.findOne({
+              date: {
+                $gte: targetDate.startOf('day').toDate(),
+                $lte: targetDate.endOf('day').toDate()
+              }
+            });
+            
+            if (receptionHistory) {
+              receptionHistory.employees = receptionHistory.employees.filter(
+                emp => emp._id.toString() !== deletedItem.id
+              );
+              await receptionHistory.save();
+            }
+            break;
+        }
+        
+        results.deleted++;
+        console.log(`✅ Deleted ${deletedItem.type} successfully`);
+        
+      } catch (error) {
+        console.error(`❌ Failed to delete ${deletedItem.type}:`, error);
+        results.errors.push(`O'chirishda xatolik: ${deletedItem.type} - ${error.message}`);
+      }
+    }
+
+    // Keyin yangi item'larni saqlash
     for (const item of newItems) {
       try {
         console.log(`Processing ${item.type}:`, JSON.stringify(item, null, 2));
@@ -543,6 +594,7 @@ const saveDailyPlan = async (req, res) => {
     console.log('Tasks saved:', results.tasks);
     console.log('Meetings saved:', results.meetings);
     console.log('Receptions saved:', results.receptions);
+    console.log('Items deleted:', results.deleted);
     console.log('Errors:', results.errors);
 
     res.json({

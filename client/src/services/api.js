@@ -388,10 +388,10 @@ export const getDailyPlan = async (date) => {
   }
 };
 
-export const saveDailyPlan = async (date, items) => {
+export const saveDailyPlan = async (date, items, deletedItems = []) => {
   try {
-    console.log('Saving daily plan:', { date, items });
-    const response = await api.post('/schedule/daily-plan', { date, items });
+    console.log('Saving daily plan:', { date, items, deletedItems });
+    const response = await api.post('/schedule/daily-plan', { date, items, deletedItems });
     console.log('Daily plan save response:', response.data);
     return response.data;
   } catch (error) {

@@ -38,6 +38,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
   const [meetings, setMeetings] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]); // Barcha item'lar uchun umumiy state
+  const [deletedItems, setDeletedItems] = useState([]); // O'chirilgan item'lar
 
   // Modal states
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -214,25 +215,31 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       console.log('Total items:', items.length);
       console.log('Items with isNew flag:', items.map(item => ({ id: item.id, type: item.type, isNew: item.isNew })));
       console.log('Filtered new items:', newItems.length);
+      console.log('Deleted items:', deletedItems.length);
       
       console.log('=== SAVE ALL DEBUG ===');
       console.log('All items:', items);
       console.log('New items to save:', newItems);
+      console.log('Deleted items to remove:', deletedItems);
       console.log('Tasks:', tasks);
       console.log('Receptions:', receptions);
       console.log('Meetings:', meetings);
       
-      if (newItems.length === 0) {
+      if (newItems.length === 0 && deletedItems.length === 0) {
         setLoading(false);
         messageApi.info('Сақлаш учун янги маълумотлар йўқ');
         return;
       }
 
-      const response = await saveDailyPlan(date, newItems);
+      const response = await saveDailyPlan(date, newItems, deletedItems);
       console.log('Save response:', response);
 
       if (response.success) {
-        messageApi.success(`${newItems.length} та элемент муваффақиятли сақланди`);
+        const totalChanges = newItems.length + deletedItems.length;
+        messageApi.success(`${totalChanges} та ўзгариш муваффақиятли сақланди`);
+        
+        // O'chirilgan item'larni tozalash
+        setDeletedItems([]);
         
         // Local state'ni yangilash - vaqtinchalik ID'larni server ID'ga almashtirish
         const updatedItems = items.map(item => {
@@ -275,8 +282,14 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
 
   const handleTaskRemove = (taskId) => {
     console.log('🗑️ Removing task:', taskId);
+    
+    // Agar backend'dan kelgan item bo'lsa (string ID), deletion tracking
+    if (typeof taskId === 'string') {
+      setDeletedItems(prev => [...prev, { id: taskId, type: 'task' }]);
+    }
+    
     setTasks(prev => prev.filter(task => task.id !== taskId));
-    setItems(prev => prev.filter(item => item.id !== taskId)); // items'dan ham o'chirish
+    setItems(prev => prev.filter(item => item.id !== taskId));
   };
 
   // Reception handlers
@@ -292,8 +305,14 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
 
   const handleReceptionRemove = (receptionId) => {
     console.log('🗑️ Removing reception:', receptionId);
+    
+    // Agar backend'dan kelgan item bo'lsa (string ID), deletion tracking
+    if (typeof receptionId === 'string') {
+      setDeletedItems(prev => [...prev, { id: receptionId, type: 'reception' }]);
+    }
+    
     setReceptions(prev => prev.filter(reception => reception.id !== receptionId));
-    setItems(prev => prev.filter(item => item.id !== receptionId)); // items'dan ham o'chirish
+    setItems(prev => prev.filter(item => item.id !== receptionId));
   };
 
   // Meeting handlers
@@ -313,8 +332,14 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
 
   const handleMeetingRemove = (meetingId) => {
     console.log('🗑️ Removing meeting:', meetingId);
+    
+    // Agar backend'dan kelgan item bo'lsa (string ID), deletion tracking
+    if (typeof meetingId === 'string') {
+      setDeletedItems(prev => [...prev, { id: meetingId, type: 'meeting' }]);
+    }
+    
     setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
-    setItems(prev => prev.filter(item => item.id !== meetingId)); // items'dan ham o'chirish
+    setItems(prev => prev.filter(item => item.id !== meetingId));
   };
 
   const totalItems = tasks.length + receptions.length + meetings.length;
