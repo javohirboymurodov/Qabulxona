@@ -24,7 +24,7 @@ const receptionHistorySchema = new mongoose.Schema({
     // Vaqt field'lari aniq ajratildi
     scheduledTime: {
       type: String,  // "14:30" - qabul belgilangan vaqti
-      required: true,
+      required: false, // Migration uchun required yo'q
       match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/ // HH:MM format
     },
     arrivedAt: {

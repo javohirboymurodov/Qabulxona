@@ -51,7 +51,7 @@ exports.getTodayReception = async (req, res) => {
  */
 exports.addToReception = async (req, res) => {
   try {
-    const { employeeId, name, position, department, phone, status = 'waiting', task } = req.body;
+    const { employeeId, name, position, department, phone, status = 'waiting', task, time } = req.body;
     
     // Validation
     if (!employeeId) {
@@ -97,7 +97,9 @@ exports.addToReception = async (req, res) => {
       reception.employees[employeeIndex] = {
         ...reception.employees[employeeIndex],
         status,
+        scheduledTime: time || reception.employees[employeeIndex].scheduledTime || '09:00',
         task: task || reception.employees[employeeIndex].task,
+        statusUpdatedAt: new Date(),
         timeUpdated: new Date()
       };
     } else {
@@ -109,6 +111,9 @@ exports.addToReception = async (req, res) => {
         department: department || employee.department,
         phone: phone || employee.phone || '',
         status: status,
+        scheduledTime: time || '09:00', // Yangi field
+        arrivedAt: null,
+        statusUpdatedAt: new Date(),
         timeUpdated: new Date(),
         createdAt: new Date()
       };
