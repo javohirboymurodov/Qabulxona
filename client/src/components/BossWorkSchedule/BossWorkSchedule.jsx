@@ -23,19 +23,9 @@ import DailyPlanModal from './DailyPlanModal';
 
 // Components
 import ScheduleTable from '../Common/ScheduleTable';
-import AddMeetingModal from '../Meetings/AddMeetingModal';
-import AddReceptionModal from '../Reseption/AddReceptionModal';
-import TaskModal from './TaskModal';
 
 // API services
-import { 
-  getDailyPlan, 
-  getEmployees, 
-  updateMeeting, 
-  deleteMeeting,
-  deleteTask,
-  deleteReceptionItem
-} from '../../services/api';
+import { getDailyPlan } from '../../services/api';
 
 // PDF Generator will be dynamically imported
 
@@ -49,33 +39,12 @@ const BossWorkSchedule = ({ showMessage }) => {
   const [loading, setLoading] = useState(false);
   const [showDailyPlan, setShowDailyPlan] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
-  
-  // Individual edit modal states
-  const [employees, setEmployees] = useState([]);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editLoading, setEditLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+
 
 
   useEffect(() => {
     fetchDailyPlan(selectedDate);
-    loadEmployees(); // Employees'ni yuklash
   }, [selectedDate]);
-
-  // Load employees for modals
-  const loadEmployees = async () => {
-    try {
-      const response = await getEmployees();
-      if (response?.data && Array.isArray(response.data)) {
-        setEmployees(response.data);
-      } else if (response && Array.isArray(response)) {
-        setEmployees(response);
-      }
-    } catch (error) {
-      console.error('Employees loading error:', error);
-      setEmployees([]);
-    }
-  };
 
   const isDateEditable = (date) => {
     const selectedDay = dayjs(date).startOf('day');
@@ -141,9 +110,7 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(date);
   };
 
-  // Modal states for individual editing
-  const [editingItem, setEditingItem] = useState(null);
-  const [editModalType, setEditModalType] = useState(null); // 'task', 'meeting', 'reception'
+
 
   // Modal ochish/yopish funksiyalarini tuzatish
   const handleModalOpen = () => {
@@ -156,104 +123,7 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(selectedDate);
   };
 
-  // Individual item actions
-  const handleViewItem = (item) => {
-    console.log('View item:', item);
-    // View modal ochish (ixtiyoriy)
-  };
 
-  const handleEditItem = (item) => {
-    console.log('Edit item:', item);
-    setEditingItem(item);
-    setEditModalType(item.type);
-    setShowEditModal(true);
-  };
-
-  const handleEditModalClose = () => {
-    setShowEditModal(false);
-    setEditingItem(null);
-    setEditModalType(null);
-  };
-
-  const handleEditModalSave = async () => {
-    try {
-      setEditLoading(true);
-      // Edit saqlangandan keyin ma'lumotlarni yangilash
-      await fetchDailyPlan(selectedDate);
-      handleEditModalClose();
-      showMessage?.success('Маълумот муваффақиятли янгиланди');
-    } catch (error) {
-      console.error('Edit save error:', error);
-      showMessage?.error('Янгилашда хатолик юз берди');
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  const handleDeleteItem = (item) => {
-    console.log('Delete item:', item);
-    
-    const typeNames = {
-      'task': 'вазифани',
-      'meeting': 'мажлисни', 
-      'reception': 'қабулни'
-    };
-    
-    Modal.confirm({
-      title: 'Ўчириш тасдиқи',
-      content: `Ҳақиқатан ҳам ушбу ${typeNames[item.type] || 'элементни'} ўчиришни истайсизми?`,
-      okText: 'Ҳа, ўчириш',
-      cancelText: 'Бекор қилиш',
-      okType: 'danger',
-      onOk: async () => {
-        await handleConfirmDelete(item);
-      }
-    });
-  };
-
-  const handleConfirmDelete = async (item) => {
-    try {
-      setDeleteLoading(true);
-      console.log('Deleting item:', item);
-      
-      // Type bo'yicha delete API chaqirish
-      switch (item.type) {
-        case 'meeting':
-          if (item.id || item._id) {
-            await deleteMeeting(item.id || item._id);
-            showMessage?.success('Мажлис муваффақиятли ўчирилди');
-          }
-          break;
-          
-        case 'task':
-          if (item.id || item._id) {
-            await deleteTask(item.id || item._id);
-            showMessage?.success('Вазифа муваффақиятли ўчирилди');
-          }
-          break;
-          
-        case 'reception':
-          if (item.id || item._id) {
-            await deleteReceptionItem(item.id || item._id);
-            showMessage?.success('Қабул муваффақиятли ўчирилди');
-          }
-          break;
-          
-        default:
-          showMessage?.error('Номаълум элемент тури');
-          return;
-      }
-      
-      // Ma'lumotlarni qayta yuklash
-      await fetchDailyPlan(selectedDate);
-      
-    } catch (error) {
-      console.error('Delete error:', error);
-      showMessage?.error('Ўчиришда хатолик юз берди: ' + (error.message || 'Номаълум хатолик'));
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
 
   // PDF generation handler with dynamic import
   const handleGeneratePDF = async () => {
@@ -323,12 +193,13 @@ const BossWorkSchedule = ({ showMessage }) => {
                   </Button>
                 )}
                 
-                {/* Edit/Add Button */}
+                {/* Edit/Add Button - DailyPlanModal ochish */}
                 {isDateEditable(selectedDate) && (
                   <Button
                     type="primary"
                     icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
                     onClick={handleModalOpen}
+                    loading={loading}
                   >
                     {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
                   </Button>
@@ -371,20 +242,17 @@ const BossWorkSchedule = ({ showMessage }) => {
                   )}
                 </div>
 
-                {/* Schedule Table - Yangi jadval format */}
+                {/* Schedule Table - Faqat ko'rish uchun */}
                 <ScheduleTable
                   dataSource={dailyPlanData.items}
-                  loading={loading || deleteLoading}
+                  loading={loading}
                   selectedDate={selectedDate}
-                  showActions={true}
+                  showActions={false}
                   emptyText={
                     isDateEditable(selectedDate)
                       ? "Бу кун учун режа тузилмаган"
                       : "Бу кун учун иш режа мавжуд эмас"
                   }
-                  onView={handleViewItem}
-                  onEdit={handleEditItem}
-                  onDelete={handleDeleteItem}
                 />
               </div>
             ) : (
@@ -430,43 +298,7 @@ const BossWorkSchedule = ({ showMessage }) => {
         }}
       />
 
-      {/* Individual Edit Modal'lar */}
-      
-      {/* Meeting Edit Modal */}
-      {showEditModal && editModalType === 'meeting' && editingItem && (
-        <AddMeetingModal
-          visible={showEditModal}
-          onClose={handleEditModalClose}
-          onSuccess={handleEditModalSave}
-          employees={employees}
-          initialData={editingItem}
-          loading={editLoading}
-        />
-      )}
 
-      {/* Task Edit Modal */}
-      {showEditModal && editModalType === 'task' && editingItem && (
-        <TaskModal
-          visible={showEditModal}
-          onClose={handleEditModalClose}
-          onSave={handleEditModalSave}
-          defaultDate={selectedDate}
-          initialData={editingItem}
-          loading={editLoading}
-        />
-      )}
-
-      {/* Reception Edit Modal */}
-      {showEditModal && editModalType === 'reception' && editingItem && (
-        <AddReceptionModal
-          visible={showEditModal}
-          onClose={handleEditModalClose}
-          onSave={handleEditModalSave}
-          employees={employees}
-          initialData={editingItem}
-          loading={editLoading}
-        />
-      )}
     </div>
   );
 };

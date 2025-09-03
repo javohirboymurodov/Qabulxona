@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Table } from 'antd';
-import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
+import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Table, Modal } from 'antd';
+import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { updateReceptionStatus, getReceptionHistoryByDate, deleteReceptionItem } from '../../services/api';
 import ViewReceptionModal from './ViewReceptionModal';
 import dayjs from 'dayjs';
 
@@ -14,6 +14,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   const [loading, setLoading] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedReception, setSelectedReception] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     // Component yuklanganda bugungi ma'lumotlarni olish
@@ -91,6 +92,50 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     // Agar fetchData mavjud bo'lsa, uni ham chaqiramiz
     if (fetchData) {
       await fetchData();
+    }
+  };
+
+  // Qabul tahrirlash
+  const handleEditReception = (record) => {
+    console.log('Edit reception:', record);
+    // AddReceptionModal ochish (keyinroq implement qilamiz)
+    messageApi.info('Қабул таҳрирлаш тез орада қўшилади');
+  };
+
+  // Qabul o'chirish
+  const handleDeleteReception = (record) => {
+    Modal.confirm({
+      title: 'Қабулни ўчириш',
+      content: `Ҳақиқатан ҳам ${record.name} нинг қабулини ўчиришни истайсизми?`,
+      okText: 'Ҳа, ўчириш',
+      cancelText: 'Бекор қилиш',
+      okType: 'danger',
+      onOk: async () => {
+        await handleConfirmDeleteReception(record);
+      }
+    });
+  };
+
+  const handleConfirmDeleteReception = async (record) => {
+    try {
+      setDeleteLoading(true);
+      console.log('Deleting reception:', record);
+      
+      if (record.id || record._id) {
+        await deleteReceptionItem(record.id || record._id);
+        messageApi.success('Қабул муваффақиятли ўчирилди');
+        
+        // Ma'lumotlarni qayta yuklash
+        await loadHistoryData(selectedDate);
+        if (fetchData) {
+          await fetchData();
+        }
+      }
+    } catch (error) {
+      console.error('Delete reception error:', error);
+      messageApi.error('Қабулни ўчиришда хатолик юз берди');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -202,15 +247,49 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     {
       title: 'Амаллар',
       key: 'actions',
-      width: 80,
-      render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewReception(record)}
-          size="small"
-        />
-      )
+      width: 120,
+      render: (_, record) => {
+        const isToday = selectedDate.isSame(dayjs(), 'day');
+        const isFuture = selectedDate.isAfter(dayjs(), 'day');
+        const canEdit = isToday || isFuture;
+        
+        return (
+          <Space size="small">
+            {/* View button - har doim */}
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewReception(record)}
+              size="small"
+              title="Кўриш"
+            />
+            
+            {/* Edit button - faqat bugun/kelajak */}
+            {canEdit && (
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => handleEditReception(record)}
+                size="small"
+                title="Таҳрирлаш"
+              />
+            )}
+            
+            {/* Delete button - faqat bugun/kelajak */}
+            {canEdit && (
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDeleteReception(record)}
+                size="small"
+                title="Ўчириш"
+                loading={deleteLoading}
+              />
+            )}
+          </Space>
+        );
+      }
     }
   ];
 
@@ -237,7 +316,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
             loading={loading}
           >
             <Table
-              loading={loading}
+              loading={loading || deleteLoading}
               dataSource={historyData}
               columns={historyColumns}
               rowKey={(record) => record.key || record._id || record.id}
