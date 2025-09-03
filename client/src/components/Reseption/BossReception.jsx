@@ -375,6 +375,7 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
           onSave={handleEditModalSave}
           employees={employees || []}
           initialData={editingReception}
+          defaultDate={selectedDate}
         />
       )}
     </div>

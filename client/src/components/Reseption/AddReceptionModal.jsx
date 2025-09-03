@@ -25,14 +25,24 @@ const AddReceptionModal = ({
         console.log('Edit mode - initialData:', initialData);
         
         // Time field'ni to'g'ri aniqlash
+        console.log('Time detection:', {
+          scheduledTime: initialData.scheduledTime,
+          time: initialData.time,
+          timeUpdated: initialData.timeUpdated
+        });
+        
         let timeValue;
         if (initialData.scheduledTime) {
+          console.log('Using scheduledTime:', initialData.scheduledTime);
           timeValue = dayjs(initialData.scheduledTime, 'HH:mm');
         } else if (initialData.time) {
+          console.log('Using time:', initialData.time);
           timeValue = dayjs(initialData.time, 'HH:mm');
         } else if (initialData.timeUpdated) {
+          console.log('Using timeUpdated:', initialData.timeUpdated);
           timeValue = dayjs(initialData.timeUpdated);
         } else {
+          console.log('Using fallback: current + 1 hour');
           timeValue = dayjs().add(1, 'hour'); // Fallback
         }
         
@@ -102,7 +112,21 @@ const AddReceptionModal = ({
         console.log(initialData ? 'Edit context: updating reception' : 'HomePage context: calling API');
         
         if (initialData) {
-          // Edit mode - faqat callback chaqirish (real API keyinroq)
+          // Edit mode - reception'ni yangilash
+          const updateData = {
+            employeeId: selectedEmployee._id,
+            name: selectedEmployee.fullName || selectedEmployee.name,
+            position: selectedEmployee.position,
+            department: selectedEmployee.department,
+            phone: selectedEmployee.phone || '',
+            status: initialData.status || 'waiting',
+            time: values.time.format('HH:mm'),
+            date: defaultDate ? defaultDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+          };
+          
+          console.log('Updating reception with data:', updateData);
+          
+          // Hozircha faqat success message (real API keyinroq)
           messageApi.success('Қабул муваффақиятли янгиланди');
           onClose(true);
           return;
