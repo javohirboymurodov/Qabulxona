@@ -1,6 +1,11 @@
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+
+// ESM muhitida __dirname o‘rnini bosuvchi yechim
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 export default defineConfig({
   plugins: [react()],
@@ -11,7 +16,7 @@ export default defineConfig({
   assetsInclude: ['**/*.ttf', '**/*.woff', '**/*.woff2'],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),
+      '@': resolve(__dirname, 'src'),
       buffer: 'buffer',
     },
   },

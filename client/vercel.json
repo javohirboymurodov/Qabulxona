@@ -1,11 +1,11 @@
 {
     "version": 2,
     "framework": "vite",
-    "buildCommand": "npm run build",
+    "installCommand": "yarn install --frozen-lockfile",
+    "buildCommand": "yarn build",
     "outputDirectory": "dist",
-    "installCommand": "npm install",
     "rewrites": [
       { "source": "/(.*)", "destination": "/index.html" }
     ]
-  }
+}
   
