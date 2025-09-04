@@ -1078,7 +1078,7 @@ ${notesText}
     });
   } catch (error) {
     console.error('View meeting error:', error);
-    bot.sendMessage(chatId, '❌ Majlisni ko\'rishda xatolik');
+    bot.sendMessage(chatId, '❌ Мажлисни кўришда хатолик');
   }
 }
 
