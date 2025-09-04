@@ -3,7 +3,8 @@ import dayjs from 'dayjs';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  timeout: 10000,
+  // Render free instanslari sovuq startda 10s dan ko'proq vaqt olishi mumkin
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -40,10 +41,20 @@ api.interceptors.response.use(
 // Login endpoint
 export const login = async (credentials) => {
   try {
+    // Sovuq start holati uchun bitta marta qayta urinish strategiyasi
+    try {
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    } catch (err) {
+      if (err.code === 'ECONNABORTED') {
+        // 1 soniya kutib qayta urinib ko'ramiz
+        await new Promise(r => setTimeout(r, 1000));
+        const retryResponse = await api.post('/auth/login', credentials);
+        return retryResponse.data;
+      }
+      throw err;
+    }
     
-    const response = await api.post('/auth/login', credentials);
-    
-    return response.data;
   } catch (error) {
     console.error('API login error:', error); // Debug
     throw error;
