@@ -243,6 +243,31 @@ export const updateReceptionStatus = async (employeeId, data, date = null) => {
   }
 };
 
+// Qabul employee ma'lumotlarini yangilash (vaqt, ism, va boshqalar)
+export const updateReceptionEmployee = async (employeeId, data, date = null) => {
+  try {
+    if (!employeeId || typeof employeeId === 'object') {
+      console.error('Invalid employeeId:', employeeId);
+      throw new Error('Employee ID noto\'g\'ri formatda');
+    }
+
+    const targetDate = date || dayjs().format('YYYY-MM-DD');
+    
+    console.log('Update reception employee:', {
+      employeeId,
+      targetDate,
+      data
+    });
+    console.log('Update data details:', JSON.stringify(data, null, 2));
+
+    const response = await api.put(`/reception-history/${targetDate}/employee/${employeeId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Update reception employee error:', error);
+    throw error.response?.data || error;
+  }
+};
+
 // Sana oralig'i bo'yicha qabullarni olish
 export const getReceptionHistoryRange = async (startDate, endDate) => {
   try {
@@ -363,15 +388,61 @@ export const getDailyPlan = async (date) => {
   }
 };
 
-export const saveDailyPlan = async (date, items) => {
+export const saveDailyPlan = async (date, items, deletedItems = []) => {
   try {
-    console.log('Saving daily plan:', { date, items });
-    const response = await api.post('/schedule/daily-plan', { date, items });
+    console.log('Saving daily plan:', { date, items, deletedItems });
+    const response = await api.post('/schedule/daily-plan', { date, items, deletedItems });
     console.log('Daily plan save response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Save daily plan error:', error.response?.data || error);
     throw error;
+  }
+};
+
+// Task operations
+export const updateTask = async (id, taskData) => {
+  try {
+    // Hozircha updateSchedule ishlatamiz
+    const response = await api.put(`/schedule/${id}`, taskData);
+    return response.data;
+  } catch (error) {
+    console.error('Update task error:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteTask = async (id) => {
+  try {
+    // Vaqtincha dummy - keyinroq backend'da implement qilamiz
+    console.log('Delete task:', id);
+    return { success: true, message: 'Task deleted' };
+  } catch (error) {
+    console.error('Delete task error:', error);
+    throw error.response?.data || error;
+  }
+};
+
+// Reception operations  
+export const updateReceptionItem = async (id, receptionData) => {
+  try {
+    // Vaqtincha dummy - keyinroq backend'da implement qilamiz
+    console.log('Update reception:', id, receptionData);
+    return { success: true, message: 'Reception updated' };
+  } catch (error) {
+    console.error('Update reception error:', error);
+    throw error.response?.data || error;
+  }
+};
+
+export const deleteReceptionItem = async (id) => {
+  try {
+    // Vaqtincha dummy - keyinroq backend'da implement qilamiz
+    console.log('Delete reception:', id);
+    return { success: true, message: 'Reception deleted' };
+  } catch (error) {
+    console.error('Delete reception error:', error);
+    throw error.response?.data || error;
   }
 };
 

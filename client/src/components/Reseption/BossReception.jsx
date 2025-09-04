@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Table } from 'antd';
-import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
 import ViewReceptionModal from './ViewReceptionModal';
+import AddReceptionModal from './AddReceptionModal';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -14,6 +15,8 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
   const [loading, setLoading] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedReception, setSelectedReception] = useState(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingReception, setEditingReception] = useState(null);
 
   useEffect(() => {
     // Component yuklanganda bugungi ma'lumotlarni olish
@@ -48,17 +51,32 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     try {
       setLoading(true);
       const dateStr = date.format('YYYY-MM-DD');
+      console.log('📡 Loading history data for:', dateStr);
+      
       const response = await getReceptionHistoryByDate(dateStr);
+      console.log('📥 API response:', response);
       
       // Backend'dan kelgan ma'lumotlarni to'g'ri formatda olish
       const data = response?.data || [];
-      const formattedData = data.map((item, index) => ({
-        ...item,
-        key: item._id || item.id || `history-${index}-${Date.now()}`,
-        id: item._id || item.id || `temp-${index}`
-      }));
+      console.log('📋 Raw data count:', data.length);
+      
+      const formattedData = data.map((item, index) => {
+        console.log(`📝 Employee ${index + 1}:`, {
+          name: item.name,
+          scheduledTime: item.scheduledTime, // Xodim keladigan vaqt
+          timeUpdated: item.timeUpdated, // Yangilangan vaqt
+          createdAt: item.createdAt // Ma'lumot yaratilgan vaqt
+        });
+        
+        return {
+          ...item,
+          key: item._id || item.id || `history-${index}-${Date.now()}`,
+          id: item._id || item.id || `temp-${index}`
+        };
+      });
       
       setHistoryData(formattedData);
+      console.log('✅ History data updated, count:', formattedData.length);
     } catch (error) {
       console.error('History data loading error:', error);
       messageApi.error('Маълумотларни юклашда хатолик юз берди');
@@ -83,15 +101,34 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     setSelectedReception(null);
   };
 
+  const handleEditReception = (record) => {
+    console.log('Edit reception:', record);
+    setEditingReception(record);
+    setEditModalVisible(true);
+  };
+
+  const handleEditModalClose = (updated) => {
+    setEditModalVisible(false);
+    setEditingReception(null);
+    if (updated) {
+      console.log('Reception updated, refreshing data...');
+      handleModalUpdate();
+    }
+  };
+
   const handleModalUpdate = async () => {
     // Ma'lumotlarni yangilash
-    console.log('Refreshing data for date:', selectedDate.format('YYYY-MM-DD'));
+    console.log('🔄 Refreshing data for date:', selectedDate.format('YYYY-MM-DD'));
+    console.log('📊 Current historyData count:', historyData.length);
+    
     await loadHistoryData(selectedDate);
     
     // Agar fetchData mavjud bo'lsa, uni ham chaqiramiz
     if (fetchData) {
       await fetchData();
     }
+    
+    console.log('✅ Data refresh completed');
   };
 
   const getTaskStatusDisplay = (task) => {
@@ -157,13 +194,24 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     },
     {
       title: 'Вақт',
-      key: 'timeUpdated',
+      key: 'time',
       width: 80,
-      render: (_, record) => (
-        <Text type="secondary">
-          {record.timeUpdated ? dayjs(record.timeUpdated).format('HH:mm') : '-'}
-        </Text>
-      )
+      render: (_, record) => {
+        // Prioritet: scheduledTime (asosiy qabul vaqti) -> timeUpdated'dan extract (fallback)
+        let displayTime = '-';
+        
+        if (record.scheduledTime) {
+          displayTime = record.scheduledTime; // Xodim keladigan vaqt
+        } else if (record.timeUpdated) {
+          displayTime = dayjs(record.timeUpdated).format('HH:mm'); // Fallback
+        }
+        
+        return (
+          <Text type="secondary">
+            {displayTime}
+          </Text>
+        );
+      }
     },
     {
       title: 'Топшириқ',
@@ -202,14 +250,24 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
     {
       title: 'Амаллар',
       key: 'actions',
-      width: 80,
+      width: 120,
       render: (_, record) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewReception(record)}
-          size="small"
-        />
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewReception(record)}
+            size="small"
+            title="Кўриш"
+          />
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditReception(record)}
+            size="small"
+            title="Таҳрирлаш"
+          />
+        </Space>
       )
     }
   ];
@@ -257,6 +315,14 @@ const BossReception = ({ employees, meetings = [], onEdit, onDelete, setSelected
         onClose={handleViewModalClose}
         reception={selectedReception}
         onUpdate={handleModalUpdate}
+        employees={employees}
+      />
+
+      <AddReceptionModal
+        visible={editModalVisible}
+        onClose={handleEditModalClose}
+        employees={employees}
+        initialData={editingReception}
       />
     </div>
   );

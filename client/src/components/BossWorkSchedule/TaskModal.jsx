@@ -9,11 +9,26 @@ const TaskModal = ({
   visible, 
   onClose, 
   onSave, 
-  defaultDate 
+  defaultDate,
+  initialData // Edit mode uchun
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const { message: messageApi } = App.useApp();
+
+  // Form'ni initial data bilan to'ldirish
+  React.useEffect(() => {
+    if (visible && initialData) {
+      form.setFieldsValue({
+        title: initialData.title,
+        description: initialData.description,
+        priority: initialData.priority || 'normal',
+        time: initialData.time ? dayjs(initialData.time, 'HH:mm') : dayjs('09:00', 'HH:mm')
+      });
+    } else if (visible) {
+      form.resetFields();
+    }
+  }, [visible, initialData, form]);
 
   const handleSubmit = async () => {
     try {
@@ -55,7 +70,7 @@ const TaskModal = ({
 
   return (
     <Modal
-      title="Вазифа қўшиш"
+      title={initialData ? "Вазифани таҳрирлаш" : "Вазифа қўшиш"}
       open={visible}
       onOk={handleSubmit}
       onCancel={() => onClose(false)}

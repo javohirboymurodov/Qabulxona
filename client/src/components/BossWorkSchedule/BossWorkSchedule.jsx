@@ -13,7 +13,8 @@ import {
   Col,
   Tag,
   Spin,
-  Badge
+  Badge,
+  Modal
 } from "antd";
 import { PlusOutlined, EditOutlined, FilePdfOutlined } from "@ant-design/icons";
 
@@ -38,6 +39,7 @@ const BossWorkSchedule = ({ showMessage }) => {
   const [loading, setLoading] = useState(false);
   const [showDailyPlan, setShowDailyPlan] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+
 
 
   useEffect(() => {
@@ -108,6 +110,8 @@ const BossWorkSchedule = ({ showMessage }) => {
     fetchDailyPlan(date);
   };
 
+
+
   // Modal ochish/yopish funksiyalarini tuzatish
   const handleModalOpen = () => {
     setShowDailyPlan(true); // to'g'ri state ishlatish
@@ -118,6 +122,8 @@ const BossWorkSchedule = ({ showMessage }) => {
     // Ma'lumotlarni yangilash
     fetchDailyPlan(selectedDate);
   };
+
+
 
   // PDF generation handler with dynamic import
   const handleGeneratePDF = async () => {
@@ -187,12 +193,13 @@ const BossWorkSchedule = ({ showMessage }) => {
                   </Button>
                 )}
                 
-                {/* Edit/Add Button */}
+                {/* Edit/Add Button - DailyPlanModal ochish */}
                 {isDateEditable(selectedDate) && (
                   <Button
                     type="primary"
                     icon={hasPlans ? <EditOutlined /> : <PlusOutlined />}
                     onClick={handleModalOpen}
+                    loading={loading}
                   >
                     {hasPlans ? "Таҳрирлаш" : "Жадвал қўшиш"}
                   </Button>
@@ -235,20 +242,17 @@ const BossWorkSchedule = ({ showMessage }) => {
                   )}
                 </div>
 
-                {/* Schedule Table - Yangi jadval format */}
+                {/* Schedule Table - Faqat ko'rish uchun */}
                 <ScheduleTable
                   dataSource={dailyPlanData.items}
                   loading={loading}
-                  showActions={isDateEditable(selectedDate)}
+                  selectedDate={selectedDate}
+                  showActions={false}
                   emptyText={
                     isDateEditable(selectedDate)
                       ? "Бу кун учун режа тузилмаган"
                       : "Бу кун учун иш режа мавжуд эмас"
                   }
-                  onEdit={(record) => {
-                    // Edit functionality - modal ochish
-                    setShowDailyPlan(true);
-                  }}
                 />
               </div>
             ) : (
@@ -293,6 +297,8 @@ const BossWorkSchedule = ({ showMessage }) => {
           }, 500);
         }}
       />
+
+
     </div>
   );
 };

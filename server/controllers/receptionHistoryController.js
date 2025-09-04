@@ -51,7 +51,7 @@ exports.getTodayReception = async (req, res) => {
  */
 exports.addToReception = async (req, res) => {
   try {
-    const { employeeId, name, position, department, phone, status = 'waiting', task } = req.body;
+    const { employeeId, name, position, department, phone, status = 'waiting', task, scheduledTime } = req.body;
     
     // Validation
     if (!employeeId) {
@@ -97,6 +97,7 @@ exports.addToReception = async (req, res) => {
       reception.employees[employeeIndex] = {
         ...reception.employees[employeeIndex],
         status,
+        scheduledTime: scheduledTime || reception.employees[employeeIndex].scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti
         task: task || reception.employees[employeeIndex].task,
         timeUpdated: new Date()
       };
@@ -109,8 +110,9 @@ exports.addToReception = async (req, res) => {
         department: department || employee.department,
         phone: phone || employee.phone || '',
         status: status,
-        timeUpdated: new Date(),
-        createdAt: new Date()
+        scheduledTime: scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
+        timeUpdated: new Date(), // Yangilangan vaqt
+        createdAt: new Date() // Ma'lumot yaratilgan vaqt
       };
 
       // Add task if provided
@@ -186,6 +188,7 @@ exports.updateReceptionStatus = async (req, res) => {
       });
     }
 
+    // Reception'ni topish
     const reception = await ReceptionHistory.findOne({
       date: {
         $gte: dayjs(date).startOf('day').toDate(),
@@ -200,26 +203,73 @@ exports.updateReceptionStatus = async (req, res) => {
       });
     }
 
-    // Employee ni topish - employeeId bo'yicha yoki employeeId field bo'yicha
+    // Employee ni topish
     const employeeIndex = reception.employees.findIndex(
       emp => {
         const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
-        return empId === employeeId.toString();
+        const searchId = employeeId.toString();
+        return empId === searchId;
       }
     );
 
     if (employeeIndex === -1) {
-      console.log('Employee not found. Available employees:', reception.employees.map(e => ({
-        id: e._id,
-        employeeId: e.employeeId,
-        name: e.name
-      })));
-      
       return res.status(404).json({
         success: false,
         message: 'Ходим бу сана учун қабулда топилмади'
       });
     }
+
+    // Vaqt cheklovlarini tekshirish - faqat status o'zgartirishda
+    // Vazifa berishda vaqt cheklovi bo'lmasligi kerak
+    if (!task) { // Agar vazifa berilmasa, faqat status o'zgartirilayotgan bo'lsa
+      const targetDate = dayjs(date);
+      const now = dayjs();
+      
+      // O'tgan kunlarni tahrirlab bo'lmaydi
+      if (targetDate.isBefore(now, 'day')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+        });
+      }
+
+      // Bugungi kun uchun - eng kamida 1 soat qolganda tahrirlash mumkin
+      if (targetDate.isSame(now, 'day')) {
+        const scheduledTime = reception.employees[employeeIndex].scheduledTime || '09:00';
+        const scheduledDateTime = dayjs(`${date} ${scheduledTime}`);
+        const timeDiff = scheduledDateTime.diff(now, 'hour', true);
+        
+        console.log('🕐 Time check:', {
+          scheduledTime,
+          scheduledDateTime: scheduledDateTime.format('YYYY-MM-DD HH:mm'),
+          now: now.format('YYYY-MM-DD HH:mm'),
+          timeDiff: timeDiff.toFixed(2) + ' hours'
+        });
+        
+        if (timeDiff < 1) {
+          return res.status(403).json({
+            success: false,
+            message: 'Қабул вақтига камida 1 соат қолганда таҳрирлаб бўлмайди'
+          });
+        }
+      }
+    }
+
+    // Employee ni topish - employeeId bo'yicha yoki employeeId field bo'yicha
+    console.log('🔍 Status update - Searching for employee:', employeeId);
+    console.log('📋 Status update - Available employees:', reception.employees.map(e => ({
+      id: e._id,
+      employeeId: e.employeeId,
+      name: e.name
+    })));
+    
+    console.log('🔍 Status update - Comparing:', { 
+      empId: reception.employees[employeeIndex].employeeId?.toString(), 
+      searchId: employeeId.toString(), 
+      match: reception.employees[employeeIndex].employeeId?.toString() === employeeId.toString() 
+    });
+
+    console.log('📍 Status update - Employee index found:', employeeIndex);
 
     // Update status
     reception.employees[employeeIndex].status = status;
@@ -243,8 +293,8 @@ exports.updateReceptionStatus = async (req, res) => {
           // Create proper task data for employee's history
           const taskData = {
             description: task.description,
-            deadline: new Date(Date.now() + (task.deadline * 24 * 60 * 60 * 1000)), // Convert days to date
-            assignedBy: req.admin ? req.admin.fullName : 'Admin',
+            deadline: new Date(Date.now() + (parseInt(task.deadline) * 24 * 60 * 60 * 1000)), // Convert days to date
+            assignedBy: req.user ? req.user.fullName : 'Admin',
             priority: task.priority || 'normal',
             status: 'pending'
           };
@@ -267,11 +317,31 @@ exports.updateReceptionStatus = async (req, res) => {
         }
       } catch (taskError) {
         console.error('Failed to add task to employee history:', taskError);
+        console.error('Task data that failed:', task);
         // Don't fail the main operation
       }
     }
 
     await reception.save();
+
+    // Send Telegram notification for status update
+    const getNotificationService = () => global.telegramNotificationService || null;
+    const notificationService = getNotificationService();
+    if (notificationService) {
+      try {
+        const employee = await Employee.findById(actualEmployeeId);
+        if (employee) {
+          await notificationService.sendReceptionNotification(actualEmployeeId, {
+            date: date,
+            time: reception.employees[employeeIndex].scheduledTime || 'Belgilanmagan',
+            notes: `Status yangilandi: ${status}`
+          });
+          console.log(`📲 Reception status update notification sent to employee ${employee.name}`);
+        }
+      } catch (notificationError) {
+        console.error('Failed to send reception status notification:', notificationError);
+      }
+    }
 
     res.json({
       success: true,
@@ -284,6 +354,114 @@ exports.updateReceptionStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Статусни янгилашда хатолик',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update reception employee (time, name, etc.)
+ */
+exports.updateReceptionEmployee = async (req, res) => {
+  try {
+    const { date, employeeId } = req.params;
+    const updateData = req.body;
+
+    console.log('🔄 Update reception employee request:', { date, employeeId, updateData });
+    console.log('📋 Available fields in updateData:', Object.keys(updateData));
+
+    // Validation
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee ID talab qilinadi'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sana talab qilinadi'
+      });
+    }
+
+    const reception = await ReceptionHistory.findOne({
+      date: {
+        $gte: dayjs(date).startOf('day').toDate(),
+        $lte: dayjs(date).endOf('day').toDate()
+      }
+    });
+
+    if (!reception) {
+      return res.status(404).json({
+        success: false,
+        message: 'Бу санада қабул топилмади'
+      });
+    }
+
+    // Employee ni topish
+    console.log('🔍 Searching for employee:', employeeId);
+    console.log('📋 Available employees in reception:', reception.employees.map(emp => ({
+      _id: emp._id,
+      employeeId: emp.employeeId,
+      name: emp.name
+    })));
+    
+    const employeeIndex = reception.employees.findIndex(
+      emp => {
+        // employeeId ObjectId yoki string bo'lishi mumkin
+        const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
+        const searchId = employeeId.toString();
+        console.log('🔍 Comparing:', { empId, searchId, match: empId === searchId });
+        return empId === searchId;
+      }
+    );
+
+    console.log('📍 Employee index found:', employeeIndex);
+
+    if (employeeIndex === -1) {
+      console.log('❌ Employee not found in reception');
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим бу сана учун қабулда топилмади'
+      });
+    }
+
+    // Update employee data
+    if (updateData.scheduledTime) {
+      reception.employees[employeeIndex].scheduledTime = updateData.scheduledTime; // Asosiy qabul vaqti
+    }
+    if (updateData.time) {
+      reception.employees[employeeIndex].time = updateData.time; // Legacy field
+    }
+    if (updateData.name) {
+      reception.employees[employeeIndex].name = updateData.name;
+    }
+    if (updateData.position) {
+      reception.employees[employeeIndex].position = updateData.position;
+    }
+    if (updateData.department) {
+      reception.employees[employeeIndex].department = updateData.department;
+    }
+    if (updateData.phone) {
+      reception.employees[employeeIndex].phone = updateData.phone;
+    }
+
+    reception.employees[employeeIndex].timeUpdated = new Date();
+
+    await reception.save();
+
+    res.json({
+      success: true,
+      message: 'Қабул маълумотлари муваффақиятли янгиланди',
+      data: reception.employees[employeeIndex]
+    });
+
+  } catch (error) {
+    console.error('Update reception employee error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Қабул маълумотларини янгилашда хатолик',
       error: error.message
     });
   }
@@ -394,6 +572,137 @@ exports.getByDateRange = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Маълумотларни олишда хатолик',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update reception employee time
+ */
+exports.updateReceptionEmployee = async (req, res) => {
+  try {
+    const { date, employeeId } = req.params;
+    const updateData = req.body;
+    
+    console.log('🔄 Update reception employee request:', {
+      date,
+      employeeId,
+      updateData
+    });
+    
+    // Validation
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee ID talab qilinadi'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sana talab qilinadi'
+      });
+    }
+
+    // Vaqt cheklovlarini tekshirish
+    const targetDate = dayjs(date);
+    const now = dayjs();
+    
+    // O'tgan kunlarni tahrirlab bo'lmaydi
+    if (targetDate.isBefore(now, 'day')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+      });
+    }
+    
+    // Bugungi kun uchun - eng kamida 1 soat qolganda tahrirlash mumkin
+    if (targetDate.isSame(now, 'day')) {
+      const scheduledTime = dayjs(`${date} ${updateData.scheduledTime || '09:00'}`);
+      const timeDiff = scheduledTime.diff(now, 'hour', true);
+      
+      if (timeDiff < 1) {
+        return res.status(403).json({
+          success: false,
+          message: 'Қабул вақтига камida 1 соат қолганда таҳрирлаб бўлмайди'
+        });
+      }
+    }
+
+    const reception = await ReceptionHistory.findOne({
+      date: {
+        $gte: dayjs(date).startOf('day').toDate(),
+        $lte: dayjs(date).endOf('day').toDate()
+      }
+    });
+
+    if (!reception) {
+      return res.status(404).json({
+        success: false,
+        message: 'Бу санада қабул топилмади'
+      });
+    }
+
+    // Employee ni topish
+    const employeeIndex = reception.employees.findIndex(
+      emp => {
+        const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
+        const searchId = employeeId.toString();
+        return empId === searchId;
+      }
+    );
+
+    if (employeeIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ходим топилмади'
+      });
+    }
+
+    // Eski vaqtni saqlash
+    const oldScheduledTime = reception.employees[employeeIndex].scheduledTime;
+    
+    // Ma'lumotlarni yangilash
+    reception.employees[employeeIndex] = {
+      ...reception.employees[employeeIndex],
+      ...updateData,
+      timeUpdated: new Date()
+    };
+
+    await reception.save();
+
+    // Send Telegram notification for time update
+    const getNotificationService = () => global.telegramNotificationService || null;
+    const notificationService = getNotificationService();
+    if (notificationService) {
+      try {
+        const employee = await Employee.findById(employeeId);
+        if (employee) {
+          await notificationService.sendReceptionNotification(employeeId, {
+            date: date,
+            time: updateData.scheduledTime || 'Belgilanmagan',
+            notes: `Qabul vaqti yangilandi: ${oldScheduledTime} → ${updateData.scheduledTime}`
+          });
+          console.log(`📲 Reception time update notification sent to employee ${employee.name}`);
+        }
+      } catch (notificationError) {
+        console.error('Failed to send reception time notification:', notificationError);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Ходим маълумотлари муваффақиятли янгиланди',
+      data: reception.employees[employeeIndex]
+    });
+
+  } catch (error) {
+    console.error('Update reception employee error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Ходим маълумотларини янгилашда хатолик',
       error: error.message
     });
   }

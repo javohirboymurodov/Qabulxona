@@ -19,9 +19,12 @@ const DailyPlanView = ({
     ...receptions.map(reception => ({ ...reception, type: 'reception' })),
     ...meetings.map(meeting => ({ ...meeting, type: 'meeting' }))
   ].sort((a, b) => {
-    const timeA = (a.startTime || a.time || '00:00').replace(':', '');
-    const timeB = (b.startTime || b.time || '00:00').replace(':', '');
-    return parseInt(timeA) - parseInt(timeB);
+    // Qabul uchun time, boshqalar uchun startTime
+    const timeA = (a.type === 'reception' ? a.time : a.startTime) || a.time || '00:00';
+    const timeB = (b.type === 'reception' ? b.time : b.startTime) || b.time || '00:00';
+    const timeAFormatted = timeA.replace(':', '');
+    const timeBFormatted = timeB.replace(':', '');
+    return parseInt(timeAFormatted) - parseInt(timeBFormatted);
   });
 
   // Har bir element uchun ikonka va rang
@@ -128,7 +131,7 @@ const DailyPlanView = ({
                     }}>
                       {getItemIcon(item.type)}
                       <strong style={{ fontSize: '14px' }}>
-                        {item.startTime || item.time}
+                        {item.type === 'reception' ? item.time : (item.startTime || item.time)}
                         {item.endTime && ` - ${item.endTime}`}
                       </strong>
                       {getItemTag(item.type)}

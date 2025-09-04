@@ -16,11 +16,19 @@ const receptionHistorySchema = new mongoose.Schema({
     position: String,
     department: String,
     phone: String,
+    scheduledTime: {
+      type: String, // HH:mm formatda - asosiy qabul vaqti (xodim keladigan vaqt)
+      required: true
+    },
     status: {
       type: String,
       enum: ['waiting', 'present', 'absent'],
       default: 'waiting'
     },
+    // Vaqt field'lari aniq ajratildi
+    scheduledTime: String,  // "14:30" - qabul belgilangan vaqti (simple)
+    arrivedAt: Date,        // Xodim kelgan aniq vaqt (timestamp)
+    statusUpdatedAt: Date,  // Status yangilangan vaqt
     task: {
       description: String,
       deadline: Number, // Kun hisobida
@@ -34,6 +42,7 @@ const receptionHistorySchema = new mongoose.Schema({
         default: 'pending'
       }
     },
+    // Deprecated fields (migration uchun)
     timeUpdated: {
       type: Date,
       default: Date.now

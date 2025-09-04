@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Select, TimePicker, Button, message, Card } from 'antd'; // Card qo'shildi
 import dayjs from 'dayjs';
-import { addToReception } from '../../services/api';
+import { addToReception, updateReceptionEmployee } from '../../services/api';
 
 const { Option } = Select;
 
@@ -11,7 +11,8 @@ const AddReceptionModal = ({
   onSave, 
   employees = [], 
   preSelectedEmployees = [],
-  defaultDate
+  defaultDate,
+  initialData = null // Edit mode uchun
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
@@ -21,14 +22,55 @@ const AddReceptionModal = ({
     if (visible) {
       form.resetFields();
       
-      // Default vaqt - hozirgi vaqtdan 1 soat keyin
-      form.setFieldsValue({
-        time: dayjs().add(1, 'hour'),
-        // Agar preSelected employee bor bo'lsa, birinchisini tanlash
-        selectedEmployee: preSelectedEmployees.length > 0 ? preSelectedEmployees[0]._id : undefined
-      });
+      if (initialData) {
+        // Edit mode - mavjud ma'lumotlarni yuklash
+        console.log('Edit mode - initialData:', initialData);
+        
+        // Vaqtni aniqlash - prioritet tartibida
+        let timeToSet = dayjs().add(1, 'hour'); // Fallback
+        
+        console.log('=== Time detection ===');
+        console.log('initialData fields:', {
+          scheduledTime: initialData.scheduledTime,
+          time: initialData.time,
+          timeUpdated: initialData.timeUpdated,
+          allFields: Object.keys(initialData)
+        });
+        
+        if (initialData.scheduledTime) {
+          timeToSet = dayjs(initialData.scheduledTime, 'HH:mm');
+          console.log('✅ Using scheduledTime:', initialData.scheduledTime);
+        } else if (initialData.time) {
+          // time field'i string formatda bo'lishi mumkin (HH:mm)
+          if (typeof initialData.time === 'string') {
+            timeToSet = dayjs(initialData.time, 'HH:mm');
+          } else {
+            timeToSet = dayjs(initialData.time);
+          }
+          console.log('✅ Using time:', initialData.time);
+        } else if (initialData.timeUpdated) {
+          timeToSet = dayjs(initialData.timeUpdated);
+          console.log('✅ Using timeUpdated:', initialData.timeUpdated);
+        } else {
+          console.log('⚠️ Using fallback time (current + 1 hour)');
+        }
+        
+        console.log('Final time set:', timeToSet.format('HH:mm'));
+        
+        form.setFieldsValue({
+          selectedEmployee: initialData.employeeId,
+          time: timeToSet
+        });
+      } else {
+        // Add mode - default vaqt
+        form.setFieldsValue({
+          time: dayjs().add(1, 'hour'),
+          // Agar preSelected employee bor bo'lsa, birinchisini tanlash
+          selectedEmployee: preSelectedEmployees.length > 0 ? preSelectedEmployees[0]._id : undefined
+        });
+      }
     }
-  }, [visible, form, preSelectedEmployees]);
+  }, [visible, form, preSelectedEmployees, initialData]);
 
   const handleSubmit = async () => {
     try {
@@ -41,18 +83,55 @@ const AddReceptionModal = ({
       console.log('Context check:', {
         defaultDate,
         onSave: !!onSave,
-        isDailyPlanContext: defaultDate && onSave && typeof onSave === 'function'
+        isDailyPlanContext: defaultDate && onSave && typeof onSave === 'function',
+        isEditMode: !!initialData
       });
       
       if (!selectedEmployee) {
         throw new Error('Ходим топільмади');
       }
 
-      // DailyPlan context'ini aniqroq aniqlash
-      // DefaultDate mavjud VA onSave funksiya bo'lsa - DailyPlan context
+      // Context'larni aniqlash
       const isDailyPlanContext = defaultDate && onSave && typeof onSave === 'function';
+      const isEditMode = !!initialData;
       
-      if (isDailyPlanContext) {
+      if (isEditMode) {
+        console.log('Edit context: updating reception');
+        // Edit mode - mavjud reception'ni yangilash
+        const updateData = {
+          scheduledTime: values.time.format('HH:mm') // Asosiy qabul vaqti
+        };
+        
+        // Agar yangi employee tanlangan bo'lsa, uni ham yangilaymiz
+        if (selectedEmployee._id !== initialData.employeeId) {
+          updateData.name = selectedEmployee.fullName || selectedEmployee.name;
+          updateData.position = selectedEmployee.position;
+          updateData.department = selectedEmployee.department;
+          updateData.phone = selectedEmployee.phone || '';
+        }
+        
+        await updateReceptionEmployee(
+          initialData.employeeId, 
+          updateData, 
+          initialData.date || dayjs().format('YYYY-MM-DD')
+        );
+        
+        messageApi.success({
+          content: 'Қабул маълумотлари муваффақиятли янгиланди',
+          duration: 3
+        });
+        
+        if (onSave && typeof onSave === 'function') {
+          onSave({
+            employee: selectedEmployee,
+            time: values.time.format('HH:mm'),
+            updated: true
+          });
+        }
+        
+        // Edit mode'da modal'ni yopish va ma'lumotlarni yangilash
+        onClose(true); // true - yangilanish bo'ldi
+      } else if (isDailyPlanContext) {
         console.log('DailyPlan context: calling onSave callback');
         // DailyPlan dan chaqirilsa - faqat callback (API chaqirmaslik)
         const receptionData = {
@@ -85,7 +164,7 @@ const AddReceptionModal = ({
           department: selectedEmployee.department,
           phone: selectedEmployee.phone || '',
           status: 'waiting',
-          time: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'),
+          scheduledTime: values.time ? values.time.format('HH:mm') : dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
           date: dayjs().format('YYYY-MM-DD')
         };
 
@@ -123,11 +202,11 @@ const AddReceptionModal = ({
 
   return (
     <Modal
-      title="Рахбар қабулига қўшиш"
+      title={initialData ? "Қабул маълумотларини таҳрирлаш" : "Рахбар қабулига қўшиш"}
       open={visible}
       onOk={handleSubmit}
       onCancel={() => onClose(false)}
-      okText="Қўшиш"
+      okText={initialData ? "Янгилаш" : "Қўшиш"}
       cancelText="Орқага"
       width={600}
       confirmLoading={loading}

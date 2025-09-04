@@ -234,7 +234,7 @@ const getDailyPlan = async (req, res) => {
         allItems.push({
           id: emp._id.toString(),
           type: 'reception',
-          time: emp.time || (emp.timeUpdated ? dayjs(emp.timeUpdated).format('HH:mm') : '09:00'),
+          time: emp.scheduledTime || emp.time || '09:00', // Xodimning kelish vaqti
           title: emp.name,
           description: emp.task?.description || emp.purpose || 'Рахбар қабули',
           department: emp.department,
@@ -282,10 +282,11 @@ const getDailyPlan = async (req, res) => {
  */
 const saveDailyPlan = async (req, res) => {
   try {
-    const { date, items } = req.body;
+    const { date, items, deletedItems = [] } = req.body;
     
-    console.log('Saving daily plan request:', { date, itemsCount: items?.length });
+    console.log('Saving daily plan request:', { date, itemsCount: items?.length, deletedItemsCount: deletedItems?.length });
     console.log('Items to save:', items);
+    console.log('Items to delete:', deletedItems);
     
     if (!date || !Array.isArray(items)) {
       return res.status(400).json({
@@ -307,12 +308,12 @@ const saveDailyPlan = async (req, res) => {
 
     console.log('Target date:', targetDate.format('YYYY-MM-DD'));
 
-    // Faqat yangi item'larni saqlash
-    const newItems = items.filter(item => item.isNew !== false);
+    // Barcha item'larni saqlash (yangi va tahrirlangan)
+    const itemsToSave = items.filter(item => item.isNew !== false);
     
-    console.log('New items to save:', newItems);
+    console.log('Items to save (new and edited):', itemsToSave);
     
-    if (newItems.length === 0) {
+    if (itemsToSave.length === 0) {
       return res.json({
         success: true,
         message: 'Сақлаш учун янги маълумотлар йўқ',
@@ -324,11 +325,76 @@ const saveDailyPlan = async (req, res) => {
       tasks: 0,
       meetings: 0,
       receptions: 0,
+      deleted: 0,
       errors: []
     };
 
-    // Ma'lumotlarni turga qarab ajratish va saqlash
-    for (const item of newItems) {
+    // Avval o'chirilgan item'larni o'chirish
+    console.log('🗑️ Processing deletions...');
+    for (const deletedItem of deletedItems) {
+      try {
+        console.log(`🗑️ Deleting ${deletedItem.type}:`, deletedItem.id);
+        
+        switch (deletedItem.type) {
+          case 'task':
+            console.log('🗑️ Deleting task from Schedule...');
+            
+            // Schedule'ni topish
+            const schedule = await Schedule.findOne({
+              date: {
+                $gte: targetDate.startOf('day').toDate(),
+                $lte: targetDate.endOf('day').toDate()
+              }
+            });
+            
+            if (schedule) {
+              console.log('📋 Schedule found, current tasks count:', schedule.tasks.length);
+              console.log('🔍 Looking for task ID:', deletedItem.id);
+              
+              // Task'ni o'chirish
+              schedule.tasks = schedule.tasks.filter(task => task._id.toString() !== deletedItem.id);
+              
+              console.log('📋 After deletion, tasks count:', schedule.tasks.length);
+              await schedule.save();
+              console.log('✅ Schedule saved after task deletion');
+            } else {
+              console.log('❌ Schedule not found for date');
+            }
+            break;
+            
+          case 'meeting':
+            await Meeting.findByIdAndDelete(deletedItem.id);
+            break;
+            
+          case 'reception':
+            // Reception o'chirish murakkab - employee'ni o'chirish kerak
+            const receptionHistory = await ReceptionHistory.findOne({
+              date: {
+                $gte: targetDate.startOf('day').toDate(),
+                $lte: targetDate.endOf('day').toDate()
+              }
+            });
+            
+            if (receptionHistory) {
+              receptionHistory.employees = receptionHistory.employees.filter(
+                emp => emp._id.toString() !== deletedItem.id
+              );
+              await receptionHistory.save();
+            }
+            break;
+        }
+        
+        results.deleted++;
+        console.log(`✅ Deleted ${deletedItem.type} successfully`);
+        
+      } catch (error) {
+        console.error(`❌ Failed to delete ${deletedItem.type}:`, error);
+        results.errors.push(`O'chirishda xatolik: ${deletedItem.type} - ${error.message}`);
+      }
+    }
+
+    // Keyin item'larni saqlash (yangi va tahrirlangan)
+    for (const item of itemsToSave) {
       try {
         console.log(`Processing ${item.type}:`, JSON.stringify(item, null, 2));
         
@@ -352,18 +418,47 @@ const saveDailyPlan = async (req, res) => {
               break;
             }
             
-            // Meeting'ni Meeting modeliga saqlash
-            const meeting = new Meeting({
-              name: item.title || item.name,
-              description: item.description || '',
-              date: targetDate.toDate(),
-              time: item.time,
-              location: item.location || '',
-              participants: item.participants || [],
-              createdAt: new Date()
-            });
+            // Meeting'ni Meeting modeliga saqlash yoki yangilash
+            let savedMeeting;
             
-            const savedMeeting = await meeting.save();
+            if (item.id && typeof item.id === 'string' && item.id.length > 10) {
+              // Tahrirlash - mavjud meeting'ni yangilash
+              console.log('🔄 Updating existing meeting:', item.id);
+              savedMeeting = await Meeting.findByIdAndUpdate(item.id, {
+                name: item.title || item.name,
+                description: item.description || '',
+                time: item.time,
+                location: item.location || '',
+                participants: item.participants || [],
+                updatedAt: new Date()
+              }, { new: true });
+              
+              if (!savedMeeting) {
+                console.log('❌ Meeting not found for update, creating new one');
+                savedMeeting = await new Meeting({
+                  name: item.title || item.name,
+                  description: item.description || '',
+                  date: targetDate.toDate(),
+                  time: item.time,
+                  location: item.location || '',
+                  participants: item.participants || [],
+                  createdAt: new Date()
+                }).save();
+              }
+            } else {
+              // Yangi meeting yaratish
+              console.log('🆕 Creating new meeting');
+              savedMeeting = await new Meeting({
+                name: item.title || item.name,
+                description: item.description || '',
+                date: targetDate.toDate(),
+                time: item.time,
+                location: item.location || '',
+                participants: item.participants || [],
+                createdAt: new Date()
+              }).save();
+            }
+            
             console.log('Meeting saved with ID:', savedMeeting._id);
             
             // Populate meeting participants for notifications
@@ -390,11 +485,11 @@ const saveDailyPlan = async (req, res) => {
             }
 
             // Send Telegram notifications to all participants
-            const notificationService = getNotificationService();
-            if (notificationService && item.participants && item.participants.length > 0) {
+            const meetingNotificationService = getNotificationService();
+            if (meetingNotificationService && item.participants && item.participants.length > 0) {
               try {
                 for (const participantId of item.participants) {
-                  await notificationService.sendMeetingNotification(participantId, {
+                  await meetingNotificationService.sendMeetingNotification(participantId, {
                     name: populatedMeeting.name,
                     description: populatedMeeting.description,
                     date: populatedMeeting.date,
@@ -466,12 +561,18 @@ const saveDailyPlan = async (req, res) => {
               });
             }
 
-            // Employee qo'shish (duplicate check)
+            // Employee qo'shish yoki yangilash (duplicate check)
             const existingEmployee = receptionHistory.employees.find(
               emp => emp.employeeId === item.employeeId
             );
 
             if (!existingEmployee) {
+              console.log('🆕 Adding new employee to reception:', {
+                employeeId: item.employeeId,
+                name: item.name,
+                scheduledTime: item.scheduledTime || item.time
+              });
+              
               receptionHistory.employees.push({
                 employeeId: item.employeeId,
                 name: item.name,
@@ -479,42 +580,58 @@ const saveDailyPlan = async (req, res) => {
                 department: item.department || '',
                 phone: item.phone || '',
                 status: item.status || 'waiting',
-                time: item.time, // Add time field
-                timeUpdated: new Date(),
-                createdAt: new Date()
+                scheduledTime: item.scheduledTime || item.time, // Asosiy qabul vaqti (xodim keladigan vaqt)
+                timeUpdated: new Date(), // Yangilangan vaqt
+                createdAt: new Date() // Ma'lumot yaratilgan vaqt
               });
-              await receptionHistory.save();
+            } else {
+              console.log('🔄 Updating existing employee in reception:', {
+                employeeId: item.employeeId,
+                name: item.name,
+                scheduledTime: item.scheduledTime || item.time
+              });
+              
+              // Mavjud employee'ni yangilash
+              existingEmployee.name = item.name;
+              existingEmployee.position = item.position || existingEmployee.position;
+              existingEmployee.department = item.department || existingEmployee.department;
+              existingEmployee.phone = item.phone || existingEmployee.phone;
+              existingEmployee.status = item.status || existingEmployee.status;
+              existingEmployee.scheduledTime = item.scheduledTime || item.time || existingEmployee.scheduledTime;
+              existingEmployee.timeUpdated = new Date();
+            }
+            
+            await receptionHistory.save();
 
-              // Add to employee's personal reception history (OPTIMIZED)
-              try {
-                const employee = await Employee.findById(item.employeeId);
-                if (employee) {
-                  await employee.addReception(
-                    receptionHistory._id,
-                    targetDate.toDate(),
-                    item.time || dayjs().format('HH:mm'),
-                    'waiting',
-                    'Rahbar ish grafigi orqali qo\'shildi'
-                  );
-                  console.log(`Added reception ${receptionHistory._id} to employee ${employee.name}'s history (OPTIMIZED)`);
-                }
-              } catch (historyError) {
-                console.error('Failed to add reception to employee history:', historyError);
+            // Add to employee's personal reception history (OPTIMIZED)
+            try {
+              const employee = await Employee.findById(item.employeeId);
+              if (employee) {
+                await employee.addReception(
+                  receptionHistory._id,
+                  targetDate.toDate(),
+                  item.scheduledTime || item.time || dayjs().format('HH:mm'),
+                  'waiting',
+                  existingEmployee ? 'Rahbar ish grafigi orqali yangilandi' : 'Rahbar ish grafigi orqali qo\'shildi'
+                );
+                console.log(`Added reception ${receptionHistory._id} to employee ${employee.name}'s history (OPTIMIZED)`);
               }
+            } catch (historyError) {
+              console.error('Failed to add reception to employee history:', historyError);
+            }
 
-              // Send Telegram notification to employee
-              const notificationService = getNotificationService();
-              if (notificationService) {
-                try {
-                  await notificationService.sendReceptionNotification(item.employeeId, {
-                    date: targetDate.format('YYYY-MM-DD'),
-                    time: item.time || dayjs().format('HH:mm'),
-                    notes: null
-                  });
-                  console.log(`📲 Reception notification sent to employee ${item.name}`);
-                } catch (notificationError) {
-                  console.error('Failed to send reception notification:', notificationError);
-                }
+            // Send Telegram notification to employee (both new and updated)
+            const receptionNotificationService = getNotificationService();
+            if (receptionNotificationService) {
+              try {
+                await receptionNotificationService.sendReceptionNotification(item.employeeId, {
+                  date: targetDate.format('YYYY-MM-DD'),
+                  time: item.scheduledTime || item.time || dayjs().format('HH:mm'),
+                  notes: existingEmployee ? 'Yangilandi' : null
+                });
+                console.log(`📲 Reception notification sent to employee ${item.name} (${existingEmployee ? 'updated' : 'new'})`);
+              } catch (notificationError) {
+                console.error('Failed to send reception notification:', notificationError);
               }
             }
             
@@ -537,6 +654,7 @@ const saveDailyPlan = async (req, res) => {
     console.log('Tasks saved:', results.tasks);
     console.log('Meetings saved:', results.meetings);
     console.log('Receptions saved:', results.receptions);
+    console.log('Items deleted:', results.deleted);
     console.log('Errors:', results.errors);
 
     res.json({

@@ -1,16 +1,29 @@
 import React from 'react';
 import { Table, Tag, Button, Space, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, UserOutlined, TeamOutlined, CalendarOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, TeamOutlined, CalendarOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 const ScheduleTable = ({ 
   dataSource = [], 
   loading = false, 
+  onView,
   onEdit, 
   onDelete, 
+  selectedDate,
   showActions = true,
   emptyText = "Бу кун учун маълумот мавжуд эмас",
   size = "small"
 }) => {
+
+  // Sana cheklovi - o'tgan kunlar uchun faqat view
+  const isDateEditable = (date) => {
+    if (!date) return false;
+    const selectedDay = dayjs(date).startOf('day');
+    const today = dayjs().startOf('day');
+    return selectedDay.isSameOrAfter(today);
+  };
+
+  const canEdit = selectedDate ? isDateEditable(selectedDate) : false;
 
   // Type bo'yicha icon olish
   const getTypeIcon = (type) => {
@@ -128,7 +141,7 @@ const ScheduleTable = ({
       )
     },
     {
-      title: 'Тафсилотлар',
+      title: 'Тафсил',
       key: 'details',
       render: (_, record) => (
         <div>
@@ -162,16 +175,29 @@ const ScheduleTable = ({
     }
   ];
 
-  // Agar actions kerak bo'lsa, actions ustunini qo'shamiz
-  if (showActions && (onEdit || onDelete)) {
+  // Actions ustuni - view/edit/delete
+  if (showActions && (onView || onEdit || onDelete)) {
     columns.push({
       title: 'Амаллар',
       key: 'actions',
-      width: 80,
+      width: 120,
       align: 'center',
       render: (_, record) => (
         <Space size="small">
-          {onEdit && (
+          {/* View button - har doim ko'rsatiladi */}
+          {onView && (
+            <Tooltip title="Кўриш">
+              <Button
+                type="text"
+                icon={<EyeOutlined />}
+                size="small"
+                onClick={() => onView(record)}
+              />
+            </Tooltip>
+          )}
+          
+          {/* Edit button - faqat kelajak kunlar uchun */}
+          {onEdit && canEdit && (
             <Tooltip title="Таҳрирлаш">
               <Button
                 type="text"
@@ -181,7 +207,9 @@ const ScheduleTable = ({
               />
             </Tooltip>
           )}
-          {onDelete && (
+          
+          {/* Delete button - faqat kelajak kunlar uchun */}
+          {onDelete && canEdit && (
             <Tooltip title="Ўчириш">
               <Button
                 type="text"

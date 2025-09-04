@@ -6,6 +6,7 @@ const { protect } = require('../middleware/auth');
 const {
   addToReception,
   updateReceptionStatus,
+  updateReceptionEmployee,
   getByDate,
   getByDateRange,
   getTodayReception,
@@ -33,6 +34,9 @@ router.get('/range/:startDate/:endDate', getByDateRange);
 
 // Update employee status in reception
 router.put('/:date/employee/:employeeId/status', updateReceptionStatus);
+
+// Update reception employee data (time, name, etc.)
+router.put('/:date/employee/:employeeId', updateReceptionEmployee);
 
 // Task status yangilash
 router.put('/task/:receptionId/status', updateTaskStatus);
@@ -111,7 +115,7 @@ router.post('/add-employee', async (req, res) => {
       department: employeeData.department || '',
       phone: employeeData.phone || '',
       status: employeeData.status || 'waiting',
-      scheduledTime: employeeData.time || dayjs().format('HH:mm'), // Qabul vaqti
+      scheduledTime: employeeData.scheduledTime || employeeData.time || dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
       timeUpdated: new Date(),
       createdAt: new Date()
     };
@@ -128,7 +132,7 @@ router.post('/add-employee', async (req, res) => {
       if (employee) {
         await employee.addReception({
           date: dayjs(targetDate).toDate(),
-          time: employeeData.time || dayjs().format('HH:mm'),
+          time: employeeData.scheduledTime || employeeData.time || dayjs().format('HH:mm'),
           status: 'waiting',
           notes: employeeData.notes || null
         });
@@ -146,7 +150,7 @@ router.post('/add-employee', async (req, res) => {
       try {
         await notificationService.sendReceptionNotification(employeeData.employeeId, {
           date: targetDate,
-          time: employeeData.time || dayjs().format('HH:mm'),
+          time: employeeData.scheduledTime || employeeData.time || dayjs().format('HH:mm'),
           notes: employeeData.task ? `Топшириқ: ${employeeData.task.description}` : null
         });
         console.log(`Reception notification sent to employee ${employeeData.employeeId}`);

@@ -38,6 +38,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
   const [meetings, setMeetings] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [items, setItems] = useState([]); // Barcha item'lar uchun umumiy state
+  const [deletedItems, setDeletedItems] = useState([]); // O'chirilgan item'lar
 
   // Modal states
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -101,7 +102,10 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       console.log('Daily plan loaded:', response);
       
       if (response.success && response.data) {
-        const allItems = response.data.items || [];
+        const allItems = (response.data.items || []).map(item => ({
+          ...item,
+          isNew: false // Backend'dan kelgan ma'lumotlar yangi emas
+        }));
         
         // Barcha item'larni set qilish
         setItems(allItems);
@@ -134,7 +138,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     console.log('Reception modal data received:', receptionData);
     
     const newReception = {
-      id: Date.now(), // Vaqtinchalik ID
+      id: Date.now() + Math.random(), // Unique ID
       type: 'reception',
       employeeId: receptionData.data.employeeId,
       name: receptionData.data.name,
@@ -142,14 +146,14 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
       department: receptionData.data.department,
       phone: receptionData.data.phone,
       status: receptionData.data.status,
-      time: receptionData.time,
+      scheduledTime: receptionData.time, // Asosiy qabul vaqti (xodim keladigan vaqt)
       date: date, // selectedDate -> date
       isNew: true // Yangi item flag
     };
     
     console.log('Adding reception to local state:', newReception);
-    setItems(prev => [...prev, newReception]);
-    setReceptions(prev => [...prev, newReception]); // BU QO'SHILMAGAN EDI!
+    setReceptions(prev => [...prev, newReception]);
+    setItems(prev => [...prev, newReception]); // items'ga ham qo'shish
     setShowReceptionModal(false);
     showMessage?.success('Қабул кунлик режага қўшилди');
   };
@@ -160,7 +164,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     console.log('Meeting modal data received:', meetingData);
     
     const newMeeting = {
-      id: Date.now(),
+      id: Date.now() + Math.random(), // Unique ID
       type: 'meeting', // TYPE MUHIM!
       time: meetingData.time,
       name: meetingData.data.name, // NAME
@@ -183,7 +187,7 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     console.log('Task modal data received:', taskData);
     
     const newTask = {
-      id: Date.now(),
+      id: Date.now() + Math.random(), // Unique ID
       type: 'task',
       time: taskData.time,
       title: taskData.data.title,
@@ -195,8 +199,8 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     };
     
     console.log('Adding task to local state:', newTask);
-    setItems(prev => [...prev, newTask]);
     setTasks(prev => [...prev, newTask]);
+    setItems(prev => [...prev, newTask]); // items'ga ham qo'shish
     setShowTaskModal(false);
   };
 
@@ -205,26 +209,37 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
     try {
       setLoading(true);
       
-      const newItems = items.filter(item => typeof item.id === 'number' || item.isNew === true);
+      const newItems = items.filter(item => item.isNew === true);
+      
+      console.log('=== FILTER DEBUG ===');
+      console.log('Total items:', items.length);
+      console.log('Items with isNew flag:', items.map(item => ({ id: item.id, type: item.type, isNew: item.isNew })));
+      console.log('Filtered new items:', newItems.length);
+      console.log('Deleted items:', deletedItems.length);
       
       console.log('=== SAVE ALL DEBUG ===');
       console.log('All items:', items);
       console.log('New items to save:', newItems);
+      console.log('Deleted items to remove:', deletedItems);
       console.log('Tasks:', tasks);
       console.log('Receptions:', receptions);
       console.log('Meetings:', meetings);
       
-      if (newItems.length === 0) {
+      if (newItems.length === 0 && deletedItems.length === 0) {
         setLoading(false);
         messageApi.info('Сақлаш учун янги маълумотлар йўқ');
         return;
       }
 
-      const response = await saveDailyPlan(date, newItems);
+      const response = await saveDailyPlan(date, newItems, deletedItems);
       console.log('Save response:', response);
 
       if (response.success) {
-        messageApi.success(`${newItems.length} та элемент муваффақиятли сақланди`);
+        const totalChanges = newItems.length + deletedItems.length;
+        messageApi.success(`${totalChanges} та ўзгариш муваффақиятли сақланди`);
+        
+        // O'chirilgan item'larni tozalash
+        setDeletedItems([]);
         
         // Local state'ni yangilash - vaqtinchalik ID'larni server ID'ga almashtirish
         const updatedItems = items.map(item => {
@@ -266,7 +281,15 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
   };
 
   const handleTaskRemove = (taskId) => {
+    console.log('🗑️ Removing task:', taskId);
+    
+    // Agar backend'dan kelgan item bo'lsa (string ID), deletion tracking
+    if (typeof taskId === 'string') {
+      setDeletedItems(prev => [...prev, { id: taskId, type: 'task' }]);
+    }
+    
     setTasks(prev => prev.filter(task => task.id !== taskId));
+    setItems(prev => prev.filter(item => item.id !== taskId));
   };
 
   // Reception handlers
@@ -281,7 +304,15 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
   // handleReceptionModalClose - o'chirildi, handleReceptionModalSave ishlatiladi
 
   const handleReceptionRemove = (receptionId) => {
+    console.log('🗑️ Removing reception:', receptionId);
+    
+    // Agar backend'dan kelgan item bo'lsa (string ID), deletion tracking
+    if (typeof receptionId === 'string') {
+      setDeletedItems(prev => [...prev, { id: receptionId, type: 'reception' }]);
+    }
+    
     setReceptions(prev => prev.filter(reception => reception.id !== receptionId));
+    setItems(prev => prev.filter(item => item.id !== receptionId));
   };
 
   // Meeting handlers
@@ -300,7 +331,15 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
   };
 
   const handleMeetingRemove = (meetingId) => {
+    console.log('🗑️ Removing meeting:', meetingId);
+    
+    // Agar backend'dan kelgan item bo'lsa (string ID), deletion tracking
+    if (typeof meetingId === 'string') {
+      setDeletedItems(prev => [...prev, { id: meetingId, type: 'meeting' }]);
+    }
+    
     setMeetings(prev => prev.filter(meeting => meeting.id !== meetingId));
+    setItems(prev => prev.filter(item => item.id !== meetingId));
   };
 
   const totalItems = tasks.length + receptions.length + meetings.length;

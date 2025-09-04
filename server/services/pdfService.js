@@ -10,9 +10,20 @@ const DEJAVU_SANS = path.join(FONT_PATH, 'DejaVuSans.ttf');
 const DEJAVU_SANS_BOLD = path.join(FONT_PATH, 'DejaVuSans-Bold.ttf');
 const COMPANY_LOGO = path.join(LOGO_PATH, 'logo.png'); // or logo.jpg
 
+// Emoji font paths (optional) - only TTF fonts that PDFKit supports
+const EMOJI_FONT_PATHS = [
+  path.join(FONT_PATH, 'NotoColorEmoji.ttf'),
+  path.join(FONT_PATH, 'SegoeUIEmoji.ttf')
+  // AppleColorEmoji.ttf is not supported by PDFKit
+];
+
 // Check if custom fonts and logo exist
 const hasCustomFonts = fs.existsSync(DEJAVU_SANS) && fs.existsSync(DEJAVU_SANS_BOLD);
 const hasCompanyLogo = fs.existsSync(COMPANY_LOGO) || fs.existsSync(path.join(LOGO_PATH, 'logo.jpg'));
+
+// Check for emoji font support
+const hasEmojiFont = EMOJI_FONT_PATHS.some(fontPath => fs.existsSync(fontPath));
+const emojiFontPath = EMOJI_FONT_PATHS.find(fontPath => fs.existsSync(fontPath));
 
 // Font helper functions
 const getRegularFont = () => hasCustomFonts ? 'CustomRegular' : 'Helvetica';
@@ -28,18 +39,24 @@ const colors = {
   light: [248, 250, 252]       // #f8fafc - Оч кулранг background
 };
 
-// Get item type info in Cyrillic
+// Get item type info in Cyrillic with emoji fallback
 const getItemTypeInfo = (type) => {
-  switch (type) {
-    case 'task':
-      return { emoji: '📋', label: 'Вазифа', color: colors.primary };
-    case 'reception':
-      return { emoji: '👤', label: 'Қабул', color: colors.secondary };
-    case 'meeting':
-      return { emoji: '🤝', label: 'Мажлис', color: colors.accent };
-    default:
-      return { emoji: '📄', label: 'Иш', color: colors.text };
-  }
+  // Try to use emojis, fallback to Unicode symbols if not supported
+  const emojiMap = {
+    task: { emoji: '📋', fallback: '■', label: 'Вазифа', color: colors.primary },
+    reception: { emoji: '👤', fallback: '●', label: 'Қабул', color: colors.secondary },
+    meeting: { emoji: '🤝', fallback: '◆', label: 'Мажлис', color: colors.accent }
+  };
+  
+  const item = emojiMap[type] || { emoji: '📄', fallback: '□', label: 'Иш', color: colors.text };
+  
+  // Use emojis if emoji font is available, otherwise use fallback symbols
+  return {
+    emoji: hasEmojiFont ? item.emoji : item.fallback,
+    label: item.label,
+    color: item.color,
+    hasEmojiSupport: hasEmojiFont
+  };
 };
 
 // Uzbek Cyrillic month and day names
@@ -100,6 +117,12 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
       if (hasCustomFonts) {
         doc.registerFont('CustomRegular', DEJAVU_SANS);
         doc.registerFont('CustomBold', DEJAVU_SANS_BOLD);
+      }
+      
+      // Register emoji font if available
+      if (hasEmojiFont && emojiFontPath) {
+        doc.registerFont('EmojiFont', emojiFontPath);
+        console.log('🎨 Emoji font registered:', path.basename(emojiFontPath));
       }
 
       // Collect chunks
@@ -228,17 +251,29 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
         doc.fillColor(colors.text)
            .fontSize(10)
            .font(getRegularFont())
-           .text(`📋 Жами: ${totalItems} та иш режаси`, margin + 20, currentY);
+           .text(`▲ Жами: ${totalItems} та иш режаси`, margin + 20, currentY);
         
         // Second line with other stats if they exist
         if (summary.totalTasks > 0 || summary.totalReceptions > 0 || summary.totalMeetings > 0) {
           currentY += 14;
           const detailParts = [];
-          if (summary.totalTasks > 0) detailParts.push(`📋 Вазифалар: ${summary.totalTasks}`);
-          if (summary.totalReceptions > 0) detailParts.push(`👤 Қабуллар: ${summary.totalReceptions}`);
-          if (summary.totalMeetings > 0) detailParts.push(`🤝 Мажлислар: ${summary.totalMeetings}`);
+          if (summary.totalTasks > 0) {
+            const taskInfo = getItemTypeInfo('task');
+            detailParts.push(`${taskInfo.emoji} Вазифалар: ${summary.totalTasks}`);
+          }
+          if (summary.totalReceptions > 0) {
+            const receptionInfo = getItemTypeInfo('reception');
+            detailParts.push(`${receptionInfo.emoji} Қабуллар: ${summary.totalReceptions}`);
+          }
+          if (summary.totalMeetings > 0) {
+            const meetingInfo = getItemTypeInfo('meeting');
+            detailParts.push(`${meetingInfo.emoji} Мажлислар: ${summary.totalMeetings}`);
+          }
           
-          doc.text(detailParts.join('  •  '), margin + 20, currentY);
+          // Use emoji font for summary if available
+          const summaryFont = hasEmojiFont ? 'EmojiFont' : getRegularFont();
+          doc.font(summaryFont)
+             .text(detailParts.join('  •  '), margin + 20, currentY);
         }
         
         currentY += 25;
@@ -280,16 +315,71 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
         
         currentY = tableTop + 35;
         
-        // Table rows - Simplified for consistency with frontend
-        items.forEach((item, index) => {
+              // Sort items by time before rendering
+      const sortedItems = items.sort((a, b) => {
+        // Get display time for sorting (same logic as display)
+        const timeA = a.type === 'reception' ? 
+          (a.data?.scheduledTime || a.time) : 
+          a.time;
+        const timeB = b.type === 'reception' ? 
+          (b.data?.scheduledTime || b.time) : 
+          b.time;
+        
+        const timeAFormatted = (timeA || '00:00').replace(':', '');
+        const timeBFormatted = (timeB || '00:00').replace(':', '');
+        return parseInt(timeAFormatted) - parseInt(timeBFormatted);
+      });
+      
+      // Table rows with improved height calculation
+      sortedItems.forEach((item, index) => {
           const typeInfo = getItemTypeInfo(item.type);
           
-          // Simplified row height calculation
-          const titleLines = Math.ceil((item.title || '').length / 40);
-          const descLines = Math.ceil((item.description || '').length / 50);
-          const metaLines = (item.position || item.department || item.location) ? 1 : 0;
-          const totalLines = titleLines + descLines + metaLines;
-          const rowHeight = Math.max(45, totalLines * 16 + 20);
+          // Calculate actual text height using PDFKit's text measurement
+          const detailX = tableLeft + colWidths[0] + colWidths[1] + 8;
+          const maxWidth = colWidths[2] - 16;
+          
+          // Measure title height
+          const titleHeight = doc.heightOfString(item.title || 'Номаълум', {
+            width: maxWidth,
+            fontSize: 11
+          });
+          
+          // Measure description height
+          let descHeight = 0;
+          if (item.description) {
+            descHeight = doc.heightOfString(item.description, {
+              width: maxWidth,
+              fontSize: 9
+            });
+          }
+          
+          // Calculate meta info height with emoji support
+          const metaParts = [];
+          if (item.type === 'reception') {
+            if (item.position) metaParts.push(`${hasEmojiFont ? '💼' : '■'} ${item.position}`);
+            if (item.department) metaParts.push(`${hasEmojiFont ? '🏢' : '◢'} ${item.department}`);
+            if (item.phone) metaParts.push(`${hasEmojiFont ? '📞' : '☎'} ${item.phone}`);
+          } else if (item.type === 'meeting') {
+            if (item.location) metaParts.push(`${hasEmojiFont ? '📍' : '◆'} ${item.location}`);
+            if (item.participants?.length) metaParts.push(`${hasEmojiFont ? '👥' : '◯'} ${item.participants.length} иштирокчи`);
+          } else if (item.type === 'task') {
+            if (item.priority && item.priority !== 'normal') {
+              const priorityTexts = { low: 'Паст', high: 'Юқори', urgent: 'Шошилинч' };
+              metaParts.push(`${hasEmojiFont ? '⚡' : '▲'} ${priorityTexts[item.priority]}`);
+            }
+          }
+          
+          let metaHeight = 0;
+          if (metaParts.length > 0) {
+            metaHeight = doc.heightOfString(metaParts.join('  •  '), {
+              width: maxWidth,
+              fontSize: 8
+            });
+          }
+          
+          // Calculate total height with proper padding
+          const totalContentHeight = titleHeight + descHeight + metaHeight;
+          const rowHeight = Math.max(50, totalContentHeight + 30); // 30px padding (15px top + 15px bottom)
           
           // Page break check
           if (currentY + rowHeight > pageHeight - 80) {
@@ -324,11 +414,25 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
           // Simplified cell content
           let cellY = currentY + 15;
           
-          // Time column
+          // Time column - qabul uchun data.scheduledTime, boshqalar uchun time
+          const displayTime = item.type === 'reception' ? 
+            (item.data?.scheduledTime || item.time) : 
+            item.time;
+            
+          // Debug log for reception items
+          if (item.type === 'reception') {
+            console.log('🔍 PDF Reception Debug:', {
+              name: item.title,
+              time: item.time,
+              dataScheduledTime: item.data?.scheduledTime,
+              displayTime: displayTime
+            });
+          }
+            
           doc.fillColor(colors.text)
              .fontSize(12)
              .font(getBoldFont())
-             .text(formatTime(item.time), tableLeft + 8, cellY, {
+             .text(formatTime(displayTime), tableLeft + 8, cellY, {
                width: colWidths[0] - 16,
                align: 'center'
              });
@@ -343,10 +447,10 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
                });
           }
           
-          // Type column
+          // Type column with emoji font support
           doc.fillColor(typeInfo.color)
              .fontSize(10)
-             .font(getBoldFont())
+             .font(typeInfo.hasEmojiSupport ? 'EmojiFont' : getBoldFont())
              .text(`${typeInfo.emoji}`, tableLeft + colWidths[0] + 8, cellY);
           
           doc.fontSize(9)
@@ -355,10 +459,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
                align: 'center'
              });
           
-          // Simplified details column
-          const detailX = tableLeft + colWidths[0] + colWidths[1] + 8;
-          const maxWidth = colWidths[2] - 16;
-          
+          // Details column with proper text positioning
           // Title
           doc.fillColor(colors.text)
              .fontSize(11)
@@ -367,7 +468,7 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
                width: maxWidth
              });
           
-          cellY += 16;
+          cellY += titleHeight + 4;
           
           // Description
           if (item.description) {
@@ -377,29 +478,17 @@ const generateSchedulePDF = async (scheduleData, selectedDate) => {
                .text(item.description, detailX, cellY, {
                  width: maxWidth
                });
-            cellY += descLines * 12 + 4;
+            cellY += descHeight + 4;
           }
           
-          // Meta info in one line
-          const metaParts = [];
-          if (item.type === 'reception') {
-            if (item.position) metaParts.push(`💼 ${item.position}`);
-            if (item.department) metaParts.push(`🏢 ${item.department}`);
-            if (item.phone) metaParts.push(`📞 ${item.phone}`);
-          } else if (item.type === 'meeting') {
-            if (item.location) metaParts.push(`📍 ${item.location}`);
-            if (item.participants?.length) metaParts.push(`👥 ${item.participants.length} иштирокчи`);
-          } else if (item.type === 'task') {
-            if (item.priority && item.priority !== 'normal') {
-              const priorityTexts = { low: 'Паст', high: 'Юқори', urgent: 'Шошилинч' };
-              metaParts.push(`⚡ ${priorityTexts[item.priority]}`);
-            }
-          }
-          
+          // Meta info with emoji font support
           if (metaParts.length > 0) {
             doc.fontSize(8)
+               .font(hasEmojiFont ? 'EmojiFont' : getRegularFont())
                .fillColor('#666666')
-               .text(metaParts.join('  •  '), detailX, cellY);
+               .text(metaParts.join('  •  '), detailX, cellY, {
+                 width: maxWidth
+               });
           }
           
           currentY += rowHeight + 1;
