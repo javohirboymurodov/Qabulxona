@@ -45,6 +45,48 @@ ${receptionData.notes ? `📝 **Qo'shimcha:** ${receptionData.notes}` : ''}
   }
 
   /**
+   * Send reception status update notification to employee
+   */
+  async sendReceptionStatusUpdateNotification(employeeId, statusData) {
+    try {
+      const employee = await Employee.findById(employeeId);
+      
+      if (!employee || !employee.telegramId || !employee.notificationSettings.receptionNotification) {
+        console.log(`Cannot send reception status update notification to employee ${employeeId}: ${!employee ? 'Not found' : !employee.telegramId ? 'No Telegram ID' : 'Notifications disabled'}`);
+        return false;
+      }
+
+      const statusText = {
+        'waiting': '⏳ Kutilmoqda',
+        'present': '✅ Keldi',
+        'absent': '❌ Kelmadi'
+      };
+
+      const message = `
+🔄 **Qabul holati yangilandi!**
+
+📅 **Sana:** ${dayjs(statusData.date).format('DD.MM.YYYY')}
+⏰ **Vaqt:** ${statusData.time || 'Belgilanmagan'}
+📊 **Yangi holat:** ${statusText[statusData.status] || statusData.status}
+${statusData.notes ? `📝 **Qo'shimcha:** ${statusData.notes}` : ''}
+
+🔔 Bu xabar avtomatik yuborildi.
+      `;
+
+      await this.bot.sendMessage(employee.telegramId, message, {
+        parse_mode: 'Markdown'
+      });
+
+      console.log(`Reception status update notification sent to ${employee.name} (${employee.telegramId})`);
+      return true;
+
+    } catch (error) {
+      console.error('Error sending reception status update notification:', error);
+      return false;
+    }
+  }
+
+  /**
    * Send meeting notification to employee
    */
   async sendMeetingNotification(employeeId, meetingData) {
@@ -87,6 +129,48 @@ ${meetingData.description ? `📄 **Tavsif:** ${meetingData.description}` : ''}
 
     } catch (error) {
       console.error('Error sending meeting notification:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send meeting update notification to employee
+   */
+  async sendMeetingUpdateNotification(employeeId, meetingData) {
+    try {
+      const employee = await Employee.findById(employeeId);
+      
+      if (!employee || !employee.telegramId || !employee.notificationSettings.meetingNotification) {
+        console.log(`Cannot send meeting update notification to employee ${employeeId}: ${!employee ? 'Not found' : !employee.telegramId ? 'No Telegram ID' : 'Notifications disabled'}`);
+        return false;
+      }
+
+      const actionText = meetingData.action === 'updated' ? 'Yangilandi' : 'O\'zgartirildi';
+      const actionEmoji = meetingData.action === 'updated' ? '🔄' : '📝';
+
+      const message = `
+${actionEmoji} **Majlis ${actionText}!**
+
+📝 **Mavzu:** ${meetingData.name}
+📅 **Sana:** ${dayjs(meetingData.date).format('DD.MM.YYYY')}
+⏰ **Vaqt:** ${meetingData.time}
+📍 **Joy:** ${meetingData.location || 'Belgilanmagan'}
+${meetingData.description ? `📄 **Tavsif:** ${meetingData.description}` : ''}
+
+⚠️ Majlis ma'lumotlari o'zgartirildi. Yangi vaqtni tekshiring!
+
+🔔 Bu xabar avtomatik yuborildi.
+      `;
+
+      await this.bot.sendMessage(employee.telegramId, message, {
+        parse_mode: 'Markdown'
+      });
+
+      console.log(`Meeting update notification sent to ${employee.name} (${employee.telegramId})`);
+      return true;
+
+    } catch (error) {
+      console.error('Error sending meeting update notification:', error);
       return false;
     }
   }

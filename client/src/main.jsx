@@ -9,21 +9,19 @@ import './index.css'
 import "@fortawesome/fontawesome-free/css/all.min.css"
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter>
-      <ConfigProvider
-        locale={uz_UZ}
-        theme={{
-          token: {
-            colorPrimary: '#005BAE',
-            borderRadius: 6,
-          },
-        }}
-      >
-        <App>
-          <AppComponent />
-        </App>
-      </ConfigProvider>
-    </BrowserRouter>
-  </StrictMode>,
+  <BrowserRouter>
+    <ConfigProvider
+      locale={uz_UZ}
+      theme={{
+        token: {
+          colorPrimary: '#005BAE',
+          borderRadius: 6,
+        },
+      }}
+    >
+      <App>
+        <AppComponent />
+      </App>
+    </ConfigProvider>
+  </BrowserRouter>,
 )

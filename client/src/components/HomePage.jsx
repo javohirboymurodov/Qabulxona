@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {Row,Col,Card,Space,Tag,Typography,Button,message,List,Avatar,Checkbox,App,} from "antd";
 import {
   UserOutlined,
@@ -18,9 +18,9 @@ import dayjs from "dayjs";
 
 const { Title, Text } = Typography;
 
-const HomePage = ({ employees = [], meetings = [], fetchData }) => {
-  // Faqat App.useApp() dan foydalaning
-  const { message: messageApi } = App.useApp();
+const HomePage = ({ employees = [], meetings = [], fetchData, showMessage }) => {
+  // showMessage prop'idan foydalanish
+  const messageApi = showMessage || message;
   
 
   const [selectedEmployees, setSelectedEmployees] = useState([]);
@@ -29,15 +29,15 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [todayReception, setTodayReception] = useState([]);
   const [receptionModalVisible, setReceptionModalVisible] = useState(false);
-  const [showReceptionModal, setShowReceptionModal] = useState(false); // Yangi state
+  const [showReceptionModal, setShowReceptionModal] = useState(false);
+  const [receptionDataLoaded, setReceptionDataLoaded] = useState(false); // Ikki marta yuklashni oldini olish
 
-  // Bugungi qabullarni olish
-  useEffect(() => {
-    fetchTodayReception();
-  }, []);
-
-  const fetchTodayReception = async () => {
+  // Bugungi qabullarni olish - useCallback bilan memoize
+  const fetchTodayReception = useCallback(async () => {
+    if (receptionDataLoaded) return; // Agar allaqachon yuklangan bo'lsa, qayta yuklamaslik
+    
     try {
+      setReceptionDataLoaded(true);
       // Backend'dagi today endpoint ishlatamiz
       const response = await getTodayReception();
       if (response.success && response.data) {
@@ -53,10 +53,16 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
     } catch (error) {
       console.error("Bugungi qabullarni olishda xato:", error);
       setTodayReception([]);
+      setReceptionDataLoaded(false); // Xato bo'lsa, qayta urinish uchun false qilish
     }
-  };
+  }, [receptionDataLoaded]);
+
+  // Component mount bo'lganda faqat bir marta yuklash
+  useEffect(() => {
+    fetchTodayReception();
+  }, [fetchTodayReception]);
   // Left Panel - Employee List Component
-  const EmployeeListPanel = () => {
+  const EmployeeListPanel = memo(() => {
     const [localMessageApi, contextHolder] = message.useMessage();
     const [filteredEmployees, setFilteredEmployees] = useState(employees || []);
 
@@ -195,11 +201,11 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
         </Card>
       </>
     );
-  };
+  });
 
   // Middle Panel - Bugungi Boss Reception
-  const TodayBossReceptionPanel = () => {
-    const handleStatusUpdate = async (employee, status) => {
+  const TodayBossReceptionPanel = memo(() => {
+    const handleStatusUpdate = useCallback(async (employee, status) => {
       try {
         const employeeId = employee.employeeId?._id ||
           employee.employeeId ||
@@ -222,6 +228,8 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
           await updateReceptionStatus(employeeId, { status });
           messageApi.success('Ходим ҳолати "Келмади" га ўзгартирилди');
 
+          // Reception data'ni qayta yuklash uchun flag'ni false qilish
+          setReceptionDataLoaded(false);
           await fetchTodayReception(); // Listni yangilaymiz
 
 
@@ -233,7 +241,7 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
         console.error("Status update error:", error);
         messageApi.error("Ходим ҳолатини янгилашда хатолик юз берди");
       }
-    };
+    }, [messageApi, fetchData, fetchTodayReception]);
 
     const getStatusTag = (status) => {
       switch (status) {
@@ -369,10 +377,10 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
         />
       </Card>
     );
-  };
+  });
 
   // Right Panel - Scheduled Meetings Component
-  const ScheduledMeetingsPanel = () => {
+  const ScheduledMeetingsPanel = memo(() => {
     const now = dayjs();
 
     const upcomingMeetings = (meetings || [])
@@ -439,13 +447,13 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
         />
       </Card>
     );
-  };
+  });
 
   const getEmployeeId = (emp) =>
     typeof emp.employeeId === 'object'
       ? emp.employeeId._id
       : emp.employeeId || emp._id || emp.id;
-  const handleTaskSave = async (taskData) => {
+  const handleTaskSave = useCallback(async (taskData) => {
     try {
 
       // Employee ID to'g'ri olish
@@ -464,6 +472,8 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
       setShowTaskModal(false);
       setSelectedEmployee(null);
 
+      // Reception data'ni qayta yuklash uchun flag'ni false qilish
+      setReceptionDataLoaded(false);
       await fetchTodayReception(); // Listni yangilaymiz
       if (fetchData) {
         await fetchData();
@@ -473,18 +483,20 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
       console.error('Task save error:', error);
       messageApi.error('Топшириқ беришда хатолик юз берди');
     }
-  };
+  }, [selectedEmployee, messageApi, fetchData, fetchTodayReception]);
 
-  const handleReceptionModalClose = async (success) => {
+  const handleReceptionModalClose = useCallback(async (success) => {
     setReceptionModalVisible(false);
     if (success) {
+      // Reception data'ni qayta yuklash uchun flag'ni false qilish
+      setReceptionDataLoaded(false);
       await fetchTodayReception(); // Bugungi qabulni yangilash
       if (fetchData) {
         await fetchData(); // Umumiy ma'lumotlarni yangilash
       }
       setSelectedEmployees([]); // Tanlovni tozalash
     }
-  };
+  }, [fetchData, fetchTodayReception]);
 
   // HomePage'da modal ochish joyida
   const openReceptionModal = () => {
@@ -557,4 +569,4 @@ const HomePage = ({ employees = [], meetings = [], fetchData }) => {
   );
 };
 
-export default HomePage;
+export default memo(HomePage);

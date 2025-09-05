@@ -329,12 +329,13 @@ exports.updateReceptionStatus = async (req, res) => {
     const notificationService = getNotificationService();
     if (notificationService) {
       try {
-        const employee = await Employee.findById(actualEmployeeId);
+        const employee = await Employee.findById(employeeId);
         if (employee) {
-          await notificationService.sendReceptionNotification(actualEmployeeId, {
+          await notificationService.sendReceptionStatusUpdateNotification(employeeId, {
             date: date,
             time: reception.employees[employeeIndex].scheduledTime || 'Belgilanmagan',
-            notes: `Status yangilandi: ${status}`
+            status: status,
+            notes: null
           });
           console.log(`📲 Reception status update notification sent to employee ${employee.name}`);
         }
@@ -664,10 +665,19 @@ exports.updateReceptionEmployee = async (req, res) => {
     // Eski vaqtni saqlash
     const oldScheduledTime = reception.employees[employeeIndex].scheduledTime;
     
-    // Ma'lumotlarni yangilash
+    // Ma'lumotlarni yangilash - barcha field'larni saqlab qolish
+    const originalEmployee = reception.employees[employeeIndex];
     reception.employees[employeeIndex] = {
-      ...reception.employees[employeeIndex],
+      ...originalEmployee,
       ...updateData,
+      // Asosiy field'larni aniq saqlab qolish
+      employeeId: originalEmployee.employeeId,
+      name: originalEmployee.name,
+      position: originalEmployee.position,
+      department: originalEmployee.department,
+      phone: originalEmployee.phone,
+      status: originalEmployee.status,
+      task: originalEmployee.task,
       timeUpdated: new Date()
     };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Layout, ConfigProvider, Button, Tooltip, App as AntApp, Spin, message } from "antd";
+import { Layout, ConfigProvider, Button, Tooltip, App as AntApp, Spin } from "antd";
 import uzUZ from "antd/locale/uz_UZ";
 import { UserAddOutlined } from "@ant-design/icons";
 import EmployeeList from "./components/Employees/EmployeeList";
@@ -7,7 +7,7 @@ import Navbar from "./components/Navbar";
 import MeetingManager from "./components/Meetings/MeetingManager";
 import AddMeetingModal from "./components/Meetings/AddMeetingModal";
 import AddEmployeeModal from "./components/Employees/AddEmployeeModal";
-import BossWorkSchedule from "./components/BossWorkSchedule"; // 
+import BossWorkSchedule from "./components/BossWorkSchedule";
 import HomePage from "./components/HomePage";
 import BossReception from "./components/Reseption/BossReception";
 import AppFooter from "./components/Footer";
@@ -31,7 +31,7 @@ import {
 const { Content } = Layout;
 
 function App() {
-  // Auth states - App level da
+  // Auth states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -160,7 +160,7 @@ function App() {
   );
 }
 
-// AppContent component - alohida ajratilgan
+// Optimized AppContent component
 const AppContent = ({ admin, onLogout }) => {
   const { message } = AntApp.useApp();
 
@@ -184,20 +184,30 @@ const AppContent = ({ admin, onLogout }) => {
   const [preSelectedEmployeesForMeeting, setPreSelectedEmployeesForMeeting] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Bu state-ni faqat bir marta chaqirish uchun ref ishlatamiz
+  const [dataLoaded, setDataLoaded] = useState(false);
+
   // Fetch data when component mounts
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (!dataLoaded) {
+      fetchData();
+      setDataLoaded(true);
+    }
+  }, [dataLoaded]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      const employeesResponse = await getEmployees();
+      // Promise.all ishlatib parallel request jo'natamiz
+      const [employeesResponse, meetingsResponse] = await Promise.all([
+        getEmployees().catch(error => ({ data: [], error })),
+        getMeetings().catch(error => ({ data: [], error }))
+      ]);
+
       const employeesData = employeesResponse?.data || employeesResponse;
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
 
-      const meetingsResponse = await getMeetings();
       const meetingsData = meetingsResponse?.data || meetingsResponse;
       setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
     } catch (error) {
@@ -280,7 +290,8 @@ const AppContent = ({ admin, onLogout }) => {
     }
   };
 
-  const renderView = () => {
+  // Optimized renderView - memoization bilan
+  const renderView = React.useMemo(() => {
     switch (activeView) {
       case "home":
         return (
@@ -339,7 +350,7 @@ const AppContent = ({ admin, onLogout }) => {
           />
         );
       case "boss-schedule":
-        return <BossWorkSchedule showMessage={showMessage} />; {/* fetchData prop ni olib tashladim */}
+        return <BossWorkSchedule showMessage={showMessage} />;
       case "reception-history":
         return (
           <BossReception
@@ -371,9 +382,9 @@ const AppContent = ({ admin, onLogout }) => {
           />
         );
     }
-  };
+  }, [activeView, employees, meetings, selectedEmployee, admin]);
 
-  if (loading) {
+  if (loading && !dataLoaded) {
     return (
       <div
         style={{
@@ -404,11 +415,10 @@ const AppContent = ({ admin, onLogout }) => {
           minHeight: "calc(100vh - 64px)",
         }}
       >
-        {renderView()}
+        {renderView}
 
         {/* Add Meeting Modal */}
         {showMeetingModal && (
-          <AntApp>
           <AddMeetingModal
             onClose={() => {
               setShowMeetingModal(false);
@@ -420,7 +430,6 @@ const AppContent = ({ admin, onLogout }) => {
             initialValues={editingMeeting}
             preSelectedEmployees={preSelectedEmployeesForMeeting}
           />
-          </AntApp>
         )}
 
         {/* Add Employee Modal */}

@@ -52,28 +52,28 @@ bot.onText(/\/start/, async (msg) => {
     const existingEmployee = await Employee.findOne({ telegramId: chatId.toString() });
     
     if (existingEmployee) {
+      // Ro'yxatdan o'tgan foydalanuvchini asosiy oynaga yo'naltiramiz
       bot.sendMessage(chatId, `
-🎉 Хуш келибсиз, ${existingEmployee.name}!
+🏠 **Асосий меню**
 
-Сиз ушбу системада рўйхатдан ўтгансиз.
-
-📱 Қуйидаги тугмалардан фойдаланинг:
+Қуйидаги тугмалардан бирини танланг:
       `, {
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '👤 Профил', callback_data: 'profile' },
-              { text: '📋 Тошриқлар', callback_data: 'tasks' }
+              { text: '👤 Профил', callback_data: 'profile' }
             ],
             [
+              { text: '📋 Тошриқлар', callback_data: 'task_history' },
+              { text: '🏢 Қабуллар', callback_data: 'receptions' }
+            ],
+            [
+              { text: '🤝 Мажлислар', callback_data: 'meetings' },
               { text: '⚙️ Созламалар', callback_data: 'settings' }
-            ],
-            [
-              { text: '❓ Йўрдам', callback_data: 'help' }
             ]
           ]
-        },
-        parse_mode: 'Markdown'
+        }
       });
       return;
     }
@@ -160,34 +160,28 @@ bot.on('contact', async (msg) => {
     employee.isVerified = true;
     await employee.save();
     
+    // Ro'yxatdan o'tgandan so'ng asosiy oynaga yo'naltiramiz
     bot.sendMessage(chatId, `
-✅ Муваффақиятли рўйхатдан ўтдингиз!
+🏠 **Асосий меню**
 
-👤 **${employee.name}**
-🏢 ${employee.position}
-🏛️ ${employee.department}
-
-📱 Энди сизга қуйидаги хабарлар юборилади:
-• Қабулга таклиф қилинганингизда
-• Мажлисага таклиф қилганингизда  
-• Янги тошриқлар берилганда
-• Топшириқ муддати тугашидан олдин
+Қуйидаги тугмалардан бирини танланг:
     `, {
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '👤 Профил', callback_data: 'profile' },
-            { text: '📋 Тошриқлар', callback_data: 'tasks' }
+            { text: '👤 Профил', callback_data: 'profile' }
           ],
           [
+            { text: '📋 Тошриқлар', callback_data: 'task_history' },
+            { text: '🏢 Қабуллар', callback_data: 'receptions' }
+          ],
+          [
+            { text: '🤝 Мажлислар', callback_data: 'meetings' },
             { text: '⚙️ Созламалар', callback_data: 'settings' }
-          ],
-          [
-            { text: '❓ Ёрдам', callback_data: 'help' }
           ]
         ]
-      },
-      parse_mode: 'Markdown'
+      }
     });
     
     console.log(`Employee registered: ${employee.name} (${employee.phone}) -> Telegram ID: ${chatId}`);
@@ -327,38 +321,6 @@ bot.onText(/\/history/, async (msg) => {
   }
 });
 
-// Help command
-bot.onText(/\/help/, (msg) => {
-  const chatId = msg.chat.id;
-  
-  bot.sendMessage(chatId, `
-🤖 **Қабулхона Бот - Йўрдам**
-
-📋 **Мавжуд буйруқлар:**
-
-/start - Ботни ишга тўшириш ва рўйхатдан ўтиш
-/profile - Шахсий маълумотларни кўриш
-/tasks - Ҳозирча фаол тошриқлар сизнинг
-/history - Тошриқлар тарихси
-/settings - Хабар созламалар
-/help - Бу ёрдам хабари
-
-📱 **Avtomatik xabarlar:**
-• Қабулга таклиф қилинганингизда
-• Мажлисага таклиф қилганингизда
-• Янги тошриқлар берилганда
-• Топшириқ муддати тугашидан бир кун олдин
-
-❓ **Ёрдам керакми?**
-Администратор билан боғланинг: @admin
-
-🔧 **Техник ёрдам:**
-Агар бот ишламаётган бўлса, /start буйруғини такрорланг.
-  `, {
-    parse_mode: 'Markdown'
-  });
-});
-
 // Handle callback queries (inline keyboard)
 bot.on('callback_query', async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
@@ -389,9 +351,6 @@ bot.on('callback_query', async (callbackQuery) => {
             [
               { text: '🤝 Мажлислар', callback_data: 'meetings' },
               { text: '⚙️ Созламалар', callback_data: 'settings' }
-            ],
-            [
-              { text: '❓ Ёрдам', callback_data: 'help' }
             ]
           ]
         }
@@ -450,31 +409,19 @@ bot.on('callback_query', async (callbackQuery) => {
       case 'settings':
         await handleSettingsCommand(chatId, employee);
         break;
-      case 'help':
-        await handleHelpCommand(chatId);
-        break;
-      case 'receptions':
-        await handleReceptionsCommand(chatId, employee);
-        break;
-      case 'meetings':
-        await handleMeetingsCommand(chatId, employee);
-        break;
-      case 'task_history':
-        await handleTaskHistoryCommand(chatId, employee);
-        break;
       // Pagination handlers
       case data.match(/^tasks_page_(\d+)$/)?.input:
         const taskPage = parseInt(data.split('_')[2]);
-        await handleTaskHistoryCommand(chatId, employee, taskPage);
+        await handleTaskHistoryCommand(chatId, employee, taskPage, messageId);
         break;
       case data.match(/^receptions_page_(\d+)$/)?.input:
         const receptionPage = parseInt(data.split('_')[2]);
-        await handleReceptionsCommand(chatId, employee, receptionPage);
+        await handleReceptionsCommand(chatId, employee, receptionPage, messageId);
         break;
       case data.match(/^meetings_page_(\d+)$/)?.input:
-        const meetingPage = parseInt(data.split('_')[2]);
-        await handleMeetingsCommand(chatId, employee, meetingPage);
-        break;
+          const meetingPage = parseInt(data.split('_')[2]);
+          await handleMeetingsCommand(chatId, employee, meetingPage, messageId);
+          break;
       // Info handlers (just show current page info)
       case 'tasks_info':
         bot.answerCallbackQuery(callbackQuery.id, { text: 'Тошриқлар тарихси саҳифаси' });
@@ -600,7 +547,6 @@ async function handleTasksCommand(chatId, employee) {
   });
 }
 
-
 async function handleSettingsCommand(chatId, employee) {
   const settings = employee.notificationSettings || {};
   
@@ -624,43 +570,9 @@ async function handleSettingsCommand(chatId, employee) {
   });
 }
 
-async function handleHelpCommand(chatId) {
-  bot.sendMessage(chatId, `
-🤖 **Қабулхона Бот - Ёрдам**
-
-📋 **Мавжуд функциялар:**
-
-👤 **Профил** - Шахсий маълумотларни кўриш
-📋 **Тошриқлар** - Ҳозирча фаол тошриқлар сизнинг
-📚 **Тарих** - Тошриқлар тарихси
-⚙️ **Созламалар** - Хабар созламалари
-
-📱 **Автоматик хабарлар:**
-• Қабулга таклиф қилинганингизда
-• Мажлисага таклиф қилганингизда
-• Янги тошриқлар берилганида
-• Тошриқ муддати тугашидан бир кун олдин
-
-❓ **Ёрдам керакми?**
-Администратор билан боғланинг
-
-🔧 **Техник ёрдам:**
-Агар бот ишламаётган бўлса, /start буйруғини такрорланг.
-  `, {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
-      ]
-    }
-  });
-}
-
-
-
 // Handle unknown commands
 bot.on('message', (msg) => {
-  if (msg.text && msg.text.startsWith('/') && !msg.text.match(/\/(start|profile|tasks|history|help|settings)/)) {
+  if (msg.text && msg.text.startsWith('/') && !msg.text.match(/\/(start|profile|tasks|history|settings)/)) {
     bot.sendMessage(msg.chat.id, `
 ❓ Номаълум буйруқ: ${msg.text}
 
@@ -676,7 +588,7 @@ bot.on('message', (msg) => {
 });
 
 // New history functions
-async function handleTaskHistoryCommand(chatId, employee, page = 1) {
+async function handleTaskHistoryCommand(chatId, employee, page = 1, messageId = null) {
   // Always reload to reflect admin-side updates (e.g., completed)
   const freshEmployee = await Employee.findOne({ telegramId: chatId.toString() });
   const source = freshEmployee || employee;
@@ -714,13 +626,26 @@ async function handleTaskHistoryCommand(chatId, employee, page = 1) {
 
   // For history view, we ONLY show tasks assigned via reception
   if (unifiedReceptionTasks.length === 0) {
-    bot.sendMessage(chatId, '📋 Тошриқлар тарихи бўш.', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
-        ]
-      }
-    });
+    if (messageId) {
+      bot.editMessageText('📋 Тошриқлар тарихи бўш.', {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
+          ]
+        }
+      });
+    } else {
+      bot.sendMessage(chatId, '📋 Тошриқлар тарихи бўш.', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
+          ]
+        }
+      });
+    }
     return;
   }
   
@@ -789,15 +714,39 @@ async function handleTaskHistoryCommand(chatId, employee, page = 1) {
   }
   keyboard.push([{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]);
   
-  bot.sendMessage(chatId, message, {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: keyboard
+  if (messageId) {
+    // Mavjud xabarni yangilash
+    try {
+      await bot.editMessageText(message, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
+    } catch (error) {
+      console.error('Xabarni yangilashda xatolik:', error);
+      // Agar xabar yangilanmasa, yangi xabar yuborish
+      bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
     }
-  });
+  } else {
+    // Yangi xabar yuborish
+    bot.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    });
+  }
 }
 
-async function handleReceptionsCommand(chatId, employee, page = 1) {
+async function handleReceptionsCommand(chatId, employee, page = 1, messageId = null) {
   try {
     const ReceptionHistory = require('../models/ReceptionHistory');
     // Load latest receptions where this employee participated
@@ -806,9 +755,18 @@ async function handleReceptionsCommand(chatId, employee, page = 1) {
       .limit(100); // limit to reasonable recent history
 
     if (!docs || docs.length === 0) {
-      bot.sendMessage(chatId, '🏢 Қабуллар тарихи бўш.', {
-        reply_markup: { inline_keyboard: [[{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]] }
-      });
+      if (messageId) {
+        bot.editMessageText('🏢 Қабуллар тарихи бўш.', {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [[{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]] }
+        });
+      } else {
+        bot.sendMessage(chatId, '🏢 Қабуллар тарихи бўш.', {
+          reply_markup: { inline_keyboard: [[{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]] }
+        });
+      }
       return;
     }
 
@@ -853,22 +811,55 @@ async function handleReceptionsCommand(chatId, employee, page = 1) {
     }
     keyboard.push([{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]);
 
-    bot.sendMessage(chatId, message, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } });
+    if (messageId) {
+      // Mavjud xabarni yangilash
+      try {
+        await bot.editMessageText(message, {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: keyboard }
+        });
+      } catch (error) {
+        console.error('Xabarni yangilashda xatolik:', error);
+        // Agar xabar yangilanmasa, yangi xabar yuborish
+        bot.sendMessage(chatId, message, {
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: keyboard }
+        });
+      }
+    } else {
+      // Yangi xabar yuborish
+      bot.sendMessage(chatId, message, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } });
+    }
   } catch (err) {
     console.error('Receptions history load error:', err);
     bot.sendMessage(chatId, '❌ Қабуллар тарихини юклашда хатолик.');
   }
 }
 
-async function handleMeetingsCommand(chatId, employee, page = 1) {
+async function handleMeetingsCommand(chatId, employee, page = 1, messageId = null) {
   if (!employee.meetingHistory || employee.meetingHistory.length === 0) {
-    bot.sendMessage(chatId, '🤝 Мажлислар тарихи бўш.', {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
-        ]
-      }
-    });
+    if (messageId) {
+      bot.editMessageText('🤝 Мажлислар тарихи бўш.', {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
+          ]
+        }
+      });
+    } else {
+      bot.sendMessage(chatId, '🤝 Мажлислар тарихи бўш.', {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]
+          ]
+        }
+      });
+    }
     return;
   }
   
@@ -886,11 +877,8 @@ async function handleMeetingsCommand(chatId, employee, page = 1) {
     }
     
     let allMeetings = populatedEmployee.meetingHistory
-      .filter(m => m.meetingId) // Only show meetings that still exist
+      .filter(m => m.meetingId) // Only show
       .sort((a, b) => new Date(b.joinedAt || b.createdAt) - new Date(a.joinedAt || a.createdAt));
-    
-    // Test ma'lumotlarni olib tashlaymiz - faqat real ma'lumotlarni ishlatamiz
-    // if (allMeetings.length === 0) { ... }
     
     const itemsPerPage = 5;
     const totalPages = Math.ceil(allMeetings.length / itemsPerPage);
@@ -928,12 +916,36 @@ async function handleMeetingsCommand(chatId, employee, page = 1) {
     }
     keyboard.push([{ text: '🔙 Asosiy menyu', callback_data: 'main_menu' }]);
     
-    bot.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: keyboard
+    if (messageId) {
+      // Mavjud xabarni yangilash
+      try {
+        await bot.editMessageText(message, {
+          chat_id: chatId,
+          message_id: messageId,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        });
+      } catch (error) {
+        console.error('Xabarni yangilashda xatolik:', error);
+        // Agar xabar yangilanmasa, yangi xabar yuborish
+        bot.sendMessage(chatId, message, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: keyboard
+          }
+        });
       }
-    });
+    } else {
+      // Yangi xabar yuborish
+      bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: keyboard
+        }
+      });
+    }
     
   } catch (error) {
     console.error('Error loading meeting history:', error);

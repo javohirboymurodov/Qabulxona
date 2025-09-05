@@ -130,12 +130,13 @@ router.post('/add-employee', async (req, res) => {
     try {
       const employee = await Employee.findById(employeeData.employeeId);
       if (employee) {
-        await employee.addReception({
-          date: dayjs(targetDate).toDate(),
-          time: employeeData.scheduledTime || employeeData.time || dayjs().format('HH:mm'),
-          status: 'waiting',
-          notes: employeeData.notes || null
-        });
+        await employee.addReception(
+          savedHistory._id, // receptionId - birinchi parametr
+          dayjs(targetDate).toDate(), // date - ikkinchi parametr
+          employeeData.scheduledTime || employeeData.time || dayjs().format('HH:mm'), // time - uchinchi parametr
+          'waiting', // status - to'rtinchi parametr
+          employeeData.notes || null // notes - beshinchi parametr
+        );
         console.log(`Added reception to employee ${employee.name}'s personal history`);
       }
     } catch (historyError) {
