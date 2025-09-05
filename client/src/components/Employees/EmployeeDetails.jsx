@@ -18,7 +18,7 @@ const { Text } = Typography;
 const EmployeeDetails = ({ employee }) => {
   const handleViewPDF = () => {
     if (employee.objectivePath) {
-      const pdfUrl = `${import.meta.env.VITE_API_URL}/employees/${employee._id}/obektivka`;
+      const pdfUrl = `${import.meta.env.VITE_API_URL || 'https://qabulxona-api.onrender.com/api'}/employees/${employee._id}/obektivka`;
       window.open(pdfUrl, '_blank');
     } else {
       message.info('Ушбу ходим учун PDF файл мавжуд эмас');
@@ -27,7 +27,7 @@ const EmployeeDetails = ({ employee }) => {
 
   const handleDownloadPDF = () => {
     if (employee.objectivePath) {
-      const pdfUrl = `${import.meta.env.VITE_API_URL}/employees/${employee._id}/obektivka`;
+      const pdfUrl = `${import.meta.env.VITE_API_URL || 'https://qabulxona-api.onrender.com/api'}/employees/${employee._id}/obektivka`;
       fetch(pdfUrl)
         .then(response => response.blob())
         .then(blob => {

@@ -33,7 +33,7 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
           uid: '-1',
           name: 'Current PDF',
           status: 'done',
-          url: `${import.meta.env.VITE_API_URL}/employees/${initialValues._id}/obektivka`
+          url: `${import.meta.env.VITE_API_URL || 'https://qabulxona-api.onrender.com/api'}/employees/${initialValues._id}/obektivka`
         }]);
       }
     }

@@ -2,7 +2,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://qabulxona-api.onrender.com/api',
   // Render free instanslari sovuq startda 10s dan ko'proq vaqt olishi mumkin
   timeout: 30000,
   headers: {

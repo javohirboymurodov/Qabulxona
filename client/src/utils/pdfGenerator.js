@@ -5,7 +5,7 @@ export const generateSchedulePDF = async (scheduleData, selectedDate) => {
   try {
     console.log('📄 Client: Requesting PDF from server for date:', selectedDate.format('YYYY-MM-DD'));
     
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/schedule/pdf/${selectedDate.format('YYYY-MM-DD')}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://qabulxona-api.onrender.com/api'}/schedule/pdf/${selectedDate.format('YYYY-MM-DD')}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
