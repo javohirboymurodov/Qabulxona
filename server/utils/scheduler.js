@@ -1,39 +1,16 @@
 const cron = require('node-cron');
-const Employee = require('../models/Employee');
 const ReceptionHistory = require('../models/ReceptionHistory');
 const dayjs = require('dayjs');
 
-// Har kuni yarim tunda ishga tushadi
+// Har kuni yarim tunda ishga tushadi - faqat log qo'shish
 cron.schedule('0 0 * * *', async () => {
   try {
     const today = dayjs().format('YYYY-MM-DD');
+    console.log(`Daily scheduler running for ${today}`);
     
-    // Bugungi qabullarni olish
-    const todayReceptions = await Employee.find({
-      receptionDate: {
-        $gte: dayjs(today).startOf('day'),
-        $lte: dayjs(today).endOf('day')
-      }
-    });
-
-    // Qabul tarixiga saqlash
-    if (todayReceptions.length > 0) {
-      await ReceptionHistory.create({
-        date: today,
-        employees: todayReceptions.map(emp => ({
-          employeeId: emp._id,
-          name: emp.fullName,
-          position: emp.position,
-          department: emp.department,
-          status: emp.status || 'waiting',
-          task: emp.task,
-          timeUpdated: new Date()
-        }))
-      });
-    }
-
-    console.log('Reception history saved successfully');
+    // Hozircha faqat log qo'shamiz, katta operatsiyalar qo'shmaslik
+    console.log('Daily scheduler completed successfully');
   } catch (error) {
-    console.error('Error saving reception history:', error);
+    console.error('Error in daily scheduler:', error);
   }
 });

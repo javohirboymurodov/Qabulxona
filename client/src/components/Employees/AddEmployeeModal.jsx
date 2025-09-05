@@ -166,13 +166,13 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
 
         <Form.Item
           name="experience"
-          label="Иш стажи (йил)"
-          rules={[{ required: true, message: 'Илтимос, иш стажини киритинг' }]}
+          label="Умумий иш стажи (йил)"
+          rules={[{ required: true, message: 'Илтимос, умумий иш стажини киритинг' }]}
         >
           <InputNumber 
             min={0} 
             max={50}
-            placeholder="Иш стажини киритинг"
+            placeholder="Умумий иш стажини киритинг"
             style={{ width: '100%' }}
           />
         </Form.Item>

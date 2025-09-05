@@ -1,6 +1,7 @@
 const Meeting = require('../models/Meeting');
 const Employee = require('../models/Employee');
 const mongoose = require('mongoose');
+const dayjs = require('dayjs');
 
 // Telegram notification service
 const getNotificationService = () => global.telegramNotificationService || null;
@@ -22,6 +23,27 @@ exports.getAllMeetings = async (req, res, next) => {
 exports.createMeeting = async (req, res, next) => {
     try {
         const { name, description, date, time, location, participants } = req.body; // description va location qo'shamiz
+
+        // Vaqt cheklovlarini tekshirish - yangi majlis yaratishda
+        const now = dayjs();
+        const meetingDateTime = dayjs(`${date} ${time || '09:00'}`);
+        const timeDiff = meetingDateTime.diff(now, 'hour', true);
+        
+        // O'tgan kunlarni tahrirlab bo'lmaydi
+        if (dayjs(date).isBefore(now, 'day')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+            });
+        }
+        
+        // Bugungi kun uchun - eng kamida 1 soat qolganda yaratish mumkin
+        if (dayjs(date).isSame(now, 'day') && timeDiff < 1) {
+            return res.status(403).json({
+                success: false,
+                message: 'Мажлис вақтига камida 1 соат қолганда яратиб бўлмайди'
+            });
+        }
 
         // Ishtirokchilarni tekshirish
         if (participants && participants.length > 0) {
@@ -123,6 +145,27 @@ exports.updateMeeting = async (req, res, next) => {
 
         if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Яроқсиз мажлис ID си' });
+        }
+
+        // Vaqt cheklovlarini tekshirish - majlis vaqtini o'zgartirishda
+        const now = dayjs();
+        const meetingDateTime = dayjs(`${date} ${time || '09:00'}`);
+        const timeDiff = meetingDateTime.diff(now, 'hour', true);
+        
+        // O'tgan kunlarni tahrirlab bo'lmaydi
+        if (dayjs(date).isBefore(now, 'day')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+            });
+        }
+        
+        // Bugungi kun uchun - eng kamida 1 soat qolganda o'zgartirish mumkin
+        if (dayjs(date).isSame(now, 'day') && timeDiff < 1) {
+            return res.status(403).json({
+                success: false,
+                message: 'Мажлис вақтига камida 1 соат қолганда ўзгартириб бўлмайди'
+            });
         }
 
         // Ishtirokchilarni tekshirish

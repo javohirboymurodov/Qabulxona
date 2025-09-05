@@ -75,6 +75,36 @@ const createSchedule = async (req, res) => {
       });
     }
 
+    // Vaqt cheklovlarini tekshirish - rahbar ish grafigini yaratishda
+    const now = dayjs();
+    
+    // O'tgan kunlarni tahrirlab bo'lmaydi
+    if (targetDate.isBefore(now, 'day')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+      });
+    }
+    
+    // Bugungi kun uchun - eng kamida 1 soat qolganda yaratish mumkin
+    if (targetDate.isSame(now, 'day')) {
+      // Eng erta vazifa vaqtini topish
+      const earliestTask = tasks.reduce((earliest, task) => {
+        const taskTime = dayjs(`${date} ${task.startTime || '09:00'}`);
+        return !earliest || taskTime.isBefore(earliest) ? taskTime : earliest;
+      }, null);
+      
+      if (earliestTask) {
+        const timeDiff = earliestTask.diff(now, 'hour', true);
+        if (timeDiff < 1) {
+          return res.status(403).json({
+            success: false,
+            message: 'Иш графигига камida 1 соат қолганда яратиб бўлмайди'
+          });
+        }
+      }
+    }
+
     console.log('Target date for schedule:', targetDate.format('YYYY-MM-DD'));
 
     // Mavjud schedule topish
@@ -120,6 +150,36 @@ const createSchedule = async (req, res) => {
 const updateSchedule = async (req, res) => {
   try {
     const targetDate = dayjs(req.params.date);
+    
+    // Vaqt cheklovlarini tekshirish - rahbar ish grafigini yangilashda
+    const now = dayjs();
+    
+    // O'tgan kunlarni tahrirlab bo'lmaydi
+    if (targetDate.isBefore(now, 'day')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+      });
+    }
+    
+    // Bugungi kun uchun - eng kamida 1 soat qolganda yangilash mumkin
+    if (targetDate.isSame(now, 'day') && req.body.tasks && Array.isArray(req.body.tasks)) {
+      // Eng erta vazifa vaqtini topish
+      const earliestTask = req.body.tasks.reduce((earliest, task) => {
+        const taskTime = dayjs(`${targetDate.format('YYYY-MM-DD')} ${task.startTime || '09:00'}`);
+        return !earliest || taskTime.isBefore(earliest) ? taskTime : earliest;
+      }, null);
+      
+      if (earliestTask) {
+        const timeDiff = earliestTask.diff(now, 'hour', true);
+        if (timeDiff < 1) {
+          return res.status(403).json({
+            success: false,
+            message: 'Иш графигига камida 1 соат қолганда ўзгартириб бўлмайди'
+          });
+        }
+      }
+    }
     
     const updatedSchedule = await Schedule.findOneAndUpdate(
       { 
@@ -304,6 +364,43 @@ const saveDailyPlan = async (req, res) => {
         success: false,
         message: 'Нотўғри сана формати'
       });
+    }
+
+    // Vaqt cheklovlarini tekshirish - kunlik rejani saqlashda
+    const now = dayjs();
+    
+    // O'tgan kunlarni tahrirlab bo'lmaydi
+    if (targetDate.isBefore(now, 'day')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+      });
+    }
+    
+    // Bugungi kun uchun - eng kamida 1 soat qolganda saqlash mumkin
+    if (targetDate.isSame(now, 'day')) {
+      // Eng erta item vaqtini topish
+      const earliestItem = items.reduce((earliest, item) => {
+        let itemTime = null;
+        if (item.type === 'task' && item.startTime) {
+          itemTime = dayjs(`${date} ${item.startTime}`);
+        } else if (item.type === 'meeting' && item.time) {
+          itemTime = dayjs(`${date} ${item.time}`);
+        } else if (item.type === 'reception' && item.scheduledTime) {
+          itemTime = dayjs(`${date} ${item.scheduledTime}`);
+        }
+        return !earliest || (itemTime && itemTime.isBefore(earliest)) ? itemTime : earliest;
+      }, null);
+      
+      if (earliestItem) {
+        const timeDiff = earliestItem.diff(now, 'hour', true);
+        if (timeDiff < 1) {
+          return res.status(403).json({
+            success: false,
+            message: 'Кунлик режага камida 1 соат қолганда сақлаб бўлмайди'
+          });
+        }
+      }
     }
 
     console.log('Target date:', targetDate.format('YYYY-MM-DD'));

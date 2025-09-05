@@ -4,6 +4,8 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const path = require("path");
 const errorHandler = require("./middleware/errorHandler");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./config/swagger');
 
 // Routerlarni import qilish
 const employeeRoutes = require("./routes/employees");
@@ -18,7 +20,12 @@ require('./models/Admin');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://qabulxona-client.onrender.com', 'https://qabulxona-api.onrender.com']
+    : ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(
   "/uploadObektivka",
@@ -35,6 +42,12 @@ app.use('/api/admins', adminRoutes);
 
 // Daily plan uchun alohida route (agar kerak bo'lsa)
 app.use('/api/daily-plan', scheduleRoutes);
+
+// Swagger API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Qabulxona API Documentation'
+}));
 
 // Error handling middleware
 app.use(errorHandler);

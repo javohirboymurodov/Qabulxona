@@ -4,7 +4,42 @@ const Admin = require('../models/Admin');
 // const Role = require('../models/Role'); // Role modeli olib tashlandi
 const { protect } = require('../middleware/auth');
 
-// Get all admins
+/**
+ * @swagger
+ * tags:
+ *   name: Admins
+ *   description: Adminlar boshqaruvi
+ */
+
+/**
+ * @swagger
+ * /api/admins:
+ *   get:
+ *     summary: Barcha adminlarni olish
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Adminlar ro'yxati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Admin'
+ *       401:
+ *         description: Token haqiqiy emas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/', protect, async (req, res) => {
   try {
     const admins = await Admin.find().select('-password'); // populate('role') olib tashlandi
@@ -17,7 +52,64 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// Create new admin
+/**
+ * @swagger
+ * /api/admins:
+ *   post:
+ *     summary: Yangi admin yaratish
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *               - fullName
+ *               - role
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Foydalanuvchi nomi
+ *               password:
+ *                 type: string
+ *                 description: Parol
+ *               fullName:
+ *                 type: string
+ *                 description: To'liq ismi
+ *               role:
+ *                 type: string
+ *                 enum: [super_admin, admin]
+ *                 description: Admin roli
+ *     responses:
+ *       201:
+ *         description: Admin muvaffaqiyatli yaratildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Admin'
+ *       400:
+ *         description: Noto'g'ri ma'lumotlar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Token haqiqiy emas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post('/', protect, async (req, res) => {
   try {
     const { username, password, fullName, role } = req.body;
@@ -62,7 +154,73 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
-// Update admin
+/**
+ * @swagger
+ * /api/admins/{id}:
+ *   put:
+ *     summary: Admin ma'lumotlarini yangilash
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Admin ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - fullName
+ *               - role
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Foydalanuvchi nomi
+ *               fullName:
+ *                 type: string
+ *                 description: To'liq ismi
+ *               role:
+ *                 type: string
+ *                 enum: [super_admin, admin]
+ *                 description: Admin roli
+ *     responses:
+ *       200:
+ *         description: Admin ma'lumotlari yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Admin'
+ *       400:
+ *         description: Noto'g'ri ma'lumotlar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Admin topilmadi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Token haqiqiy emas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.put('/:id', protect, async (req, res) => {
   try {
     const { username, fullName, role } = req.body;

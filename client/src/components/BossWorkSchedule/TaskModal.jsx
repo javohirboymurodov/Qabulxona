@@ -18,15 +18,26 @@ const TaskModal = ({
 
   // Form'ni initial data bilan to'ldirish
   React.useEffect(() => {
-    if (visible && initialData) {
-      form.setFieldsValue({
-        title: initialData.title,
-        description: initialData.description,
-        priority: initialData.priority || 'normal',
-        time: initialData.time ? dayjs(initialData.time, 'HH:mm') : dayjs('09:00', 'HH:mm')
-      });
-    } else if (visible) {
-      form.resetFields();
+    if (visible) {
+      if (initialData) {
+        // Edit mode
+        form.setFieldsValue({
+          title: initialData.title,
+          description: initialData.description,
+          priority: initialData.priority || 'normal',
+          time: initialData.time ? dayjs(initialData.time, 'HH:mm') : dayjs('09:00', 'HH:mm')
+        });
+      } else {
+        // Yangi vazifa uchun form'ni to'liq tozalash
+        form.resetFields();
+        // Kichik kechikish bilan default qiymatlarni o'rnatish
+        setTimeout(() => {
+          form.setFieldsValue({
+            time: dayjs(), // Hozirgi vaqt
+            priority: 'normal'
+          });
+        }, 100);
+      }
     }
   }, [visible, initialData, form]);
 
@@ -91,7 +102,6 @@ const TaskModal = ({
           name="time"
           label="Вақт"
           rules={[{ required: true, message: 'Вақтни танланг' }]}
-          initialValue={dayjs('09:00', 'HH:mm')}
         >
           <TimePicker
             format="HH:mm"
@@ -102,8 +112,7 @@ const TaskModal = ({
 
         <Form.Item 
           name="priority" 
-          label="Муҳимлик даражаси" 
-          initialValue="normal"
+          label="Муҳимлик даражаси"
         >
           <Select>
             <Option value="low">Паст</Option>

@@ -62,7 +62,7 @@ const AddReceptionModal = ({
           time: timeToSet
         });
       } else {
-        // Add mode - default vaqt
+        // Add mode - bir soat keyin ko'rsatish (qabul uchun mantiqiy)
         form.setFieldsValue({
           time: dayjs().add(1, 'hour'),
           // Agar preSelected employee bor bo'lsa, birinchisini tanlash
@@ -92,8 +92,29 @@ const AddReceptionModal = ({
       }
 
       // Context'larni aniqlash
-      const isDailyPlanContext = defaultDate && onSave && typeof onSave === 'function';
       const isEditMode = !!initialData;
+      const isDailyPlanContext = defaultDate && onSave && typeof onSave === 'function';
+      
+      // Vaqt cheklovini tekshirish - faqat yangi qabul qo'shishda va vaqt o'zgartirishda
+      if (!isDailyPlanContext) { // HomePage context - API ga yuborish
+        const now = dayjs();
+        const scheduledTime = values.time;
+        const timeDiff = scheduledTime.diff(now, 'hour', true);
+        
+        // O'tgan kunlarni tahrirlab bo'lmaydi
+        if (scheduledTime.isBefore(now, 'day')) {
+          messageApi.error('Ўтган кунларни таҳрирлаб бўлмайди');
+          setLoading(false);
+          return;
+        }
+        
+        // Bugungi kun uchun - eng kamida 1 soat qolganda qo'shish/o'zgartirish mumkin
+        if (scheduledTime.isSame(now, 'day') && timeDiff < 1) {
+          messageApi.error('Қабул вақтига камida 1 соат қолганда қўшиб/ўзгартириб бўлмайди');
+          setLoading(false);
+          return;
+        }
+      }
       
       if (isEditMode) {
         console.log('Edit context: updating reception');

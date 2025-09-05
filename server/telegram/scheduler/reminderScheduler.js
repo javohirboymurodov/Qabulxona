@@ -26,7 +26,7 @@ const scheduleTaskReminders = () => {
 
       console.log(`Checking for tasks due on: ${tomorrow.format('YYYY-MM-DD')}`);
 
-      // Find all employees with pending tasks due tomorrow
+      // Find all employees with pending tasks due tomorrow - optimizatsiya qilingan
       const employees = await Employee.find({
         'taskHistory': {
           $elemMatch: {
@@ -39,7 +39,7 @@ const scheduleTaskReminders = () => {
         },
         'telegramId': { $exists: true, $ne: null },
         'notificationSettings.reminderNotification': true
-      });
+      }).select('name telegramId taskHistory').limit(100); // Limit qo'shish va faqat kerakli field'larni olish
 
       console.log(`Found ${employees.length} employees with tasks due tomorrow`);
 
@@ -92,7 +92,7 @@ const scheduleOverdueCheck = () => {
     try {
       const now = dayjs();
 
-      // Find all employees with pending tasks that are overdue
+      // Find all employees with pending tasks that are overdue - optimizatsiya qilingan
       const employees = await Employee.find({
         'taskHistory': {
           $elemMatch: {
@@ -100,7 +100,7 @@ const scheduleOverdueCheck = () => {
             'status': 'pending'
           }
         }
-      });
+      }).select('name taskHistory').limit(100); // Limit qo'shish va faqat kerakli field'larni olish
 
       console.log(`Found ${employees.length} employees with potentially overdue tasks`);
 
@@ -161,7 +161,7 @@ const checkRemindersNow = async () => {
         }
       },
       'telegramId': { $exists: true, $ne: null }
-    });
+    }).select('name telegramId taskHistory').limit(50); // Limit qo'shish va faqat kerakli field'larni olish
 
     console.log(`Found ${employees.length} employees with tasks due tomorrow`);
 

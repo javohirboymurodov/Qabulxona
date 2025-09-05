@@ -21,7 +21,9 @@
     "multer": "^2.0.0",
     "node-cron": "^3.0.3",
     "node-telegram-bot-api": "^0.65.1",
-    "pdfkit": "^0.17.1"
+    "pdfkit": "^0.17.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

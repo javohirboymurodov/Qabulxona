@@ -37,7 +37,7 @@ const AddMeetingModal = ({
         form.resetFields();
         const defaultValues = {
           participants: preSelectedEmployees,
-          time: dayjs('10:00', 'HH:mm') // Default vaqt
+          time: dayjs().add(1, 'hour') // Bir soat keyin (majlis uchun mantiqiy)
         };
         
         // Agar defaultDate berilgan bo'lsa
@@ -69,6 +69,27 @@ const AddMeetingModal = ({
       console.log('onSave function exists:', !!onSave);
 
       const isDailyPlanContext = defaultDate && onSave;
+
+      // Vaqt cheklovini tekshirish - faqat yangi majlis yaratishda va vaqt o'zgartirishda
+      if (!isDailyPlanContext) { // HomePage context - API ga yuborish
+        const now = dayjs();
+        const meetingDateTime = dayjs(`${values.date.format('YYYY-MM-DD')} ${values.time.format('HH:mm')}`);
+        const timeDiff = meetingDateTime.diff(now, 'hour', true);
+        
+        // O'tgan kunlarni tahrirlab bo'lmaydi
+        if (meetingDateTime.isBefore(now, 'day')) {
+          messageApi.error('Ўтган кунларни таҳрирлаб бўлмайди');
+          setLoading(false);
+          return;
+        }
+        
+        // Bugungi kun uchun - eng kamida 1 soat qolganda yaratish/o'zgartirish mumkin
+        if (meetingDateTime.isSame(now, 'day') && timeDiff < 1) {
+          messageApi.error('Мажлис вақтига камida 1 соат қолганда яратиб/ўзгартириб бўлмайди');
+          setLoading(false);
+          return;
+        }
+      }
 
       if (isDailyPlanContext) {
         console.log('DailyPlan context: saving meeting');

@@ -61,6 +61,28 @@ exports.addToReception = async (req, res) => {
       });
     }
 
+    // Vaqt cheklovlarini tekshirish - yangi qabul qo'shishda
+    const today = dayjs().format('YYYY-MM-DD');
+    const now = dayjs();
+    const scheduledDateTime = dayjs(`${today} ${scheduledTime || '09:00'}`);
+    const timeDiff = scheduledDateTime.diff(now, 'hour', true);
+    
+    // O'tgan kunlarni tahrirlab bo'lmaydi
+    if (dayjs(today).isBefore(now, 'day')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Ўтган кунларни таҳрирлаб бўлмайди'
+      });
+    }
+    
+    // Bugungi kun uchun - eng kamida 1 soat qolganda qo'shish mumkin
+    if (dayjs(today).isSame(now, 'day') && timeDiff < 1) {
+      return res.status(403).json({
+        success: false,
+        message: 'Қабул вақтига камida 1 соат қолганда қўшиб бўлмайди'
+      });
+    }
+
     // Employee mavjudligini tekshirish
     const employee = await Employee.findById(employeeId);
     if (!employee) {
@@ -69,8 +91,6 @@ exports.addToReception = async (req, res) => {
         message: 'Ходим топилмади'
       });
     }
-
-    const today = dayjs().format('YYYY-MM-DD');
 
     // Find or create today's reception
     let reception = await ReceptionHistory.findOne({
@@ -87,46 +107,30 @@ exports.addToReception = async (req, res) => {
       });
     }
 
-    // Check if employee already exists in today's reception
-    const employeeIndex = reception.employees.findIndex(
-      emp => emp.employeeId && emp.employeeId.toString() === employeeId.toString()
-    );
+    // Har doim yangi qabul qo'shish - bir xodim bir kunda bir necha marta kelishi mumkin
+    const newEmployee = {
+      employeeId: employeeId,
+      name: name || employee.name || employee.fullName,
+      position: position || employee.position,
+      department: department || employee.department,
+      phone: phone || employee.phone || '',
+      status: status,
+      scheduledTime: scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
+      timeUpdated: new Date(), // Yangilangan vaqt
+      createdAt: new Date() // Ma'lumot yaratilgan vaqt
+    };
 
-    if (employeeIndex !== -1) {
-      // Update existing employee
-      reception.employees[employeeIndex] = {
-        ...reception.employees[employeeIndex],
-        status,
-        scheduledTime: scheduledTime || reception.employees[employeeIndex].scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti
-        task: task || reception.employees[employeeIndex].task,
-        timeUpdated: new Date()
+    // Add task if provided
+    if (task) {
+      newEmployee.task = {
+        description: task.description,
+        deadline: task.deadline,
+        assignedAt: new Date(),
+        status: 'pending'
       };
-    } else {
-      // Add new employee
-      const newEmployee = {
-        employeeId: employeeId,
-        name: name || employee.name || employee.fullName,
-        position: position || employee.position,
-        department: department || employee.department,
-        phone: phone || employee.phone || '',
-        status: status,
-        scheduledTime: scheduledTime || dayjs().format('HH:mm'), // Asosiy qabul vaqti (xodim keladigan vaqt)
-        timeUpdated: new Date(), // Yangilangan vaqt
-        createdAt: new Date() // Ma'lumot yaratilgan vaqt
-      };
-
-      // Add task if provided
-      if (task) {
-        newEmployee.task = {
-          description: task.description,
-          deadline: task.deadline,
-          assignedAt: new Date(),
-          status: 'pending'
-        };
-      }
-
-      reception.employees.push(newEmployee);
     }
+
+    reception.employees.push(newEmployee);
 
     await reception.save();
 
@@ -139,7 +143,6 @@ exports.addToReception = async (req, res) => {
           time: 'Белгиланган вақтда', // Default time text
           notes: task ? `Топшириқ: ${task.description}` : null
         });
-        console.log(`Reception notification sent to employee ${employeeId}`);
       } catch (notificationError) {
         console.error('Failed to send reception notification:', notificationError);
         // Don't fail the main operation if notification fails
@@ -170,8 +173,6 @@ exports.updateReceptionStatus = async (req, res) => {
     const { date, employeeId } = req.params;
     const { status, task } = req.body;
  
-    console.log('Update request params:', { date, employeeId }); // Debug uchun
-    console.log('Update request body:', { status, task }); // Debug uchun
 
     // Validation
     if (!employeeId) {
@@ -203,76 +204,49 @@ exports.updateReceptionStatus = async (req, res) => {
       });
     }
 
-    // Employee ni topish
-    const employeeIndex = reception.employees.findIndex(
-      emp => {
-        const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
-        const searchId = employeeId.toString();
-        return empId === searchId;
-      }
-    );
+    // Vaqt cheklovlarini tekshirish - faqat vazifa berishda
+    // Xodim holatini yangilashda va vazifa berishda vaqt cheklovi bo'lmasligi kerak
+    // Vaqt cheklovi faqat qabul qo'shishda va vaqt o'zgartirishda qo'llaniladi
 
-    if (employeeIndex === -1) {
+    // Employee ni topish - eng oxirgi qabulni yangilash (bir xodim bir kunda bir necha marta bo'lishi mumkin)
+    const employeeReceptions = reception.employees
+      .map((emp, index) => ({ 
+        employeeId: emp.employeeId,
+        _id: emp._id,
+        name: emp.name,
+        createdAt: emp.createdAt,
+        timeUpdated: emp.timeUpdated,
+        originalIndex: index 
+      }))
+      .filter(emp => {
+        const empId = emp.employeeId ? emp.employeeId.toString() : (emp._id ? emp._id.toString() : null);
+        const searchId = employeeId.toString();
+        return empId && empId === searchId;
+      });
+    
+    // Sort by createdAt or timeUpdated (fallback)
+    employeeReceptions.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.timeUpdated || 0);
+      const dateB = new Date(b.createdAt || b.timeUpdated || 0);
+      return dateB - dateA; // Eng oxirgi birinchi
+    });
+    
+    if (employeeReceptions.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Ходим бу сана учун қабулда топилмади'
       });
     }
-
-    // Vaqt cheklovlarini tekshirish - faqat status o'zgartirishda
-    // Vazifa berishda vaqt cheklovi bo'lmasligi kerak
-    if (!task) { // Agar vazifa berilmasa, faqat status o'zgartirilayotgan bo'lsa
-      const targetDate = dayjs(date);
-      const now = dayjs();
-      
-      // O'tgan kunlarni tahrirlab bo'lmaydi
-      if (targetDate.isBefore(now, 'day')) {
-        return res.status(403).json({
-          success: false,
-          message: 'Ўтган кунларни таҳрирлаб бўлмайди'
-        });
-      }
-
-      // Bugungi kun uchun - eng kamida 1 soat qolganda tahrirlash mumkin
-      if (targetDate.isSame(now, 'day')) {
-        const scheduledTime = reception.employees[employeeIndex].scheduledTime || '09:00';
-        const scheduledDateTime = dayjs(`${date} ${scheduledTime}`);
-        const timeDiff = scheduledDateTime.diff(now, 'hour', true);
-        
-        console.log('🕐 Time check:', {
-          scheduledTime,
-          scheduledDateTime: scheduledDateTime.format('YYYY-MM-DD HH:mm'),
-          now: now.format('YYYY-MM-DD HH:mm'),
-          timeDiff: timeDiff.toFixed(2) + ' hours'
-        });
-        
-        if (timeDiff < 1) {
-          return res.status(403).json({
-            success: false,
-            message: 'Қабул вақтига камida 1 соат қолганда таҳрирлаб бўлмайди'
-          });
-        }
-      }
-    }
-
-    // Employee ni topish - employeeId bo'yicha yoki employeeId field bo'yicha
-    console.log('🔍 Status update - Searching for employee:', employeeId);
-    console.log('📋 Status update - Available employees:', reception.employees.map(e => ({
-      id: e._id,
-      employeeId: e.employeeId,
-      name: e.name
-    })));
     
-    console.log('🔍 Status update - Comparing:', { 
-      empId: reception.employees[employeeIndex].employeeId?.toString(), 
-      searchId: employeeId.toString(), 
-      match: reception.employees[employeeIndex].employeeId?.toString() === employeeId.toString() 
-    });
+    const latestReception = employeeReceptions[0];
+    const employeeIndex = latestReception.originalIndex;
 
-    console.log('📍 Status update - Employee index found:', employeeIndex);
-
-    // Update status
-    reception.employees[employeeIndex].status = status;
+    // Update status - agar vazifa berilsa, statusni "present" ga o'zgartirish
+    if (task) {
+      reception.employees[employeeIndex].status = 'present'; // Vazifa berilganda status "present" bo'ladi
+    } else {
+      reception.employees[employeeIndex].status = status; // Boshqa holatda berilgan status
+    }
     reception.employees[employeeIndex].timeUpdated = new Date();
 
     // Update task if provided
@@ -301,7 +275,6 @@ exports.updateReceptionStatus = async (req, res) => {
 
           // Add to employee's task history
           await employee.addTask(taskData);
-          console.log(`Task added to employee ${employee.name}'s personal task history`);
 
           // Send Telegram notification
           const getNotificationService = () => global.telegramNotificationService || null;
@@ -309,7 +282,6 @@ exports.updateReceptionStatus = async (req, res) => {
           if (notificationService) {
             try {
               await notificationService.sendTaskNotification(actualEmployeeId, taskData, taskData.assignedBy);
-              console.log(`Task notification sent to employee ${employee.name}`);
             } catch (notificationError) {
               console.error('Failed to send task notification:', notificationError);
             }
@@ -337,7 +309,6 @@ exports.updateReceptionStatus = async (req, res) => {
             status: status,
             notes: null
           });
-          console.log(`📲 Reception status update notification sent to employee ${employee.name}`);
         }
       } catch (notificationError) {
         console.error('Failed to send reception status notification:', notificationError);
@@ -360,113 +331,6 @@ exports.updateReceptionStatus = async (req, res) => {
   }
 };
 
-/**
- * Update reception employee (time, name, etc.)
- */
-exports.updateReceptionEmployee = async (req, res) => {
-  try {
-    const { date, employeeId } = req.params;
-    const updateData = req.body;
-
-    console.log('🔄 Update reception employee request:', { date, employeeId, updateData });
-    console.log('📋 Available fields in updateData:', Object.keys(updateData));
-
-    // Validation
-    if (!employeeId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Employee ID talab qilinadi'
-      });
-    }
-
-    if (!date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sana talab qilinadi'
-      });
-    }
-
-    const reception = await ReceptionHistory.findOne({
-      date: {
-        $gte: dayjs(date).startOf('day').toDate(),
-        $lte: dayjs(date).endOf('day').toDate()
-      }
-    });
-
-    if (!reception) {
-      return res.status(404).json({
-        success: false,
-        message: 'Бу санада қабул топилмади'
-      });
-    }
-
-    // Employee ni topish
-    console.log('🔍 Searching for employee:', employeeId);
-    console.log('📋 Available employees in reception:', reception.employees.map(emp => ({
-      _id: emp._id,
-      employeeId: emp.employeeId,
-      name: emp.name
-    })));
-    
-    const employeeIndex = reception.employees.findIndex(
-      emp => {
-        // employeeId ObjectId yoki string bo'lishi mumkin
-        const empId = emp.employeeId ? emp.employeeId.toString() : emp._id.toString();
-        const searchId = employeeId.toString();
-        console.log('🔍 Comparing:', { empId, searchId, match: empId === searchId });
-        return empId === searchId;
-      }
-    );
-
-    console.log('📍 Employee index found:', employeeIndex);
-
-    if (employeeIndex === -1) {
-      console.log('❌ Employee not found in reception');
-      return res.status(404).json({
-        success: false,
-        message: 'Ходим бу сана учун қабулда топилмади'
-      });
-    }
-
-    // Update employee data
-    if (updateData.scheduledTime) {
-      reception.employees[employeeIndex].scheduledTime = updateData.scheduledTime; // Asosiy qabul vaqti
-    }
-    if (updateData.time) {
-      reception.employees[employeeIndex].time = updateData.time; // Legacy field
-    }
-    if (updateData.name) {
-      reception.employees[employeeIndex].name = updateData.name;
-    }
-    if (updateData.position) {
-      reception.employees[employeeIndex].position = updateData.position;
-    }
-    if (updateData.department) {
-      reception.employees[employeeIndex].department = updateData.department;
-    }
-    if (updateData.phone) {
-      reception.employees[employeeIndex].phone = updateData.phone;
-    }
-
-    reception.employees[employeeIndex].timeUpdated = new Date();
-
-    await reception.save();
-
-    res.json({
-      success: true,
-      message: 'Қабул маълумотлари муваффақиятли янгиланди',
-      data: reception.employees[employeeIndex]
-    });
-
-  } catch (error) {
-    console.error('Update reception employee error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Қабул маълумотларини янгилашда хатолик',
-      error: error.message
-    });
-  }
-};
 
 /**
  * Get reception by date
@@ -579,18 +443,13 @@ exports.getByDateRange = async (req, res) => {
 };
 
 /**
- * Update reception employee time
+ * Update reception employee (time, name, etc.)
  */
 exports.updateReceptionEmployee = async (req, res) => {
   try {
     const { date, employeeId } = req.params;
     const updateData = req.body;
     
-    console.log('🔄 Update reception employee request:', {
-      date,
-      employeeId,
-      updateData
-    });
     
     // Validation
     if (!employeeId) {
@@ -695,7 +554,6 @@ exports.updateReceptionEmployee = async (req, res) => {
             time: updateData.scheduledTime || 'Belgilanmagan',
             notes: `Qabul vaqti yangilandi: ${oldScheduledTime} → ${updateData.scheduledTime}`
           });
-          console.log(`📲 Reception time update notification sent to employee ${employee.name}`);
         }
       } catch (notificationError) {
         console.error('Failed to send reception time notification:', notificationError);

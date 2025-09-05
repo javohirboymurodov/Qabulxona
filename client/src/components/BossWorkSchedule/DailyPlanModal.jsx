@@ -231,6 +231,42 @@ const DailyPlanModal = ({ date, isOpen, onClose, showMessage, onSave }) => {
         return;
       }
 
+      // Vaqt cheklovini tekshirish - kunlik rejani saqlashda
+      const now = dayjs();
+      const targetDate = dayjs(date);
+      
+      // O'tgan kunlarni tahrirlab bo'lmaydi
+      if (targetDate.isBefore(now, 'day')) {
+        messageApi.error('Ўтган кунларни таҳрирлаб бўлмайди');
+        setLoading(false);
+        return;
+      }
+      
+      // Bugungi kun uchun - eng kamida 1 soat qolganda saqlash mumkin
+      if (targetDate.isSame(now, 'day') && newItems.length > 0) {
+        // Eng erta item vaqtini topish
+        const earliestItem = newItems.reduce((earliest, item) => {
+          let itemTime = null;
+          if (item.type === 'task' && item.time) {
+            itemTime = dayjs(`${date} ${item.time}`);
+          } else if (item.type === 'meeting' && item.time) {
+            itemTime = dayjs(`${date} ${item.time}`);
+          } else if (item.type === 'reception' && item.scheduledTime) {
+            itemTime = dayjs(`${date} ${item.scheduledTime}`);
+          }
+          return !earliest || (itemTime && itemTime.isBefore(earliest)) ? itemTime : earliest;
+        }, null);
+        
+        if (earliestItem) {
+          const timeDiff = earliestItem.diff(now, 'hour', true);
+          if (timeDiff < 1) {
+            messageApi.error('Кунлик режага камida 1 соат қолганда сақлаб бўлмайди');
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       const response = await saveDailyPlan(date, newItems, deletedItems);
       console.log('Save response:', response);
 

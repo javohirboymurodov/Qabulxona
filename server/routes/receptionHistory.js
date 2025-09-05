@@ -14,34 +14,341 @@ const {
   updateTaskStatus
 } = require('../controllers/receptionHistoryController');
 
-// All routes require authentication
-router.use(protect);
+/**
+ * @swagger
+ * tags:
+ *   name: Reception History
+ *   description: Qabul tarixi boshqaruvi
+ */
 
-// Get today's reception
+/**
+ * @swagger
+ * /api/reception-history/today:
+ *   get:
+ *     summary: Bugungi qabullarni olish
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Bugungi qabullar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ReceptionHistory'
+ */
+router.use(protect);
 router.get('/today', getTodayReception);
 
-// Add employee to reception
+/**
+ * @swagger
+ * /api/reception-history/add:
+ *   post:
+ *     summary: Xodimni qabulga qo'shish
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - employeeId
+ *               - name
+ *             properties:
+ *               employeeId:
+ *                 type: string
+ *                 description: Xodim ID
+ *               name:
+ *                 type: string
+ *                 description: Xodim ismi
+ *               position:
+ *                 type: string
+ *                 description: Lavozimi
+ *               department:
+ *                 type: string
+ *                 description: Bo'lim
+ *               phone:
+ *                 type: string
+ *                 description: Telefon raqami
+ *               scheduledTime:
+ *                 type: string
+ *                 description: Belgilangan vaqt
+ *               status:
+ *                 type: string
+ *                 enum: [waiting, present, absent]
+ *                 description: Holat
+ *     responses:
+ *       200:
+ *         description: Xodim qabulga qo'shildi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
 router.post('/add', addToReception);
 
-// Get reception statistics
+/**
+ * @swagger
+ * /api/reception-history/stats:
+ *   get:
+ *     summary: Qabul statistikalarini olish
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Qabul statistikalari
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: number
+ *                     waiting:
+ *                       type: number
+ *                     present:
+ *                       type: number
+ *                     absent:
+ *                       type: number
+ */
 router.get('/stats', getReceptionStats);
 
-// Get reception by date
+/**
+ * @swagger
+ * /api/reception-history/date/{date}:
+ *   get:
+ *     summary: Belgilangan sanadagi qabullarni olish
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Qabul sanasi
+ *     responses:
+ *       200:
+ *         description: Sanadagi qabullar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ReceptionHistory'
+ */
 router.get('/date/:date', getByDate);
 
-// Get reception history by date range
+/**
+ * @swagger
+ * /api/reception-history/range/{startDate}/{endDate}:
+ *   get:
+ *     summary: Sana oralig'idagi qabullarni olish
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: startDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Boshlanish sanasi
+ *       - in: path
+ *         name: endDate
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Tugash sanasi
+ *     responses:
+ *       200:
+ *         description: Sana oralig'idagi qabullar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/ReceptionHistory'
+ */
 router.get('/range/:startDate/:endDate', getByDateRange);
 
-// Update employee status in reception
+/**
+ * @swagger
+ * /api/reception-history/{date}/employee/{employeeId}/status:
+ *   put:
+ *     summary: Xodim qabul holatini yangilash
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Qabul sanasi
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Xodim ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [waiting, present, absent]
+ *                 description: Yangi holat
+ *     responses:
+ *       200:
+ *         description: Xodim holati yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
 router.put('/:date/employee/:employeeId/status', updateReceptionStatus);
 
-// Update reception employee data (time, name, etc.)
+/**
+ * @swagger
+ * /api/reception-history/{date}/employee/{employeeId}:
+ *   put:
+ *     summary: Xodim qabul ma'lumotlarini yangilash
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Qabul sanasi
+ *       - in: path
+ *         name: employeeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Xodim ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Xodim ismi
+ *               position:
+ *                 type: string
+ *                 description: Lavozimi
+ *               department:
+ *                 type: string
+ *                 description: Bo'lim
+ *               phone:
+ *                 type: string
+ *                 description: Telefon raqami
+ *               scheduledTime:
+ *                 type: string
+ *                 description: Belgilangan vaqt
+ *     responses:
+ *       200:
+ *         description: Xodim ma'lumotlari yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
 router.put('/:date/employee/:employeeId', updateReceptionEmployee);
 
-// Task status yangilash
+/**
+ * @swagger
+ * /api/reception-history/task/{receptionId}/status:
+ *   put:
+ *     summary: Topshiriq holatini yangilash
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: receptionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Qabul ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, completed, overdue]
+ *                 description: Yangi holat
+ *     responses:
+ *       200:
+ *         description: Topshiriq holati yangilandi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
 router.put('/task/:receptionId/status', updateTaskStatus);
 
-// Legacy route support
+/**
+ * @swagger
+ * /api/reception-history/{date}:
+ *   get:
+ *     summary: Belgilangan sanadagi qabullarni olish (legacy)
+ *     tags: [Reception History]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Qabul sanasi
+ *     responses:
+ *       200:
+ *         description: Sanadagi qabullar
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ReceptionHistory'
+ */
 router.get('/:date', getByDate);
 
 // Agar mavjud bo'lmasa qo'shing:
