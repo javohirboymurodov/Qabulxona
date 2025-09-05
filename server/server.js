@@ -17,6 +17,9 @@ const adminRoutes = require('./routes/admin');
 
 require('./models/Admin');
 
+// Telegram bot'ni import qilish (server ishga tushgandan keyin)
+require('./telegram/bot');
+
 const app = express();
 
 // Middleware

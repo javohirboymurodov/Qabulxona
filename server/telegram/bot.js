@@ -6,7 +6,10 @@ const NotificationService = require('./services/notificationService');
 
 // Bot configuration
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { 
-  polling: true,
+  polling: {
+    interval: 1000,
+    autoStart: false
+  },
   request: {
     agentOptions: {
       keepAlive: true,
@@ -17,6 +20,9 @@ const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
 
 // Initialize notification service
 const notificationService = new NotificationService(bot);
+
+// Global export for other modules
+global.telegramNotificationService = notificationService;
 
 // Connect to database
 connectDB();
@@ -29,11 +35,27 @@ const chatTaskTokenMap = new Map();
 const { initializeSchedulers } = require('./scheduler/reminderScheduler');
 initializeSchedulers();
 
-console.log('🤖 Telegram bot ishga tushdi!');
+// Start bot polling manually
+try {
+  bot.startPolling();
+  console.log('🤖 Telegram bot ishga tushdi!');
+} catch (error) {
+  console.error('Bot start error:', error);
+}
 
 // Error handling
 bot.on('polling_error', (error) => {
   console.error('Polling error:', error);
+  // Restart polling after error
+  setTimeout(() => {
+    try {
+      bot.stopPolling();
+      bot.startPolling();
+      console.log('🔄 Bot polling restarted');
+    } catch (restartError) {
+      console.error('Bot restart error:', restartError);
+    }
+  }, 5000);
 });
 
 bot.on('error', (error) => {
