@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Tag, Space, Button, message, Typography, Calendar, Table } from 'antd';
-import { EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined } from '@ant-design/icons';
+import { EyeOutlined, EditOutlined } from '@ant-design/icons';
 import { updateReceptionStatus, getReceptionHistoryByDate } from '../../services/api';
 import ViewReceptionModal from './ViewReceptionModal';
 import AddReceptionModal from './AddReceptionModal';

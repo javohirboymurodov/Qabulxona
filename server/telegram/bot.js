@@ -914,7 +914,7 @@ async function handleMeetingsCommand(chatId, employee, page = 1, messageId = nul
       }
       keyboard.push(paginationRow);
     }
-    keyboard.push([{ text: '🔙 Asosiy menyu', callback_data: 'main_menu' }]);
+    keyboard.push([{ text: '🔙 Асосий саҳифа', callback_data: 'main_menu' }]);
     
     if (messageId) {
       // Mavjud xabarni yangilash

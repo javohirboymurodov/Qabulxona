@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Form, Input, Select, InputNumber, DatePicker, Upload, Button, App } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Upload, Button, App } from 'antd';
 import { 
   UserOutlined, 
   PhoneOutlined, 
@@ -10,7 +10,6 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 
-const { Option } = Select;
 const { TextArea } = Input;
 
 const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
@@ -142,19 +141,13 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
 
         <Form.Item
           name="department"
-          label="Бўлим"
-          rules={[{ required: true, message: 'Илтимос, бўлимни танланг' }]}
+          label="Комплекс, Хизмат ёки Бўлим номи"
+          rules={[{ required: true, message: 'Илтимос, номини киритинг' }]}
         >
-          <Select
-            placeholder="Бўлимни танланг"
-            suffixIcon={<BankOutlined />}
-          >
-            <Option value="IT">Ит Бўлими</Option>
-            <Option value="HR">HR Бўлими</Option>
-            <Option value="Marketing">Маркетинг Бўлими</Option>
-            <Option value="Finance">Молия Бўлими</Option>
-            <Option value="Operations">Операциялар Бўлими</Option>
-          </Select>
+          <Input
+            prefix={<BankOutlined />}
+            placeholder="Масалан: Алоқа хизмати, Курилиш комплекси, Котибият"
+          />
         </Form.Item>
 
         <Form.Item
@@ -227,7 +220,7 @@ const AddEmployeeModal = ({ onClose, onSave, initialValues = null }) => {
         </Form.Item>
 
         <Form.Item
-          label="Obektivka (PDF)"
+          label=" Объективка(PDF)"
         >
           <Upload
             beforeUpload={beforeUpload}
