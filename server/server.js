@@ -17,9 +17,6 @@ const adminRoutes = require('./routes/admin');
 
 require('./models/Admin');
 
-// Telegram bot'ni import qilish (server ishga tushgandan keyin)
-require('./telegram/bot');
-
 const app = express();
 
 // Middleware
@@ -38,12 +35,10 @@ app.use(
 // Routerlarni ulash
 app.use("/api/employees", employeeRoutes);
 app.use("/api/meetings", meetingRoutes);
-app.use("/api/schedule", scheduleRoutes); // Bu route /api/daily-plan ni ham qamrab oladi
+app.use("/api/schedule", scheduleRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reception-history', receptionHistoryRoutes);
 app.use('/api/admins', adminRoutes);
-
-// Daily plan uchun alohida route (agar kerak bo'lsa)
 app.use('/api/daily-plan', scheduleRoutes);
 
 // Swagger API Documentation
@@ -58,19 +53,6 @@ app.use(errorHandler);
 // MongoDB ga ulanish
 connectDB();
 
-// Telegram bot'ni ishga tushirish
-if (process.env.TELEGRAM_BOT_TOKEN) {
-  try {
-    require('./telegram/bot');
-    console.log('🤖 Telegram bot imported successfully');
-  } catch (error) {
-    console.error('❌ Failed to import Telegram bot:', error.message);
-    console.log('⚠️ Server will continue without Telegram bot');
-  }
-} else {
-  console.log('⚠️ TELEGRAM_BOT_TOKEN not found. Telegram bot disabled.');
-}
-
 const PORT = process.env.PORT || 5000;
 
 // Health check route
@@ -78,6 +60,42 @@ app.get("/", (req, res) => {
   res.send("Server is running");
 });
 
+// Bot initialization - faqat bir marta
+let botInitialized = false;
+
+async function initializeTelegramBot() {
+  if (botInitialized) {
+    console.log('⚠️ Bot already initialized, skipping...');
+    return;
+  }
+
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    console.log('⚠️ TELEGRAM_BOT_TOKEN not found. Telegram bot disabled.');
+    return;
+  }
+
+  try {
+    // Bot modulini import qilish
+    const { bot, notificationService } = require('./telegram/bot');
+    
+    // Global notification service
+    global.telegramNotificationService = notificationService;
+    
+    console.log('🤖 Telegram bot initialized successfully');
+    botInitialized = true;
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize Telegram bot:', error.message);
+    console.log('⚠️ Server will continue without Telegram bot');
+  }
+}
+
+// Server ishga tushishi
 app.listen(PORT, async () => {
-    console.log(`Server ${PORT} portda ishga tushdi`);
+  console.log(`Server ${PORT} portda ishga tushdi`);
+  
+  // Bot ni server to'liq ishga tushgandan keyin initialize qilish
+  setTimeout(() => {
+    initializeTelegramBot();
+  }, 2000); // 2 sekund kutish
 });

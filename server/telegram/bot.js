@@ -4,17 +4,21 @@ const connectDB = require('../config/db');
 const Employee = require('../models/Employee');
 const NotificationService = require('./services/notificationService');
 
-// Bot configuration
+// Bot configuration with better error handling
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { 
   polling: {
-    interval: 1000,
-    autoStart: false
+    interval: 2000,  // Increased interval
+    autoStart: false, // Manual start
+    params: {
+      timeout: 10
+    }
   },
   request: {
     agentOptions: {
       keepAlive: true,
       family: 4
-    }
+    },
+    timeout: 30000 // 30 seconds timeout
   }
 });
 
@@ -27,40 +31,107 @@ global.telegramNotificationService = notificationService;
 // Connect to database
 connectDB();
 
+// Bot state tracking
+let isPolling = false;
+let pollingRetries = 0;
+const MAX_RETRIES = 5;
+
 // In-memory map for short callback tokens per chat for task items
 // Structure: Map<chatId, Map<token, taskObject>>
 const chatTaskTokenMap = new Map();
 
-// Initialize reminder schedulers
-const { initializeSchedulers } = require('./scheduler/reminderScheduler');
-initializeSchedulers();
+// Safe bot start function
+async function startBotSafely() {
+  if (isPolling) {
+    console.log('🤖 Bot is already polling');
+    return;
+  }
 
-// Start bot polling manually
-try {
-  bot.startPolling();
-  console.log('🤖 Telegram bot ishga tushdi!');
-} catch (error) {
-  console.error('Bot start error:', error);
+  try {
+    // Test bot token first
+    const me = await bot.getMe();
+    console.log(`🤖 Bot authenticated as: @${me.username}`);
+    
+    // Start polling
+    await bot.startPolling({
+      restart: false
+    });
+    
+    isPolling = true;
+    pollingRetries = 0;
+    console.log('🤖 Telegram bot polling started successfully!');
+    
+    // Initialize schedulers after bot starts
+    const { initializeSchedulers } = require('./scheduler/reminderScheduler');
+    initializeSchedulers();
+    
+  } catch (error) {
+    console.error('❌ Bot start error:', error.message);
+    isPolling = false;
+    
+    // Retry logic
+    if (pollingRetries < MAX_RETRIES && !error.message.includes('409')) {
+      pollingRetries++;
+      console.log(`🔄 Retrying bot start in 5 seconds... (${pollingRetries}/${MAX_RETRIES})`);
+      setTimeout(startBotSafely, 5000);
+    } else if (error.message.includes('409')) {
+      console.error('❌ Bot token conflict (409): Another instance is already running');
+      console.log('💡 Stop other bot instances or use a different token');
+    } else {
+      console.error('❌ Max retries reached. Bot initialization failed.');
+    }
+  }
 }
 
-// Error handling
-bot.on('polling_error', (error) => {
-  console.error('Polling error:', error);
-  // Restart polling after error
-  setTimeout(() => {
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('🛑 Shutting down bot gracefully...');
+  if (isPolling) {
     try {
-      bot.stopPolling();
-      bot.startPolling();
-      console.log('🔄 Bot polling restarted');
-    } catch (restartError) {
-      console.error('Bot restart error:', restartError);
+      await bot.stopPolling();
+      isPolling = false;
+      console.log('✅ Bot stopped successfully');
+    } catch (error) {
+      console.error('Error stopping bot:', error.message);
     }
-  }, 5000);
+  }
+  process.exit(0);
+});
+
+// Enhanced error handling
+bot.on('polling_error', (error) => {
+  console.error('🔴 Polling error:', error.message);
+  
+  if (error.code === 'EFATAL' || error.message.includes('409')) {
+    console.error('❌ Fatal bot error or conflict detected');
+    isPolling = false;
+    return;
+  }
+  
+  // Auto-restart on non-fatal errors
+  if (isPolling && pollingRetries < MAX_RETRIES) {
+    console.log('🔄 Attempting to restart polling...');
+    isPolling = false;
+    setTimeout(() => {
+      pollingRetries++;
+      startBotSafely();
+    }, 10000); // Wait 10 seconds before restart
+  }
 });
 
 bot.on('error', (error) => {
-  console.error('Bot error:', error);
+  console.error('🔴 Bot error:', error.message);
+  if (error.message.includes('409')) {
+    console.error('❌ Bot instance conflict detected');
+    isPolling = false;
+  }
 });
+
+// Start bot immediately when module is loaded
+startBotSafely();
+
+// Webhook cleanup (if using webhooks before)
+bot.deleteWebHook().catch(() => {}); // Ignore errors
 
 // Start command handler
 bot.onText(/\/start/, async (msg) => {
@@ -310,7 +381,7 @@ bot.onText(/\/history/, async (msg) => {
     }
     
     if (employee.taskHistory.length === 0) {
-      bot.sendMessage(chatId, '📋 Тошриқлар тарихси бўш.');
+      bot.sendMessage(chatId, '📋 Тошриқлар тарихи бўш.');
       return;
     }
     
@@ -326,7 +397,7 @@ bot.onText(/\/history/, async (msg) => {
       
       message += `${index + 1}. ${statusEmoji} **${task.description}**\n`;
       message += `   📅 Берилган: ${assignedDate.toLocaleDateString('uz-UZ')}\n`;
-      message += `   📊 Холat: ${task.status === 'completed' ? 'Бажарилган' : task.status === 'overdue' ? 'Муддати ўтган' : 'Жараёнда'}\n`;
+      message += `   📊 Холат: ${task.status === 'completed' ? 'Бажарилган' : task.status === 'overdue' ? 'Муддати ўтган' : 'Жараёнда'}\n`;
       if (task.completedAt) {
         message += `   ✅ Бажарилган: ${new Date(task.completedAt).toLocaleDateString('uz-UZ')}\n`;
       }
@@ -446,13 +517,13 @@ bot.on('callback_query', async (callbackQuery) => {
           break;
       // Info handlers (just show current page info)
       case 'tasks_info':
-        bot.answerCallbackQuery(callbackQuery.id, { text: 'Тошриқлар тарихси саҳифаси' });
+        bot.answerCallbackQuery(callbackQuery.id, { text: 'Тошриқлар тарихи саҳифаси' });
         break;
       case 'receptions_info':
-        bot.answerCallbackQuery(callbackQuery.id, { text: 'Қабуллар тарихси саҳифаси' });
+        bot.answerCallbackQuery(callbackQuery.id, { text: 'Қабуллар тарихи саҳифаси' });
         break;
       case 'meetings_info':
-        bot.answerCallbackQuery(callbackQuery.id, { text: 'Мажлислар тарихси саҳифаси' });
+        bot.answerCallbackQuery(callbackQuery.id, { text: 'Мажлислар тарихи саҳифаси' });
         break;
       // Inline button handlers
       case data.match(/^view_task_(.+)$/)?.input:
@@ -496,7 +567,8 @@ function updateTaskStatus(task) {
 async function handleProfileCommand(chatId, employee) {
   // Load freshest employee + reception tasks to reflect real counts
   const fresh = await Employee.findById(employee._id);
-  const baseTasks = fresh?.taskHistory || employee.taskHistory || [];
+  const source = fresh || employee;
+  const baseTasks = source?.taskHistory || employee.taskHistory || [];
   let receptionTasks = [];
   try {
     const ReceptionHistory = require('../models/ReceptionHistory');
