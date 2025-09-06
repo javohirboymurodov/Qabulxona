@@ -4,22 +4,9 @@ const connectDB = require('../config/db');
 const Employee = require('../models/Employee');
 const NotificationService = require('./services/notificationService');
 
-// Bot configuration with better error handling
+// Disable polling initially and use manual control
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { 
-  polling: {
-    interval: 2000,  // Increased interval
-    autoStart: false, // Manual start
-    params: {
-      timeout: 10
-    }
-  },
-  request: {
-    agentOptions: {
-      keepAlive: true,
-      family: 4
-    },
-    timeout: 30000 // 30 seconds timeout
-  }
+  polling: false // Completely disable auto-polling
 });
 
 // Initialize notification service
@@ -31,108 +18,171 @@ global.telegramNotificationService = notificationService;
 // Connect to database
 connectDB();
 
-// Bot state tracking
+// Bot state
 let isPolling = false;
 let pollingRetries = 0;
-const MAX_RETRIES = 5;
+const MAX_RETRIES = 3;
+let pollingTimeout = null;
 
-// In-memory map for short callback tokens per chat for task items
-// Structure: Map<chatId, Map<token, taskObject>>
+// In-memory map for callback tokens
 const chatTaskTokenMap = new Map();
 
 // Safe bot start function
+// Clean bot start with comprehensive conflict resolution
 async function startBotSafely() {
   if (isPolling) {
-    console.log('🤖 Bot is already polling');
+    console.log('⚠️ Bot is already running');
     return;
   }
 
   try {
-    // Test bot token first
-    const me = await bot.getMe();
-    console.log(`🤖 Bot authenticated as: @${me.username}`);
+    console.log('🔄 Starting Telegram bot...');
     
-    // Start polling
+    // Step 1: Test bot token
+    const me = await bot.getMe();
+    console.log(`🤖 Bot verified: @${me.username}`);
+    
+    // Step 2: Force clean any webhooks
+    try {
+      await bot.deleteWebHook({ drop_pending_updates: true });
+      console.log('✅ Webhooks cleared');
+    } catch (err) {
+      console.log('⚠️ Webhook clear failed (might be OK):', err.message);
+    }
+    
+    // Step 3: Clear any pending updates
+    try {
+      const updates = await bot.getUpdates({ timeout: 1, limit: 100 });
+      if (updates && updates.length > 0) {
+        const lastId = updates[updates.length - 1].update_id;
+        await bot.getUpdates({ offset: lastId + 1, timeout: 1 });
+        console.log(`✅ Cleared ${updates.length} pending updates`);
+      }
+    } catch (err) {
+      console.log('⚠️ Update clear failed:', err.message);
+    }
+    
+    // Step 4: Wait a bit to ensure clean state
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Step 5: Start polling with enhanced options
     await bot.startPolling({
-      restart: false
+      interval: 3000,
+      params: {
+        timeout: 10,
+        allowed_updates: ['message', 'callback_query', 'inline_query']
+      }
     });
     
     isPolling = true;
     pollingRetries = 0;
-    console.log('🤖 Telegram bot polling started successfully!');
+    console.log('🎉 Telegram bot started successfully!');
     
-    // Initialize schedulers after bot starts
-    const { initializeSchedulers } = require('./scheduler/reminderScheduler');
-    initializeSchedulers();
+    // Initialize schedulers after successful start
+    setTimeout(() => {
+      try {
+        const { initializeSchedulers } = require('./scheduler/reminderScheduler');
+        initializeSchedulers();
+        console.log('📅 Schedulers initialized');
+      } catch (err) {
+        console.log('⚠️ Scheduler init failed:', err.message);
+      }
+    }, 1000);
     
   } catch (error) {
-    console.error('❌ Bot start error:', error.message);
+    console.error('❌ Bot start failed:', error.message);
     isPolling = false;
     
-    // Retry logic
-    if (pollingRetries < MAX_RETRIES && !error.message.includes('409')) {
-      pollingRetries++;
-      console.log(`🔄 Retrying bot start in 5 seconds... (${pollingRetries}/${MAX_RETRIES})`);
-      setTimeout(startBotSafely, 5000);
-    } else if (error.message.includes('409')) {
-      console.error('❌ Bot token conflict (409): Another instance is already running');
-      console.log('💡 Stop other bot instances or use a different token');
+    // Handle specific error types
+    if (error.message.includes('409')) {
+      console.log('🔄 Conflict detected, waiting before retry...');
+      
+      if (pollingRetries < MAX_RETRIES) {
+        pollingRetries++;
+        const delay = Math.min(10000 * pollingRetries, 60000); // Max 1 minute
+        console.log(`⏳ Retry ${pollingRetries}/${MAX_RETRIES} in ${delay/1000}s...`);
+        
+        pollingTimeout = setTimeout(() => {
+          startBotSafely();
+        }, delay);
+      } else {
+        console.error('💔 Max retries reached. Bot startup failed.');
+        console.log('💡 Please check if another bot instance is running');
+      }
     } else {
-      console.error('❌ Max retries reached. Bot initialization failed.');
+      console.error('💔 Bot startup failed with non-conflict error');
     }
   }
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('🛑 Shutting down bot gracefully...');
-  if (isPolling) {
-    try {
-      await bot.stopPolling();
-      isPolling = false;
-      console.log('✅ Bot stopped successfully');
-    } catch (error) {
-      console.error('Error stopping bot:', error.message);
-    }
-  }
-  process.exit(0);
-});
 
 // Enhanced error handling
 bot.on('polling_error', (error) => {
   console.error('🔴 Polling error:', error.message);
   
-  if (error.code === 'EFATAL' || error.message.includes('409')) {
-    console.error('❌ Fatal bot error or conflict detected');
-    isPolling = false;
+  // Stop current polling
+  isPolling = false;
+  
+  // Handle 409 conflicts more aggressively
+  if (error.message.includes('409')) {
+    console.log('🛑 Stopping due to 409 conflict');
+    
+    try {
+      bot.stopPolling();
+    } catch (e) {
+      console.log('⚠️ Stop polling failed:', e.message);
+    }
+    
+    // Don't auto-restart on 409 to prevent loops
+    console.log('💡 Not auto-restarting due to conflict. Manual intervention needed.');
     return;
   }
   
-  // Auto-restart on non-fatal errors
-  if (isPolling && pollingRetries < MAX_RETRIES) {
-    console.log('🔄 Attempting to restart polling...');
-    isPolling = false;
-    setTimeout(() => {
-      pollingRetries++;
+  // Auto-restart on other errors (with limit)
+  if (pollingRetries < MAX_RETRIES) {
+    console.log('🔄 Attempting restart due to non-conflict error...');
+    pollingRetries++;
+    
+    pollingTimeout = setTimeout(() => {
       startBotSafely();
-    }, 10000); // Wait 10 seconds before restart
+    }, 5000);
   }
 });
 
 bot.on('error', (error) => {
   console.error('🔴 Bot error:', error.message);
   if (error.message.includes('409')) {
-    console.error('❌ Bot instance conflict detected');
     isPolling = false;
+    console.log('🛑 Bot disabled due to conflict');
   }
 });
 
-// Start bot immediately when module is loaded
-startBotSafely();
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('🛑 Shutting down bot...');
+  
+  if (pollingTimeout) {
+    clearTimeout(pollingTimeout);
+  }
+  
+  if (isPolling) {
+    try {
+      await bot.stopPolling();
+      console.log('✅ Bot stopped');
+    } catch (error) {
+      console.log('⚠️ Stop error:', error.message);
+    }
+  }
+  
+  process.exit(0);
+});
 
-// Webhook cleanup (if using webhooks before)
-bot.deleteWebHook().catch(() => {}); // Ignore errors
+// Initialize bot after a delay to ensure server is ready
+setTimeout(() => {
+  console.log('🚀 Initializing Telegram bot...');
+  startBotSafely();
+}, 3000);
 
+// All your existing bot handlers remain the same...
 // Start command handler
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
